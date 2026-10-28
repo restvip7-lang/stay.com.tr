@@ -27,6 +27,12 @@ function normalize(x: any): HomeConfig {
   out.projects = Array.isArray(out.projects) ? out.projects.filter((c: unknown) => typeof c === 'string') : d.projects;
   out.hero = Array.isArray(out.hero) ? out.hero.filter((h: any) => h && typeof h.project === 'string') : d.hero;
   out.projectsVisible = Math.max(1, Math.min(50, Number(out.projectsVisible) || d.projectsVisible));
+  const pv = out.prive && typeof out.prive === 'object' ? out.prive : {};
+  out.prive = {
+    hero: Array.isArray(pv.hero) ? pv.hero.filter((c: unknown) => typeof c === 'string') : d.prive.hero,
+    projects: Array.isArray(pv.projects) ? pv.projects.filter((c: unknown) => typeof c === 'string') : d.prive.projects,
+    projectsVisible: Math.max(1, Math.min(50, Number(pv.projectsVisible) || d.prive.projectsVisible)),
+  };
   return out;
 }
 

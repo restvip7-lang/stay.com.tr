@@ -1,19 +1,22 @@
 ---
 import Img from './Img.astro';
 import type { Project } from '../lib/api';
-interface Props { p: Project; big?: boolean }
-const { p, big = false } = Astro.props;
+interface Props { p: Project; big?: boolean; prive?: boolean }
+const { p, big = false, prive = false } = Astro.props;
 ---
-<a href={p.url} class="group card flex h-full flex-col overflow-hidden p-1 pb-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5">
+<a href={p.url} class:list={['group card flex h-full flex-col overflow-hidden p-1 pb-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5', prive && 'card-prive']}>
   <span class:list={['relative block overflow-hidden rounded-[16px]', big ? 'aspect-[16/9] md:aspect-[21/8]' : 'aspect-[4/3]']}>
     <Img src={p.image} alt={p.title} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" />
-    {p.action && <span class="chip chip-accent absolute left-3 top-3">{p.action}</span>}
+    <span class="absolute left-3 top-3 flex gap-2">
+      {prive && <span class="chip chip-accent">PRIVE</span>}
+      {p.action && <span class:list={['chip', prive ? 'chip-dark' : 'chip-accent']}>{p.action}</span>}
+    </span>
   </span>
   <span class="flex items-start justify-between gap-4 px-4 pt-4">
     <span>
-      <span class:list={['block font-medium tracking-[-0.02em]', big ? 'text-2xl md:text-3xl' : 'text-xl']}>{p.title}</span>
-      <span class="mt-1 block text-sm text-muted">{[p.city, p.area].filter(Boolean).join(', ') || 'Турция'}</span>
+      <span class:list={['display block', big ? 'text-2xl md:text-3xl' : 'text-xl', prive && 'text-accent']}>{p.title}</span>
+      <span class:list={['mt-1 block text-sm', prive ? 'text-accent' : 'text-muted']}>{[p.city, p.area].filter(Boolean).join(', ') || 'Турция'}</span>
     </span>
-    {p.priceFrom && <span class="shrink-0 text-right text-lg font-medium">от {p.priceFrom.toLocaleString('ru-RU')} €</span>}
+    {p.priceFrom && <span class:list={['shrink-0 text-right font-medium', prive ? 'text-base text-accent' : 'text-lg']}>от {p.priceFrom.toLocaleString('ru-RU')} €</span>}
   </span>
 </a>

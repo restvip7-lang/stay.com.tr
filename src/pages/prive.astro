@@ -1,0 +1,31 @@
+---
+// Страница PRIVE — по готовой версии на stay.com.tr/prive/:
+// слайдер проектов, фильтр, закрытые проекты (PRIVE), блок о компании.
+import Base from '../layouts/Base.astro';
+import HomeHero from '../components/HomeHero.astro';
+import FilterForm from '../components/FilterForm.astro';
+import ProjectsBlock from '../components/ProjectsBlock.astro';
+import CompanySpotlight from '../components/CompanySpotlight.astro';
+import { getHomeSections, getProjects } from '../lib/api';
+import { getHomeConfig } from '../lib/homeConfig';
+
+const [home, projects, sections] = await Promise.all([getHomeConfig(), getProjects(), getHomeSections()]);
+const byCode = (c: string) => projects.find((p) => p.code === c);
+const cfg = home.prive;
+const hero = cfg.hero.map(byCode).filter(Boolean) as typeof projects;
+// Порядок — из настроек; закрытые проекты, которых там нет, добавляются в конец.
+const ordered = cfg.projects.map(byCode).filter((p) => p?.isPrivate) as typeof projects;
+const list = [...ordered, ...projects.filter((p) => p.isPrivate && !ordered.includes(p))];
+---
+<Base title="PRIVE — закрытые проекты Stay Property" description="Закрытые проекты Stay Property в Турции: специальные условия и лоты, которых нет в открытой продаже." overlayHeader>
+  <div class="theme-prive">
+    <HomeHero slides={hero} />
+    <section class="container-x mt-16 md:mt-24">
+      <h1 class="display h-section mb-6 hidden md:block">Выбрать недвижимость</h1>
+      <h1 class="display h-section mb-6 md:hidden">Выбрать недвижимость</h1>
+      <FilterForm action="/sale/" />
+    </section>
+    <ProjectsBlock projects={list} visible={cfg.projectsVisible} prive />
+    <CompanySpotlight company={sections.company} />
+  </div>
+</Base>

@@ -11,7 +11,7 @@ export const site = {
   brands: [
     { label: 'STAY PROJECTS', href: '/complex/' },
     { label: 'STAY PROPERTY', href: '/sale/' },
-    { label: 'PRIVE', href: 'https://stayproperty.com/prive/', external: true },
+    { label: 'PRIVE', href: '/prive/' },
     { label: 'RENTAL', href: '/rental/' },
     { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
   ],

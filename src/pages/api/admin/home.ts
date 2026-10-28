@@ -5,7 +5,7 @@ import { isrBypassToken, saveHomeConfig } from '../../../lib/homeConfig';
 export const prerender = false;
 
 // Страницы, где выводятся настройки главной: их кэш сбрасываем сразу после сохранения.
-const PATHS = ['/', '/complex/'];
+const PATHS = ['/', '/complex/', '/prive/'];
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   if (!isAdmin(cookies)) return new Response('Нужно войти', { status: 401 });

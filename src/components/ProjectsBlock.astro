@@ -2,13 +2,13 @@
 import ProjectCard from './ProjectCard.astro';
 import Icon from './Icon.astro';
 import type { Project } from '../lib/api';
-interface Props { title: string; projects: Project[]; visible?: number; moreHref?: string }
-const { title, projects, visible = 5, moreHref } = Astro.props;
+interface Props { title?: string; projects: Project[]; visible?: number; moreHref?: string; prive?: boolean }
+const { title, projects, visible = 5, moreHref, prive = false } = Astro.props;
 const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, u: p.url, lat: p.lat, lng: p.lng, a: [p.city, p.area].filter(Boolean).join(', '), pr: p.priceFrom }));
 ---
 <section class="container-x mt-20 md:mt-28" data-projects>
-  <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-    <h2 class="display h-section">{title}</h2>
+  <div class:list={['mb-8 flex flex-wrap items-end gap-4', title ? 'justify-between' : 'justify-end']}>
+    {title && <h2 class="display h-section">{title}</h2>}
     <div class="flex rounded-full bg-white p-1 shadow-sm" role="tablist" aria-label="Вид">
       <button type="button" role="tab" aria-selected="true" data-mode="grid" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="grid" class="size-4" />Плитка</button>
       <button type="button" role="tab" aria-selected="false" data-mode="map" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="pin" class="size-4" />На карте</button>
@@ -17,8 +17,8 @@ const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, 
   <div data-view="grid">
     <div class="grid gap-4 md:grid-cols-2">
       {projects.map((p, i) => (
-        <div class:list={[i === 0 && 'md:col-span-2', i >= visible && 'hidden']} data-more-item={i >= visible ? '' : undefined}>
-          <ProjectCard p={p} big={i === 0} />
+        <div class:list={[i === 0 && !prive && 'md:col-span-2', i >= visible && 'hidden']} data-more-item={i >= visible ? '' : undefined}>
+          <ProjectCard p={p} big={i === 0 && !prive} prive={prive} />
         </div>
       ))}
     </div>
