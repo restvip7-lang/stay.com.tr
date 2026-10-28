@@ -14,7 +14,7 @@ const online = home.buyOnline;
   <div class="grid gap-3 md:grid-cols-3">
     {v.map((c) => (
       <a href={c.href} class:list={['group relative flex min-h-[220px] flex-col overflow-hidden rounded-[var(--radius-card)] p-6 transition-transform hover:-translate-y-0.5 md:min-h-[260px]', tones[c.tone]]}>
-        <span class="text-2xl font-medium tracking-[-0.02em] md:text-[28px]">{c.title}</span>
+        <span class="text-2xl font-medium tracking-[-0.01em] md:text-[28px]">{c.title}</span>
         <span class:list={['mt-2 max-w-[260px] text-[15px]', c.tone === 'dark' ? 'text-white/70' : 'text-ink/70']}>{c.text}</span>
         {c.accent && <span class="display absolute bottom-4 right-6 text-[88px] leading-none text-accent">{c.accent}</span>}
         {c.tone === 'dark' && <svg class="absolute -right-6 top-0 h-full w-1/2 text-white/40" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0 L60 8 L100 100" fill="none" stroke="currentColor" stroke-width=".5" /></svg>}
@@ -25,7 +25,7 @@ const online = home.buyOnline;
     <div class="flex flex-wrap gap-2">{online.tags.map((t) => <span class="chip">{t}</span>)}</div>
     <div class="mt-8 grid gap-4 md:grid-cols-[1fr_auto] md:items-end">
       <div>
-        <h3 class="text-2xl font-medium tracking-[-0.02em] md:text-[28px]">{online.title}</h3>
+        <h3 class="text-2xl font-medium tracking-[-0.01em] md:text-[28px]">{online.title}</h3>
         <p class="mt-2 max-w-md text-ink/70">{online.text}</p>
       </div>
       <a href={online.href} class="btn btn-dark">{online.link}</a>

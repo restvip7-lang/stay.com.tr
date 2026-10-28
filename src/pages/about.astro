@@ -21,7 +21,7 @@ const team = about.team.map((t: Record<string, string>) => ({
 <Base title="О компании" description="Stay Property — агентство недвижимости полного цикла и застройщик в Аланье. С 2017 года, 24 собственных проекта.">
   <section class="container-x pt-10 md:pt-16">
     <h1 class="display h-page max-w-5xl">{about.title.split('\n')[0]}</h1>
-    {about.title.split('\n')[1] && <p class="mt-4 font-display text-xl tracking-[-0.02em] text-ink/70 md:text-2xl">{about.title.split('\n')[1]}</p>}
+    {about.title.split('\n')[1] && <p class="mt-4 font-display text-xl tracking-[-0.01em] text-ink/70 md:text-2xl">{about.title.split('\n')[1]}</p>}
     <div class="mt-12 grid gap-10 md:grid-cols-2">
       <div class="prose-stay text-[17px]" set:html={sanitize(about.html)} />
       <div class="relative overflow-hidden rounded-[var(--radius-big)]">
@@ -42,7 +42,7 @@ const team = about.team.map((t: Record<string, string>) => ({
       {about.why.map((w, i) => (
         <article class="card overflow-hidden p-1">
           <div class="relative aspect-[16/10] overflow-hidden rounded-[16px]"><Img src={w.image} alt="" class="size-full" /><span class="chip absolute left-3 top-3">{i + 1}</span></div>
-          <div class="p-5"><h3 class="text-xl font-medium tracking-[-0.02em]">{w.title}</h3><div class="prose-stay mt-2 text-[15px]" set:html={sanitize(w.html)} /></div>
+          <div class="p-5"><h3 class="text-xl font-medium tracking-[-0.01em]">{w.title}</h3><div class="prose-stay mt-2 text-[15px]" set:html={sanitize(w.html)} /></div>
         </article>
       ))}
     </div>
