@@ -1,0 +1,4 @@
+---
+// Старые ссылки вида /news/<slug>/ ведут на русскую версию.
+return Astro.redirect(`/ru/news/${Astro.params.slug}/`, 301);
+---

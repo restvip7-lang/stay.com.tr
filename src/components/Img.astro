@@ -1,0 +1,8 @@
+---
+// Картинка с заглушкой: если адреса нет или файл не загрузился, показываем мягкий фон.
+interface Props { src?: string | null; alt: string; class?: string; loading?: 'lazy' | 'eager'; sizes?: string }
+const { src, alt, class: cls = '', loading = 'lazy' } = Astro.props;
+---
+{src
+  ? <img src={src} alt={alt} loading={loading} decoding="async" class:list={['img-fallback object-cover', cls]} onerror="this.removeAttribute('src');this.style.visibility='hidden';this.parentElement&&this.parentElement.classList.add('img-fallback')" />
+  : <div class:list={['img-fallback', cls]} role="img" aria-label={alt}></div>}

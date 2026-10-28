@@ -1,0 +1,105 @@
+---
+// Калькулятор рассрочки/ипотеки. Стоимость подставляется из цены объекта.
+interface Props { price?: number | null; withMortgage?: boolean; compact?: boolean; downPct?: number | null; months?: number | null }
+const { price, withMortgage = false, compact = false, downPct: dp, months: mo } = Astro.props;
+const downPct = dp ?? 10;
+const months = mo ?? 24;
+const cost = price && price > 0 ? price : 100000;
+const max = Math.max(1000000, Math.ceil((cost * 2) / 100000) * 100000);
+const min = Math.min(cost, 50000);
+---
+<div data-calc data-mode="installment" class="calc">
+  {withMortgage && (
+    <div class="mb-5 flex gap-2" role="tablist">
+      <button type="button" data-tab="installment" class="calc-tab chip px-4 py-2" aria-selected="true">Рассрочка</button>
+      <button type="button" data-tab="mortgage" class="calc-tab chip px-4 py-2" aria-selected="false">Ипотека</button>
+    </div>
+  )}
+  <div class:list={['grid gap-4', !compact && 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]']}>
+    <div class="card space-y-5 p-5 md:p-6">
+      <div>
+        <label class="label" for="c-cost">Стоимость, €</label>
+        <input id="c-cost" class="field max-w-[260px]" inputmode="numeric" data-cost value={cost.toLocaleString('ru-RU')} />
+        <input type="range" class="calc-range mt-3 w-full" min={min} max={max} step="1000" value={cost} data-cost-r aria-label="Стоимость" />
+        <div class="flex justify-between text-xs text-muted"><span>{min.toLocaleString('ru-RU')}</span><span>{max.toLocaleString('ru-RU')}</span></div>
+      </div>
+      <div>
+        <label class="label" for="c-down">Первый взнос, €</label>
+        <div class="flex items-center gap-3">
+          <input id="c-down" class="field max-w-[260px]" inputmode="numeric" data-down value={Math.round((cost * downPct) / 100).toLocaleString('ru-RU')} />
+          <span class="chip ml-auto px-3 py-2" data-down-pct>{downPct}%</span>
+        </div>
+        <input type="range" class="calc-range mt-3 w-full" min="0" max="100" step="1" value={downPct} data-down-r aria-label="Первый взнос в процентах" />
+        <div class="flex justify-between text-xs text-muted"><span>0%</span><span>100%</span></div>
+      </div>
+      <div>
+        <label class="label" for="c-months">Срок, месяцев</label>
+        <input id="c-months" class="field max-w-[120px]" inputmode="numeric" data-months value={months} />
+        <input type="range" class="calc-range mt-3 w-full" min="1" max="120" step="1" value={months} data-months-r aria-label="Срок" />
+        <div class="flex justify-between text-xs text-muted"><span>1</span><span>120</span></div>
+      </div>
+      <div data-rate-row hidden>
+        <label class="label" for="c-rate">Ставка, % годовых</label>
+        <input id="c-rate" class="field max-w-[120px]" inputmode="decimal" placeholder="например, 12" data-rate />
+        <p class="mt-2 text-xs text-muted">Ставку уточняйте у менеджера: она зависит от банка и объекта.</p>
+      </div>
+      <a href="#lead" data-lead-open class="btn btn-ghost">Обсудить условия с менеджером</a>
+    </div>
+    <div class="self-start rounded-[var(--radius-card)] bg-lavender-2 p-2">
+      <dl class="grid grid-cols-3 gap-2 rounded-[16px] bg-white p-4 text-sm">
+        <div><dt class="text-xs text-muted">Срок</dt><dd class="mt-1 font-medium" data-out-months>{months} мес.</dd></div>
+        <div><dt class="text-xs text-muted">Платёж</dt><dd class="mt-1 font-medium">Ежемесячно</dd></div>
+        <div><dt class="text-xs text-muted">Сумма платежа</dt><dd class="mt-1 text-lg font-medium" data-out-pay>—</dd></div>
+      </dl>
+      <p class="px-3 py-3 text-xs text-muted" data-out-note>Рассрочка без процентов. Расчёт предварительный.</p>
+    </div>
+  </div>
+</div>
+
+<style>
+  .calc-tab[aria-selected='true'] { background: var(--color-ink); color: #fff; border-color: var(--color-ink); }
+  .calc-range { accent-color: var(--color-accent); }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-calc]').forEach((root) => {
+    const $ = <T extends HTMLElement>(s: string) => root.querySelector<T>(s)!;
+    const cost = $<HTMLInputElement>('[data-cost]'), costR = $<HTMLInputElement>('[data-cost-r]');
+    const down = $<HTMLInputElement>('[data-down]'), downR = $<HTMLInputElement>('[data-down-r]'), pct = $('[data-down-pct]');
+    const months = $<HTMLInputElement>('[data-months]'), monthsR = $<HTMLInputElement>('[data-months-r]');
+    const rate = $<HTMLInputElement>('[data-rate]'), rateRow = $('[data-rate-row]');
+    const outM = $('[data-out-months]'), outP = $('[data-out-pay]'), note = $('[data-out-note]');
+    const n = (s: string) => Number(s.replace(/[^\d.,]/g, '').replace(',', '.')) || 0;
+    const f = (v: number) => Math.round(v).toLocaleString('ru-RU');
+    const calc = () => {
+      const c = n(cost.value), d = Math.min(n(down.value), c), m = Math.max(1, Math.round(n(months.value)));
+      pct.textContent = c ? `${Math.round((d / c) * 100)}%` : '0%';
+      outM.textContent = `${m} мес.`;
+      const body = c - d;
+      if (root.dataset.mode === 'mortgage') {
+        const r = n(rate.value) / 100 / 12;
+        if (!rate.value) { outP.textContent = '—'; note.textContent = 'Укажите ставку, чтобы рассчитать платёж.'; return; }
+        const pay = r ? (body * r) / (1 - Math.pow(1 + r, -m)) : body / m;
+        outP.textContent = `${f(pay)} €`;
+        note.textContent = 'Аннуитетный платёж. Расчёт предварительный.';
+      } else {
+        outP.textContent = `${f(body / m)} €`;
+        note.textContent = 'Рассрочка без процентов. Расчёт предварительный.';
+      }
+    };
+    cost.addEventListener('input', () => { costR.value = String(n(cost.value)); down.value = f((n(cost.value) * +downR.value) / 100); calc(); });
+    costR.addEventListener('input', () => { cost.value = f(+costR.value); down.value = f((+costR.value * +downR.value) / 100); calc(); });
+    down.addEventListener('input', () => { const c = n(cost.value); downR.value = String(c ? Math.round((n(down.value) / c) * 100) : 0); calc(); });
+    downR.addEventListener('input', () => { down.value = f((n(cost.value) * +downR.value) / 100); calc(); });
+    months.addEventListener('input', () => { monthsR.value = String(n(months.value)); calc(); });
+    monthsR.addEventListener('input', () => { months.value = monthsR.value; calc(); });
+    rate.addEventListener('input', calc);
+    root.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+      root.dataset.mode = b.dataset.tab!;
+      root.querySelectorAll('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      rateRow.hidden = b.dataset.tab !== 'mortgage';
+      calc();
+    }));
+    calc();
+  });
+</script>

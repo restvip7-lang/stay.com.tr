@@ -1,0 +1,34 @@
+{
+  "_comment": "Настройки главной. Позже ими будет управлять админка. Проекты указываются кодами из API (поле code).",
+  "hero": [
+    { "project": "exodus_premium_town" },
+    { "project": "exodus_aqua_deluxe_konakli" },
+    { "project": "exodus_twins_residence" },
+    { "project": "exodus_dreams_residence" }
+  ],
+  "projectsTitle": "STAY Projects",
+  "projects": [
+    "exodus_premium_town",
+    "exodus_aqua_deluxe_konakli",
+    "exodus_twins_residence",
+    "exodus_dreams_residence",
+    "exodus_nature_residence",
+    "exodus_hill_residence",
+    "exodus_green_hill_residence",
+    "villa_rabbit_hill",
+    "faralya_residence",
+    "prime_loft_residence",
+    "prime_botanic_residence",
+    "prime_garden_residence",
+    "hayat_heaven_residence",
+    "blue_sunlight_",
+    "blue_dream_residence"
+  ],
+  "projectsVisible": 5,
+  "buyVariants": [
+    { "title": "Ипотека", "text": "Специальные условия квартир от банков-партнёров", "tone": "lavender", "href": "/uslugi/onlayn-pokupka-nedvizhimosti/" },
+    { "title": "Рассрочка", "text": "Выгодные условия на приобретение недвижимости", "tone": "light", "accent": "0%", "href": "/sale/" },
+    { "title": "Trade In", "text": "Воспользуйтесь возможностью купить квартиру взаимозачётом", "tone": "dark", "href": "/uslugi/trade-in-more/" }
+  ],
+  "buyOnline": { "title": "Купить онлайн", "text": "Выбрать квартиру и провести оплату — можно без посещения офиса", "link": "Выбрать квартиру", "href": "/sale/", "tags": ["Личный менеджер", "Быстрое одобрение", "Одна анкета"] }
+}

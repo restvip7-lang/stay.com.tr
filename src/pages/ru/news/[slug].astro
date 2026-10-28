@@ -1,0 +1,31 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Img from '../../../components/Img.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import NewsCard from '../../../components/NewsCard.astro';
+import { getNews, getNewsItem } from '../../../lib/api';
+import { date, mdToHtml, strip } from '../../../lib/format';
+import { sanitize } from '../../../lib/sanitize';
+
+const n = await getNewsItem(Astro.params.slug!);
+if (!n) return Astro.rewrite('/404');
+const more = (await getNews(8)).filter((x) => x.slug !== n.slug).slice(0, 4);
+const ld = { '@context': 'https://schema.org', '@type': 'NewsArticle', headline: n.title, datePublished: n.date, image: n.image ? [n.image] : undefined, publisher: { '@type': 'Organization', name: 'Stay Property' } };
+---
+<Base title={n.title} description={strip(n.excerpt || n.content, 160)} image={n.image} jsonLd={ld}>
+  <article class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: 'Stay Property', href: '/' }, { label: 'Новости', href: '/ru/news/' }, { label: n.title }]} />
+    <div class="mx-auto mt-8 max-w-3xl">
+      <p class="text-sm text-muted">{date(n.date)}</p>
+      <h1 class="display mt-3 text-[clamp(30px,4vw,52px)]">{n.title}</h1>
+      {n.image && <div class="mt-8 overflow-hidden rounded-[var(--radius-big)]"><Img src={n.image} alt={n.title} class="aspect-[16/9] w-full" loading="eager" /></div>}
+      <div class="prose-stay mt-8 text-[17px]" set:html={sanitize(mdToHtml(n.content))} />
+    </div>
+  </article>
+  {more.length > 0 && (
+    <section class="container-x mt-20">
+      <h2 class="display h-section mb-8">Другие новости</h2>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{more.map((m) => <NewsCard n={m} />)}</div>
+    </section>
+  )}
+</Base>

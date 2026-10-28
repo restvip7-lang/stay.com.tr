@@ -1,0 +1,32 @@
+---
+// Форма заявки. По решению Anuar заявки пока никуда не отправляются:
+// после нажатия посетитель видит «Спасибо», данные остаются только в браузере.
+interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean }
+const {
+  title = 'Оставьте заявку',
+  subtitle = 'Заполните форму — мы перезвоним и подробнее расскажем о возможностях для вас',
+  context = '',
+  compact = false,
+} = Astro.props;
+---
+<form data-lead-form class="lead-form" novalidate>
+  {!compact && <h2 class="display h-card mb-2 text-[clamp(28px,3vw,40px)]">{title}</h2>}
+  {!compact && <p class="mb-6 max-w-md text-muted">{subtitle}</p>}
+  <input type="hidden" name="context" value={context} />
+  <div class="grid gap-3">
+    <label class="sr-only" for={`n-${context}`}>Имя</label>
+    <input id={`n-${context}`} class="field" name="name" autocomplete="name" placeholder="Имя" required />
+    <label class="sr-only" for={`p-${context}`}>Телефон</label>
+    <input id={`p-${context}`} class="field" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="Телефон" required />
+    <label class="mt-1 flex items-start gap-2 text-xs text-muted">
+      <input type="checkbox" name="agree" checked required class="mt-0.5 accent-accent" />
+      <span>Нажимая «Отправить», я даю согласие на обработку моих персональных данных и принимаю <a href="/privacy-policy/" class="underline">политику конфиденциальности</a>.</span>
+    </label>
+    <p data-error class="hidden text-sm text-red-600" role="alert"></p>
+    <button class="btn btn-accent mt-2 w-full" type="submit">Отправить</button>
+  </div>
+  <div data-done class="hidden py-6 text-center" role="status">
+    <p class="display text-2xl">Спасибо!</p>
+    <p class="mt-2 text-muted">Заявка принята. Менеджер свяжется с вами в ближайшее время.</p>
+  </div>
+</form>

@@ -1,0 +1,30 @@
+---
+import Img from './Img.astro';
+import type { HomeSections } from '../lib/api';
+interface Props { company: HomeSections['company'] }
+const { company } = Astro.props;
+const title = company.title.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
+const imgs = company.imageUrls;
+const m = company.metrics;
+---
+<section class="container-x mt-24 md:mt-32">
+  <div class="grid gap-8 md:grid-cols-2">
+    <h2 class="display h-section max-w-[12ch]">{title}</h2>
+    <div>
+      <div class="prose-stay text-[17px]" set:html={company.description} />
+      <a href="/about/" class="mt-2 inline-block font-medium underline-offset-4 hover:underline">О компании</a>
+    </div>
+  </div>
+  <div class="relative mx-auto mt-14 max-w-5xl md:h-[640px]">
+    <div class="grid grid-cols-2 gap-3 md:block">
+      {imgs[0] && <div class="overflow-hidden rounded-[var(--radius-card)] shadow-[var(--shadow-card)] md:absolute md:left-[22%] md:top-[6%] md:w-[30%]"><Img src={imgs[0]} alt="" class="aspect-[4/3] w-full" /></div>}
+      {imgs[1] && <div class="overflow-hidden rounded-[var(--radius-card)] shadow-[var(--shadow-card)] md:absolute md:right-[8%] md:top-[18%] md:w-[48%]"><Img src={imgs[1]} alt="" class="aspect-[4/3] w-full" /></div>}
+      {imgs[2] && <div class="col-span-2 overflow-hidden rounded-[var(--radius-card)] shadow-[var(--shadow-card)] md:absolute md:left-[11%] md:top-[30%] md:w-[33%]"><Img src={imgs[2]} alt="" class="aspect-[3/4] w-full" /></div>}
+    </div>
+    <dl class="mt-8 grid gap-6 sm:grid-cols-3 md:mt-0 md:block">
+      {m[0] && <div class="md:absolute md:left-[36%] md:top-0 md:flex md:items-center md:gap-3"><dt class="order-2 font-display text-lg leading-tight md:max-w-[140px] md:text-2xl">{m[0].label}</dt><dd class="display order-1 text-[64px] md:text-[120px]">{m[0].value}</dd></div>}
+      {m[1] && <div class="md:absolute md:left-0 md:top-[24%] md:flex md:items-center md:gap-3"><dt class="order-2 font-display text-lg leading-tight md:max-w-[180px] md:text-2xl">{m[1].label}</dt><dd class="display order-1 text-[64px] md:text-[120px]">{m[1].value}</dd></div>}
+      {m[2] && <div class="md:absolute md:bottom-0 md:left-[28%] md:text-center"><dd class="display text-[64px] md:text-[120px]">{m[2].value}</dd><dt class="font-display text-lg md:text-2xl">{m[2].label}</dt></div>}
+    </dl>
+  </div>
+</section>

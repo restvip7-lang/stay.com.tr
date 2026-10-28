@@ -1,0 +1,14 @@
+---
+import Img from './Img.astro';
+import type { NewsItem } from '../lib/api';
+import { date } from '../lib/format';
+interface Props { n: NewsItem }
+const { n } = Astro.props;
+---
+<a href={n.url} class="group card flex h-full flex-col overflow-hidden p-1">
+  <span class="block aspect-[4/3] overflow-hidden rounded-[16px]"><Img src={n.image} alt="" class="size-full transition-transform duration-700 group-hover:scale-[1.03]" /></span>
+  <span class="flex flex-1 flex-col p-4">
+    <span class="line-clamp-4 text-[17px] leading-snug group-hover:text-accent">{n.title}</span>
+    <span class="mt-auto pt-6 text-xs text-muted">{date(n.date)}</span>
+  </span>
+</a>

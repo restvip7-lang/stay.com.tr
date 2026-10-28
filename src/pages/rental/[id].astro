@@ -1,0 +1,7 @@
+---
+import ListingPage from '../../components/ListingPage.astro';
+import { getListing } from '../../lib/api';
+const x = await getListing(Astro.params.id!, 'rental');
+if (!x) return Astro.rewrite('/404');
+---
+<ListingPage x={x} />

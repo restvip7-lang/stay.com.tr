@@ -1,0 +1,229 @@
+---
+import Base from '../../../layouts/Base.astro';
+import Img from '../../../components/Img.astro';
+import Icon from '../../../components/Icon.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import Calculator from '../../../components/Calculator.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import ProjectCard from '../../../components/ProjectCard.astro';
+import MediaNews from '../../../components/MediaNews.astro';
+import { getComplex, getProjects } from '../../../lib/api';
+import { sanitize } from '../../../lib/sanitize';
+import { strip } from '../../../lib/format';
+import home from '../../../content/data/home.json';
+
+const p = await getComplex(Astro.params.code!);
+if (!p) return Astro.rewrite('/404');
+const all = await getProjects();
+const related = home.projects.map((c) => all.find((x) => x.code === c)).filter((x) => x && x.code !== p.code).slice(0, 3) as typeof all;
+const hero = p.heroImages[0] ?? p.image;
+const gallery = p.gallery.length ? p.gallery : p.heroImages;
+const FACT_LABEL: Record<string, string> = { price: 'Цена', 'build-end': 'Срок сдачи', mix: 'Квартиры', location: 'Расположение' };
+const units = [...p.units].sort((a, b) => (a.priceFrom ?? 0) - (b.priceFrom ?? 0));
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'Residence',
+  name: p.title,
+  url: new URL(p.url, Astro.site).toString(),
+  image: gallery.slice(0, 5),
+  address: { '@type': 'PostalAddress', addressLocality: p.city ?? 'Аланья', addressRegion: p.area ?? undefined, addressCountry: 'TR' },
+  geo: p.lat && p.lng ? { '@type': 'GeoCoordinates', latitude: p.lat, longitude: p.lng } : undefined,
+};
+---
+<Base title={`${p.title}${p.area ? ' — ' + p.area : ''}`} description={strip(p.introHtml || `${p.title}: жилой комплекс Stay Property в ${p.city ?? 'Аланье'}.`, 160)} image={hero} overlayHeader jsonLd={ld}>
+  <section class="relative isolate overflow-hidden bg-ink text-white">
+    <Img src={hero} alt={p.title} class="absolute inset-0 -z-10 size-full" loading="eager" />
+    <div class="absolute inset-0 -z-10 bg-gradient-to-b from-ink/70 via-ink/30 to-ink/80"></div>
+    <div class="container-x flex min-h-[86svh] flex-col justify-center pb-16 pt-36">
+      <h1 class="display h-hero max-w-5xl">{p.title}</h1>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="chip">Проекты STAY PROPERTY</span>
+        {(p.city || p.area) && <span class="chip chip-dark">{[p.city, p.area].filter(Boolean).join(', ')}</span>}
+        {p.promo && <span class="chip chip-accent">{p.promo}</span>}
+      </div>
+      {p.rooms.length > 0 && <div class="mt-3 flex flex-wrap gap-2">{p.rooms.map((r) => <span class="chip chip-dark">{r}</span>)}</div>}
+      {p.facts.length > 0 && (
+        <dl class="mt-10 grid max-w-4xl grid-cols-2 gap-4 md:grid-cols-4">
+          {p.facts.map((f) => (
+            <div class="rounded-[var(--radius-card)] bg-white/10 p-4 backdrop-blur-md">
+              <dt class="text-xs text-white/60">{FACT_LABEL[f.label] ?? f.label}</dt>
+              <dd class="mt-1 text-[15px]">{f.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="#lead" class="btn btn-accent">Получить предложение</a>
+        {p.video && <a href={p.video} target="_blank" rel="noopener" class="btn btn-outline-light"><Icon name="play" class="size-4" />Видео о проекте</a>}
+      </div>
+    </div>
+  </section>
+
+  <div class="container-x border-b border-line py-4">
+    <Breadcrumbs items={[{ label: 'Stay Property', href: '/' }, { label: 'Все проекты', href: '/complex/' }, { label: p.title }]} />
+  </div>
+
+  {p.introHtml && (
+    <section class="container-x mt-10 grid gap-8 md:grid-cols-2">
+      <div class="overflow-hidden rounded-[var(--radius-big)]"><Img src={gallery[1] ?? hero} alt={p.title} class="aspect-[4/3] size-full" /></div>
+      <div data-readmore class="relative">
+        <div class="prose-stay max-h-[460px] overflow-hidden transition-[max-height] duration-500" data-body set:html={sanitize(p.introHtml)} />
+        <div class="pointer-events-none absolute inset-x-0 bottom-10 h-24 bg-gradient-to-t from-page" data-fade></div>
+        <button type="button" class="mt-4 text-sm font-medium underline underline-offset-4" data-toggle>Читать полностью</button>
+      </div>
+    </section>
+  )}
+
+  {gallery.length > 0 && (
+    <section class="mt-20 md:mt-28" data-carousel>
+      <div class="container-x mb-8 flex items-end justify-between gap-4">
+        <h2 class="display h-section">Галерея проекта</h2>
+        <div class="flex gap-2">
+          <button type="button" data-cprev class="grid size-12 place-items-center rounded-full bg-white shadow-sm hover:bg-lavender" aria-label="Назад"><Icon name="arrowLeft" /></button>
+          <button type="button" data-cnext class="grid size-12 place-items-center rounded-full bg-white shadow-sm hover:bg-lavender" aria-label="Вперёд"><Icon name="arrowRight" /></button>
+        </div>
+      </div>
+      <div class="scroll-x flex snap-x snap-mandatory gap-3 px-4 md:px-[max(40px,calc((100vw-1280px)/2))]" data-track>
+        {gallery.map((g, i) => (
+          <a href={g} target="_blank" rel="noopener" class="w-[82vw] shrink-0 snap-start overflow-hidden rounded-[var(--radius-card)] sm:w-[46vw] lg:w-[31%]">
+            <Img src={g} alt={`${p.title} — фото ${i + 1}`} class="aspect-[4/3] w-full" />
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+
+  <section class="container-x mt-20 md:mt-28">
+    <h2 class="display h-section mb-8">Расположение и инфраструктура</h2>
+    <div class="card grid overflow-hidden md:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+      <div class="max-h-[560px] overflow-y-auto p-6">
+        {p.infrastructure.length > 0
+          ? p.infrastructure.map((c) => (<div class="mb-6"><h3 class="font-display mb-3 text-lg font-medium">{c.title}</h3><div class="prose-stay text-[15px]" set:html={sanitize(c.html)} /></div>))
+          : p.amenities.length > 0
+            ? <ul class="space-y-2 text-[15px]">{p.amenities.map((a) => <li>{a}</li>)}</ul>
+            : <p class="text-muted">{[p.city, p.area].filter(Boolean).join(', ')}</p>}
+      </div>
+      {p.lat && p.lng
+        ? <div data-map data-points={JSON.stringify([{ t: p.title, u: p.url, lat: p.lat, lng: p.lng, a: [p.city, p.area].filter(Boolean).join(', ') }])} class="min-h-[420px] bg-lavender-2"></div>
+        : <div class="min-h-[420px] bg-lavender-2"></div>}
+    </div>
+  </section>
+
+  <section class="mt-20 bg-white/60 py-14 md:mt-28 md:py-20">
+    <div class="container-x">
+      <h2 class="display h-section mb-8">Калькулятор рассрочки</h2>
+      <Calculator price={p.priceFrom} withMortgage downPct={p.installment?.initialPay} months={p.installment?.months} />
+      {p.installment?.conditions && <p class="mt-4 max-w-3xl text-sm text-muted" set:html={sanitize(p.installment.conditions)} />}
+    </div>
+  </section>
+
+  <section class="container-x mt-20 md:mt-28">
+    <h2 class="display h-section mb-8">Сервисы</h2>
+    <div class="grid gap-3 md:grid-cols-2">
+      <a href="/about/" class="flex min-h-[200px] flex-col justify-center rounded-[var(--radius-card)] bg-peach p-8 transition-transform hover:-translate-y-0.5">
+        <span class="font-display text-2xl font-medium tracking-[-0.03em]">Клуб лояльности STAYPROP Club</span>
+        <span class="mt-2 text-ink/70">Программа привилегий</span>
+      </a>
+      <a href="#choose" class="flex min-h-[200px] flex-col justify-center rounded-[var(--radius-card)] bg-accent p-8 text-white transition-transform hover:-translate-y-0.5">
+        <span class="font-display text-2xl font-medium tracking-[-0.03em]">Выбрать квартиру</span>
+        <span class="mt-2 max-w-xs text-white/80">Возможность индивидуального подхода к каждому клиенту</span>
+      </a>
+    </div>
+  </section>
+
+  {(units.length > 0 || p.genplan) && (
+    <section id="choose" class="container-x mt-20 scroll-mt-28 md:mt-28">
+      <h2 class="display h-section mb-8">Выбрать квартиру</h2>
+      {p.genplan && (
+        <div class="card mb-4 overflow-hidden p-2" data-genplan>
+          <div class="relative">
+            <div class="genplan [&_svg]:h-auto [&_svg]:w-full" set:html={sanitize(p.genplan.svg)} />
+            <div data-tip class="pointer-events-none absolute left-4 top-4 hidden max-w-xs rounded-2xl bg-white p-4 text-sm shadow-[var(--shadow-card)]"></div>
+          </div>
+          <script type="application/json" data-sectors set:html={JSON.stringify(p.genplan.sectors)} />
+        </div>
+      )}
+      {units.length > 0 && (
+        <div class="card overflow-x-auto">
+          <table class="w-full min-w-[520px] text-left text-[15px]">
+            <thead class="text-sm text-muted"><tr><th class="p-4 font-normal">Тип</th><th class="p-4 font-normal">Планировка</th><th class="p-4 font-normal">Площадь от</th><th class="p-4 font-normal">Цена от</th><th class="p-4"></th></tr></thead>
+            <tbody>
+              {units.map((u) => (
+                <tr class="border-t border-line">
+                  <td class="p-4">{u.type}</td>
+                  <td class="p-4">{u.rooms}</td>
+                  <td class="p-4">{u.areaFrom ? `${u.areaFrom.toLocaleString('ru-RU')} м²` : '—'}</td>
+                  <td class="p-4 font-medium">{u.priceFrom ? `${u.priceFrom.toLocaleString('ru-RU')} ${u.currency}` : 'по запросу'}</td>
+                  <td class="p-4 text-right"><a href="#lead" class="text-accent hover:underline">Запросить</a></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  )}
+
+  {related.length > 0 && (
+    <section class="mt-20 bg-white/60 py-14 md:mt-28 md:py-20">
+      <div class="container-x">
+        <h2 class="display h-section mb-8">Смотрите также</h2>
+        <div class="grid gap-4 md:grid-cols-3">{related.map((r) => <ProjectCard p={r} />)}</div>
+      </div>
+    </section>
+  )}
+
+  <LeadSection context={`complex-${p.code}`} steps={['Выбираете квартиру в проектах Stay Property', 'Оставляете заявку', 'Подписываете договор онлайн', 'Оплачиваете первый взнос', 'Гибкий график платежей с рассрочкой без %']} />
+  <MediaNews />
+</Base>
+
+<style is:global>
+  .genplan [id^='s'] polygon, .genplan g[id^='s'] path { fill: #754be933; stroke: #fff; stroke-width: 2; cursor: pointer; transition: fill .2s; }
+  .genplan g[id^='s']:hover polygon, .genplan g[id^='s'].is-on polygon { fill: #754be9aa; }
+</style>
+
+<script>
+  import { mountMap } from '../../../scripts/map';
+  document.querySelectorAll<HTMLElement>('[data-readmore]').forEach((r) => {
+    const body = r.querySelector<HTMLElement>('[data-body]')!;
+    const fade = r.querySelector<HTMLElement>('[data-fade]')!;
+    const btn = r.querySelector<HTMLButtonElement>('[data-toggle]')!;
+    if (body.scrollHeight <= 470) { fade.remove(); btn.remove(); return; }
+    btn.addEventListener('click', () => {
+      const open = body.style.maxHeight === 'none';
+      body.style.maxHeight = open ? '' : 'none';
+      fade.hidden = !open;
+      btn.textContent = open ? 'Читать полностью' : 'Свернуть';
+    });
+  });
+  document.querySelectorAll<HTMLElement>('[data-carousel]').forEach((c) => {
+    const t = c.querySelector<HTMLElement>('[data-track]')!;
+    const step = () => (t.firstElementChild as HTMLElement)?.offsetWidth + 12;
+    c.querySelector('[data-cnext]')?.addEventListener('click', () => t.scrollBy({ left: step(), behavior: 'smooth' }));
+    c.querySelector('[data-cprev]')?.addEventListener('click', () => t.scrollBy({ left: -step(), behavior: 'smooth' }));
+  });
+  const mapEl = document.querySelector<HTMLElement>('[data-map]');
+  if (mapEl) {
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });
+    io.observe(mapEl);
+  }
+  document.querySelectorAll<HTMLElement>('[data-genplan]').forEach((g) => {
+    const sectors = JSON.parse(g.querySelector('[data-sectors]')?.textContent || '[]');
+    const tip = g.querySelector<HTMLElement>('[data-tip]')!;
+    const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    g.querySelectorAll<SVGGElement>('svg g[id]').forEach((el) => {
+      const s = sectors.find((x: any) => x.id === el.id);
+      if (!s) return;
+      const show = () => {
+        g.querySelectorAll('svg g.is-on').forEach((x) => x.classList.remove('is-on'));
+        el.classList.add('is-on');
+        tip.innerHTML = `<p style="font-weight:600;margin-bottom:6px">${esc(s.title)}</p>` + s.buildings.map((b: any) =>
+          `<p style="margin-top:6px">${esc(b.title)}</p>` + b.summaries.map((m: any) => `<p style="color:#8e909a">${esc(m.name)} — от ${esc(m.minPrice)}, ${esc(m.minArea)}</p>`).join('')).join('');
+        tip.classList.remove('hidden');
+      };
+      el.addEventListener('mouseenter', show);
+      el.addEventListener('click', show);
+    });
+    g.addEventListener('mouseleave', () => tip.classList.add('hidden'));
+  });
+</script>

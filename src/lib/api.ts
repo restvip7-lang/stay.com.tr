@@ -1,0 +1,446 @@
+// Слой данных. Сайт знает только эти функции и типы; откуда берутся данные
+// (API dev-сайта, свой API, CRM) — решается здесь. Когда придёт инструкция по
+// своему API, меняется только этот файл.
+
+import { areaRu, cityRu, COUNTRY_BY_CITY, typeInfo, type TypeGroup } from './dict';
+
+import fxHeaderMenu from '../content/fixtures/header-menu.json';
+import fxHomeSections from '../content/fixtures/home-sections.json';
+import fxNews from '../content/fixtures/news.json';
+import fxProjects from '../content/fixtures/projects.json';
+import fxSale from '../content/fixtures/sale.json';
+import fxRental from '../content/fixtures/rental.json';
+
+const BASE = (import.meta.env.STAY_API_BASE as string | undefined) || 'https://dev.stayproperty.com';
+const TTL = 10 * 60 * 1000;
+const cache = new Map<string, { at: number; value: unknown }>();
+
+async function getJson<T>(path: string, tries = 3): Promise<T> {
+  let last: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(BASE + path, { signal: AbortSignal.timeout(15_000) });
+      if (r.status === 404) throw Object.assign(new Error('not found'), { notFound: true });
+      if (!r.ok) throw new Error(`API ${r.status} ${path}`);
+      const j = (await r.json()) as { success?: boolean; data: T };
+      return j.data;
+    } catch (e) {
+      if ((e as { notFound?: boolean }).notFound) throw e;
+      last = e;
+      await new Promise((res) => setTimeout(res, 400 * (i + 1)));
+    }
+  }
+  throw last;
+}
+
+/** Берёт данные из API, при ошибке — из сохранённого снимка. */
+async function cached<T>(key: string, load: () => Promise<T>, fallback?: () => T): Promise<T> {
+  const hit = cache.get(key);
+  if (hit && Date.now() - hit.at < TTL) return hit.value as T;
+  try {
+    const value = await load();
+    cache.set(key, { at: Date.now(), value });
+    return value;
+  } catch (e) {
+    if (fallback) return fallback();
+    throw e;
+  }
+}
+
+/* ---------- Типы, с которыми работает сайт ---------- */
+
+export interface Listing {
+  id: string;
+  code: string | null;
+  title: string;
+  operation: 'sale' | 'rental';
+  rooms: string | null;
+  typeLabel: string;
+  typeGroup: TypeGroup;
+  rawType: string | null;
+  country: string | null;
+  city: string | null;
+  area: string | null;
+  price: number | null;
+  totalArea: number | null;
+  distanceToSea: number | null;
+  floor: number | null;
+  ref: string | null;
+  isPrivate: boolean;
+  discount: number | null;
+  image: string | null;
+  url: string;
+}
+
+export interface ListingDetail extends Listing {
+  images: string[];
+  html: string;
+  yearBuilt: string | null;
+  region: string | null;
+  infrastructure: string[];
+  pricePerSquare: number | null;
+}
+
+export interface ProjectUnit {
+  type: string;
+  rooms: string | null;
+  areaFrom: number | null;
+  priceFrom: number | null;
+  currency: string;
+}
+
+export interface Project {
+  id: number;
+  code: string;
+  slug: string;
+  title: string;
+  city: string | null;
+  area: string | null;
+  priceFromLabel: string | null;
+  priceFrom: number | null;
+  image: string | null;
+  lat: number | null;
+  lng: number | null;
+  action: string | null;
+  isPrivate: boolean;
+  units: ProjectUnit[];
+  rooms: string[];
+  url: string;
+}
+
+export interface NewsItem {
+  id: number;
+  slug: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  image: string | null;
+  date: string;
+  url: string;
+}
+
+export interface MenuItem { id: number; label: string; href: string }
+
+/* ---------- Нормализация ---------- */
+
+type RawListing = Record<string, any>;
+
+function toListing(x: RawListing): Listing {
+  const t = typeInfo(x.propertyType);
+  const city = cityRu(x.city);
+  const op = x.operation === 'rental' ? 'rental' : 'sale';
+  return {
+    id: String(x.id),
+    code: x.code ?? null,
+    title: (x.title || '').trim() || `${t.label}${x.roomLabel ? ' ' + x.roomLabel : ''}`,
+    operation: op,
+    rooms: x.roomLabel ?? null,
+    typeLabel: t.label,
+    typeGroup: t.group,
+    rawType: x.propertyType ?? null,
+    country: city ? COUNTRY_BY_CITY[city] ?? null : null,
+    city,
+    area: areaRu(x.area),
+    price: typeof x.price === 'number' ? x.price : x.price ? Number(x.price) : null,
+    totalArea: x.totalArea ?? null,
+    distanceToSea: x.distanceToSea ?? null,
+    floor: x.floor ?? null,
+    ref: x.objectCode ?? null,
+    isPrivate: !!x.isPrivate,
+    discount: x.discount ?? null,
+    image: fixImage(x.imageUrl),
+    url: `/${op === 'rental' ? 'rental' : 'sale'}/${x.id}/`,
+  };
+}
+
+function fixImage(u?: string | null): string | null {
+  if (!u) return null;
+  return u.replace(/([^:])\/\/+/g, '$1/');
+}
+
+function parseEuro(label?: string | null): number | null {
+  if (!label) return null;
+  const n = Number(label.replace(/[^\d]/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function slugify(code: string) {
+  return code.replace(/_/g, '-').replace(/-+$/, '').toLowerCase();
+}
+
+function toProject(x: RawListing): Project {
+  const units: ProjectUnit[] = (x.apartments || []).map((a: any) => ({
+    type: a.objectType,
+    rooms: a.roomLabel ?? null,
+    areaFrom: a.areaFrom ?? null,
+    priceFrom: a.priceFrom ?? null,
+    currency: a.currency || '€',
+  }));
+  const rooms = [...new Set(units.map((u) => u.rooms).filter(Boolean) as string[])].sort();
+  const minUnit = units.map((u) => u.priceFrom).filter((p): p is number => !!p).sort((a, b) => a - b)[0];
+  const slug = slugify(x.code);
+  return {
+    id: x.id,
+    code: x.code,
+    slug,
+    title: x.title,
+    city: cityRu(x.city),
+    area: areaRu(x.area),
+    priceFromLabel: x.priceFrom || null,
+    priceFrom: minUnit ?? parseEuro(x.priceFrom),
+    image: fixImage(x.imageUrl),
+    lat: x.latitude ?? null,
+    lng: x.longitude ?? null,
+    action: x.actionLabel || null,
+    isPrivate: !!x.isPrivate,
+    units,
+    rooms,
+    url: `/complex/project/${slug}/`,
+  };
+}
+
+function toNews(x: RawListing): NewsItem {
+  return {
+    id: x.id,
+    slug: x.slug,
+    title: x.title,
+    excerpt: x.excerpt || '',
+    content: x.content || '',
+    image: fixImage(x.coverImageUrl || x.imageUrl || x.image || null),
+    date: x.publishedAt || x.updatedAt || '',
+    url: `/ru/news/${x.slug}/`,
+  };
+}
+
+/* ---------- Публичные функции ---------- */
+
+export async function getServiceMenu(): Promise<MenuItem[]> {
+  const d = await cached('menu', () => getJson<{ items: MenuItem[] }>('/api/header-menu?language=ru'), () => fxHeaderMenu as any);
+  return d.items;
+}
+
+export interface HomeSections {
+  buyVariants: { id: string; title: string; description: string | null; imageUrl: string | null }[];
+  company: { title: string; description: string; metrics: { label: string; value: string }[]; imageUrls: string[] };
+}
+
+export async function getHomeSections(): Promise<HomeSections> {
+  return cached('home-sections', () => getJson<HomeSections>('/api/home-sections?lang=ru'), () => fxHomeSections as any);
+}
+
+export async function getProjects(): Promise<Project[]> {
+  const d = await cached('projects', () => getJson<{ items: RawListing[] }>('/api/projects'), () => fxProjects as any);
+  return d.items.filter((x) => x.isActive !== false).map(toProject);
+}
+
+export async function getProject(slug: string): Promise<Project | null> {
+  const all = await getProjects();
+  const s = slugify(slug);
+  return all.find((p) => p.slug === s) ?? null;
+}
+
+async function allListings(operation: 'sale' | 'rental'): Promise<Listing[]> {
+  const raw = await cached(
+    `listings-${operation}`,
+    async () => {
+      const items: RawListing[] = [];
+      for (let page = 1; page < 20; page++) {
+        const d = await getJson<{ items: RawListing[]; total: number }>(
+          `/api/sale?source=portfolio&language=ru&operation=${operation}&limit=500&page=${page}`,
+        );
+        items.push(...d.items);
+        if (items.length >= d.total || d.items.length === 0) break;
+      }
+      return items;
+    },
+    () => (operation === 'sale' ? fxSale : fxRental) as RawListing[],
+  );
+  return raw.map(toListing);
+}
+
+export interface ListingQuery {
+  operation: 'sale' | 'rental';
+  group?: TypeGroup | 'all';
+  country?: string;
+  city?: string;
+  area?: string;
+  ref?: string;
+  priceFrom?: number;
+  priceTo?: number;
+  rooms?: string[];
+  seaFrom?: number;
+  seaTo?: number;
+  sort?: 'new' | 'price-asc' | 'price-desc';
+  page?: number;
+  perPage?: number;
+}
+
+export interface Facets {
+  countries: string[];
+  cities: { name: string; country: string | null }[];
+  areas: { name: string; city: string | null }[];
+  priceMin: number;
+  priceMax: number;
+  seaMin: number;
+  seaMax: number;
+}
+
+function roomsBucket(r: string | null): string | null {
+  if (!r) return null;
+  if (r === '1+0') return 'studio';
+  const n = Number(r.split('+')[0]);
+  if (!Number.isFinite(n)) return null;
+  return n >= 4 ? '4+' : `${n}+1`;
+}
+
+export async function searchListings(q: ListingQuery) {
+  const all = await allListings(q.operation);
+  const per = q.perPage ?? 24;
+  const ref = q.ref?.trim().toLowerCase();
+  let items = all.filter((x) => {
+    if (q.group && q.group !== 'all' && x.typeGroup !== q.group) return false;
+    if (q.country && x.country !== q.country) return false;
+    if (q.city && x.city !== q.city) return false;
+    if (q.area && x.area !== q.area) return false;
+    if (ref && !(x.ref?.toLowerCase().includes(ref) || x.id === ref)) return false;
+    if (q.priceFrom && (x.price ?? 0) < q.priceFrom) return false;
+    if (q.priceTo && (x.price ?? Infinity) > q.priceTo) return false;
+    if (q.seaFrom && (x.distanceToSea ?? 0) < q.seaFrom) return false;
+    if (q.seaTo && (x.distanceToSea ?? Infinity) > q.seaTo) return false;
+    if (q.rooms?.length && !q.rooms.includes(roomsBucket(x.rooms) ?? '')) return false;
+    return true;
+  });
+  if (q.sort === 'price-asc') items = items.toSorted((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+  if (q.sort === 'price-desc') items = items.toSorted((a, b) => (b.price ?? 0) - (a.price ?? 0));
+  const total = items.length;
+  const page = Math.max(1, q.page ?? 1);
+  return { total, page, pages: Math.max(1, Math.ceil(total / per)), items: items.slice((page - 1) * per, page * per) };
+}
+
+export async function getFacets(operation: 'sale' | 'rental'): Promise<Facets> {
+  const all = await allListings(operation);
+  const count = <T,>(arr: T[]) => {
+    const m = new Map<T, number>();
+    arr.forEach((v) => m.set(v, (m.get(v) ?? 0) + 1));
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v);
+  };
+  const cities = new Map<string, string | null>();
+  const areas = new Map<string, string | null>();
+  for (const x of all) {
+    if (x.city) cities.set(x.city, x.country);
+    if (x.area) areas.set(x.area, x.city);
+  }
+  const prices = all.map((x) => x.price).filter((p): p is number => !!p);
+  const seas = all.map((x) => x.distanceToSea).filter((p): p is number => !!p);
+  return {
+    countries: count(all.map((x) => x.country).filter(Boolean) as string[]),
+    cities: count(all.map((x) => x.city).filter(Boolean) as string[]).map((name) => ({ name, country: cities.get(name) ?? null })),
+    areas: [...areas.entries()].map(([name, city]) => ({ name, city })).sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    priceMin: Math.min(...prices),
+    priceMax: Math.max(...prices),
+    seaMin: Math.min(...seas),
+    seaMax: Math.max(...seas),
+  };
+}
+
+export async function getListing(id: string, operation: 'sale' | 'rental'): Promise<ListingDetail | null> {
+  const key = `listing-${operation}-${id}`;
+  try {
+    const d = await cached(key, () =>
+      getJson<{ item: RawListing }>(`/api/sale/${encodeURIComponent(id)}?source=portfolio&language=ru&operation=${operation}`),
+    );
+    const x = d.item;
+    return {
+      ...toListing(x),
+      images: (x.imageUrls || [x.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
+      html: x.detailText || '',
+      yearBuilt: x.yearBuilt ?? null,
+      region: x.regionName ?? null,
+      infrastructure: x.infrastructure || [],
+      pricePerSquare: x.pricePerSquare ?? null,
+    };
+  } catch {
+    // API недоступен или объекта нет — показываем то, что есть в списке.
+    const fromList = (await allListings(operation)).find((x) => x.id === id);
+    if (!fromList) return null;
+    return { ...fromList, images: fromList.image ? [fromList.image] : [], html: '', yearBuilt: null, region: null, infrastructure: [], pricePerSquare: null };
+  }
+}
+
+export async function getSimilar(item: Listing, limit = 3): Promise<Listing[]> {
+  const all = await allListings(item.operation);
+  return all
+    .filter((x) => x.id !== item.id && x.typeGroup === item.typeGroup && x.city === item.city)
+    .sort((a, b) => Math.abs((a.price ?? 0) - (item.price ?? 0)) - Math.abs((b.price ?? 0) - (item.price ?? 0)))
+    .slice(0, limit);
+}
+
+export async function getNews(limit = 200): Promise<NewsItem[]> {
+  const d = await cached('news', () => getJson<{ news: RawListing[] }>(`/api/news?language=ru&limit=200`), () => fxNews as any);
+  return d.news.map(toNews).slice(0, limit);
+}
+
+export async function getNewsItem(slug: string): Promise<NewsItem | null> {
+  try {
+    const d = await cached(`news-${slug}`, () => getJson<RawListing>(`/api/news/${encodeURIComponent(slug)}?language=ru`));
+    return toNews(d);
+  } catch {
+    return (await getNews()).find((n) => n.slug === slug) ?? null;
+  }
+}
+
+/* ---------- Страница жилого комплекса ---------- */
+
+export interface ComplexSector {
+  id: string;
+  title: string;
+  buildings: { id: string; title: string; summaries: { name: string; minPrice: string; minArea: string }[] }[];
+}
+
+export interface ComplexDetail extends Project {
+  heroImages: string[];
+  facts: { label: string; value: string }[];
+  promo: string | null;
+  introHtml: string;
+  gallery: string[];
+  video: string | null;
+  finishingHtml: string | null;
+  infrastructure: { title: string; html: string; images: string[] }[];
+  amenities: string[];
+  installment: { initialPay: number | null; months: number | null; conditions: string | null } | null;
+  paymentCards: { title: string; description: string; theme: string; buttonLabel?: string }[];
+  genplan: { svg: string; sectors: ComplexSector[] } | null;
+}
+
+export async function getComplex(slug: string): Promise<ComplexDetail | null> {
+  const base = await getProject(slug);
+  const code = base?.code ?? slug.replace(/-/g, '_');
+  let x: RawListing | null = null;
+  try {
+    const d = await cached(`complex-${code}`, () => getJson<{ item: RawListing }>(`/api/complex-projects/${encodeURIComponent(code)}?language=ru`));
+    x = d.item;
+  } catch {
+    x = null;
+  }
+  if (!x && !base) return null;
+  const p = base ?? toProject({ ...x, apartments: x?.apartments, priceFrom: null });
+  const map = x?.map;
+  const ab = x?.actionBlock;
+  return {
+    ...p,
+    heroImages: (x?.heroImages || []).map((u: string) => fixImage(u)!).filter(Boolean),
+    facts: (x?.heroFacts || []).filter((f: any) => f.value),
+    promo: x?.promoLabel || null,
+    introHtml: x?.intro?.bodyText || '',
+    gallery: (x?.galleryImages || []).map((u: string) => fixImage(u)!).filter(Boolean),
+    video: x?.videoUrl || null,
+    finishingHtml: x?.finishing?.description || null,
+    infrastructure: (x?.infrastructureCards || []).map((c: any) => ({ title: c.title, html: c.description || '', images: (c.galleryImages || []).map((u: string) => fixImage(u)!) })),
+    amenities: x?.amenities || [],
+    installment: ab ? { initialPay: ab.initialPay ?? null, months: ab.periodMonths ?? null, conditions: ab.conditions ?? null } : null,
+    paymentCards: x?.paymentCards || [],
+    genplan: map?.svg ? { svg: map.svg, sectors: map.sectors || [] } : null,
+    lat: map?.latitude ?? p.lat,
+    lng: map?.longitude ?? p.lng,
+  };
+}

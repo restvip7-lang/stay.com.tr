@@ -1,0 +1,38 @@
+---
+import Base from '../layouts/Base.astro';
+import HomeHero from '../components/HomeHero.astro';
+import FilterForm from '../components/FilterForm.astro';
+import ProjectsBlock from '../components/ProjectsBlock.astro';
+import BuyVariants from '../components/BuyVariants.astro';
+import CompanySpotlight from '../components/CompanySpotlight.astro';
+import MediaNews from '../components/MediaNews.astro';
+import { getHomeSections, getProjects } from '../lib/api';
+import home from '../content/data/home.json';
+
+const [projects, sections] = await Promise.all([getProjects(), getHomeSections()]);
+const byCode = (c: string) => projects.find((p) => p.code === c);
+const hero = home.hero.map((h) => byCode(h.project)).filter(Boolean) as typeof projects;
+const list = home.projects.map(byCode).filter(Boolean) as typeof projects;
+
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'RealEstateAgent',
+  name: 'Stay Property',
+  url: 'https://stay.com.tr/',
+  telephone: '+905301782916',
+  email: 'office@stayproperty.com',
+  address: { '@type': 'PostalAddress', streetAddress: 'Oba Mah., Mesut Cd., No: 54/A', addressLocality: 'Alanya', addressRegion: 'Antalya', postalCode: '07400', addressCountry: 'TR' },
+};
+---
+<Base title="Недвижимость в Турции от застройщика — Stay Property" overlayHeader jsonLd={ld}>
+  <HomeHero slides={hero} />
+  <section class="container-x mt-16 md:mt-24">
+    <h2 class="display h-page mb-8 hidden md:block">Выбрать недвижимость</h2>
+    <h2 class="display h-section mb-6 md:hidden">Выбрать недвижимость</h2>
+    <FilterForm action="/sale/" />
+  </section>
+  <ProjectsBlock title={home.projectsTitle} projects={list} visible={home.projectsVisible} moreHref="/complex/" />
+  <BuyVariants />
+  <CompanySpotlight company={sections.company} />
+  <MediaNews />
+</Base>

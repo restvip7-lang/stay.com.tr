@@ -1,0 +1,83 @@
+---
+import Img from './Img.astro';
+import Icon from './Icon.astro';
+import type { Project } from '../lib/api';
+interface Props { slides: (Project & { subtitle?: string })[] }
+const { slides } = Astro.props;
+---
+<section class="relative isolate overflow-hidden bg-ink text-white" data-hero aria-roledescription="carousel" aria-label="Проекты Stay Property">
+  {slides.map((p, i) => (
+    <div class:list={['hero-slide absolute inset-0 transition-opacity duration-700', i === 0 ? 'opacity-100' : 'pointer-events-none opacity-0']} data-slide={i} aria-hidden={i !== 0 ? 'true' : undefined}>
+      <Img src={p.image} alt={p.title} class="size-full" loading={i === 0 ? 'eager' : 'lazy'} />
+      <div class="absolute inset-0 bg-gradient-to-b from-ink/60 via-ink/20 to-ink/80"></div>
+    </div>
+  ))}
+  <div class="container-x relative flex min-h-[100svh] flex-col pb-6 pt-32 md:pb-10 md:pt-40">
+    {slides.map((p, i) => (
+      <div class:list={['hero-text max-w-4xl transition-opacity duration-500', i === 0 ? '' : 'hidden']} data-text={i}>
+        <h1 class="display h-hero">{p.title}</h1>
+        <div class="mt-6 flex flex-wrap gap-2">
+          <span class="chip">Проекты STAY PROPERTY</span>
+          {(p.area || p.city) && <span class="chip chip-dark">{[p.city, p.area].filter(Boolean).join(', ')}</span>}
+          {p.priceFrom && <span class="chip chip-dark">от {p.priceFrom.toLocaleString('ru-RU')} €</span>}
+        </div>
+        {p.rooms.length > 0 && (
+          <div class="mt-3 flex flex-wrap gap-2">{p.rooms.map((r) => <span class="chip chip-dark">{r}</span>)}</div>
+        )}
+        {p.action && <p class="mt-5 max-w-md text-white/80">{p.action}</p>}
+        <a href={p.url} class="btn btn-outline-light mt-8">Подробнее о проекте</a>
+      </div>
+    ))}
+    <div class="mt-auto flex items-end gap-3 pt-16">
+      <div class="hidden flex-col gap-2 md:flex">
+        <button type="button" data-next class="grid size-14 place-items-center rounded-full bg-white text-ink shadow-[var(--shadow-card)] hover:bg-lavender" aria-label="Следующий проект"><Icon name="arrowRight" /></button>
+        <button type="button" data-prev class="grid size-14 place-items-center rounded-full bg-white text-ink shadow-[var(--shadow-card)] hover:bg-lavender" aria-label="Предыдущий проект"><Icon name="arrowLeft" /></button>
+      </div>
+      <div class="scroll-x flex flex-1 gap-3">
+        {slides.map((p, i) => (
+          <button type="button" data-go={i} class:list={['hero-thumb flex min-w-[240px] flex-1 items-stretch gap-3 overflow-hidden rounded-[var(--radius-card)] bg-white p-2 text-left text-ink transition-shadow', i === 0 && 'is-active']} aria-label={`Показать ${p.title}`}>
+            <span class="flex flex-1 flex-col justify-between p-2">
+              <span class="display text-[15px] leading-tight">{p.title}</span>
+              <span class="mt-3 text-xs text-muted">{[p.city, p.area].filter(Boolean).join(', ')}</span>
+              {p.priceFrom && <span class="chip chip-accent mt-2 self-start">от {p.priceFrom.toLocaleString('ru-RU')} €</span>}
+            </span>
+            <span class="w-24 shrink-0 overflow-hidden rounded-[14px]"><Img src={p.image} alt="" class="size-full" /></span>
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero-thumb.is-active { box-shadow: 0 0 0 2px var(--color-accent); }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-hero]').forEach((hero) => {
+    const slides = [...hero.querySelectorAll<HTMLElement>('[data-slide]')];
+    const texts = [...hero.querySelectorAll<HTMLElement>('[data-text]')];
+    const thumbs = [...hero.querySelectorAll<HTMLElement>('[data-go]')];
+    let cur = 0;
+    let timer: number | undefined;
+    const go = (n: number) => {
+      cur = (n + slides.length) % slides.length;
+      slides.forEach((s, i) => {
+        s.classList.toggle('opacity-0', i !== cur);
+        s.classList.toggle('pointer-events-none', i !== cur);
+        s.toggleAttribute('aria-hidden', i !== cur);
+      });
+      texts.forEach((t, i) => t.classList.toggle('hidden', i !== cur));
+      thumbs.forEach((t, i) => t.classList.toggle('is-active', i === cur));
+      restart();
+    };
+    const restart = () => {
+      clearInterval(timer);
+      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) timer = window.setInterval(() => go(cur + 1), 7000);
+    };
+    hero.querySelector('[data-next]')?.addEventListener('click', () => go(cur + 1));
+    hero.querySelector('[data-prev]')?.addEventListener('click', () => go(cur - 1));
+    thumbs.forEach((t) => t.addEventListener('click', () => go(Number(t.dataset.go))));
+    restart();
+  });
+</script>

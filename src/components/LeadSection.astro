@@ -1,0 +1,12 @@
+---
+import LeadForm from './LeadForm.astro';
+import HowItWorks from './HowItWorks.astro';
+interface Props { context?: string; steps?: string[] }
+const { context = 'page', steps } = Astro.props;
+---
+<section id="lead" class="container-x mt-20 scroll-mt-24 md:mt-28">
+  <div class="card grid gap-12 p-6 md:grid-cols-2 md:p-12">
+    <LeadForm context={context} />
+    <HowItWorks steps={steps} />
+  </div>
+</section>

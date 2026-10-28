@@ -1,0 +1,58 @@
+---
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+import LeadForm from '../components/LeadForm.astro';
+import Icon from '../components/Icon.astro';
+import { noindex } from '../lib/site';
+
+interface Props {
+  title: string;
+  description?: string;
+  image?: string | null;
+  overlayHeader?: boolean;
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+}
+const { title, description = 'Stay Property — агентство недвижимости и застройщик в Аланье. Квартиры, виллы и новостройки в Турции.', image, overlayHeader = false, jsonLd } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).toString();
+const fullTitle = title.includes('Stay Property') ? title : `${title} — Stay Property`;
+---
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    {image && <meta property="og:image" content={image} />}
+    <meta name="theme-color" content="#090714" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+  </head>
+  <body id="top" class="min-h-dvh">
+    <Header overlay={overlayHeader} />
+    <main class:list={[!overlayHeader && 'pt-16 md:pt-[100px]']}>
+      <slot />
+    </main>
+    <Footer />
+
+    <dialog data-lead-dialog class="m-auto w-[min(520px,calc(100%-32px))] rounded-[var(--radius-big)] p-0 backdrop:bg-ink/60">
+      <div class="relative p-6 md:p-10">
+        <button type="button" data-lead-close class="absolute right-4 top-4 grid size-10 place-items-center rounded-full hover:bg-page" aria-label="Закрыть"><Icon name="close" /></button>
+        <LeadForm context="modal" title="Получить предложение" subtitle="Оставьте телефон — подберём варианты и пришлём подборку" />
+      </div>
+    </dialog>
+
+    <script>
+      import { initLeadForms, initFavorites } from '../scripts/client';
+      initLeadForms();
+      initFavorites();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,112 @@
+---
+import Logo from './Logo.astro';
+import Icon from './Icon.astro';
+import { site } from '../lib/site';
+import { getServiceMenu } from '../lib/api';
+
+interface Props { overlay?: boolean }
+const { overlay = false } = Astro.props;
+const services = await getServiceMenu().catch(() => []);
+const path = Astro.url.pathname;
+---
+<header
+  data-header
+  data-overlay={overlay ? 'true' : 'false'}
+  class:list={[
+    'fixed inset-x-0 top-0 z-40 transition-colors duration-300',
+    overlay ? 'text-white' : 'bg-page/90 text-ink backdrop-blur-md',
+  ]}
+>
+  <div class="container-x">
+    <div class="flex h-14 items-center gap-4 md:h-16">
+      <a href="/" class="shrink-0 md:hidden" aria-label="Stay Property — на главную"><Logo class="h-6 w-auto" /></a>
+      <nav class="hidden items-center md:flex" aria-label="Направления">
+        <a href="/" class="mr-5 shrink-0" aria-label="Stay Property — на главную"><Logo class="h-6 w-auto" /></a>
+        {site.brands.map((b, i) => (
+          <a
+            href={b.href}
+            target={b.external ? '_blank' : undefined}
+            rel={b.external ? 'noopener' : undefined}
+            class:list={[
+              'px-3 text-[12px] font-medium tracking-[0.04em] opacity-80 transition-opacity hover:opacity-100',
+              i > 0 && 'border-l border-current/25',
+              path.startsWith(b.href) && b.href !== '/' && 'opacity-100',
+            ]}
+          >{b.label}</a>
+        ))}
+      </nav>
+      <div class="ml-auto flex items-center gap-1 sm:gap-2">
+        <a href="/search/" class="grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label="Поиск"><Icon name="search" /></a>
+        <a href={site.phone.href} class="hidden items-center gap-2 px-2 text-[13px] lg:inline-flex"><Icon name="phone" class="size-4" />{site.phone.label}</a>
+        <span class="hidden px-2 text-[13px] font-medium sm:inline">RU</span>
+        <a href="/favorites/" class="relative grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label="Избранное">
+          <Icon name="heart" />
+          <span data-fav-count class="absolute right-1 top-1 hidden min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 text-white"></span>
+        </a>
+        <button type="button" data-menu-open class="grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label="Меню"><Icon name="menu" /></button>
+      </div>
+    </div>
+    <nav class="scroll-x -mt-1 hidden gap-6 pb-3 text-[13px] md:flex" aria-label="Услуги">
+      {services.map((s) => (
+        <a href={s.href} class:list={['whitespace-nowrap opacity-75 transition-opacity hover:opacity-100', path === s.href && 'opacity-100']}>{s.label}</a>
+      ))}
+    </nav>
+  </div>
+</header>
+
+<div data-menu class="fixed inset-0 z-50 hidden bg-ink text-white" role="dialog" aria-modal="true" aria-label="Меню">
+  <div class="container-x flex h-full flex-col overflow-y-auto pb-10">
+    <div class="flex h-14 items-center md:h-16">
+      <a href="/" aria-label="Stay Property — на главную"><Logo class="h-6 w-auto" withText /></a>
+      <button type="button" data-menu-close class="ml-auto grid size-10 place-items-center rounded-full hover:bg-white/10" aria-label="Закрыть меню"><Icon name="close" /></button>
+    </div>
+    <div class="mt-8 grid gap-10 md:grid-cols-3">
+      <div>
+        <p class="mb-4 text-sm text-white/50">Недвижимость</p>
+        <ul class="space-y-3 font-display text-2xl tracking-[-0.03em]">
+          <li><a href="/sale/" class="hover:text-lavender">Продажа</a></li>
+          <li><a href="/rental/" class="hover:text-lavender">Аренда</a></li>
+          <li><a href="/complex/" class="hover:text-lavender">Проекты STAY</a></li>
+          <li><a href="/favorites/" class="hover:text-lavender">Избранное</a></li>
+        </ul>
+      </div>
+      <div>
+        <p class="mb-4 text-sm text-white/50">Услуги</p>
+        <ul class="space-y-2.5 text-lg">
+          {services.map((s) => <li><a href={s.href} class="hover:text-lavender">{s.label}</a></li>)}
+        </ul>
+      </div>
+      <div>
+        <p class="mb-4 text-sm text-white/50">Компания</p>
+        <ul class="space-y-2.5 text-lg">
+          <li><a href="/about/" class="hover:text-lavender">О компании</a></li>
+          <li><a href="/ru/news/" class="hover:text-lavender">Новости</a></li>
+          {site.brands.filter((b) => b.external).map((b) => <li><a href={b.href} target="_blank" rel="noopener" class="hover:text-lavender">{b.label}</a></li>)}
+        </ul>
+        <div class="mt-8 space-y-2 text-white/80">
+          {site.phones.map((p) => <a class="block" href={p.href}>{p.country}: {p.label}</a>)}
+          <a class="block" href={`mailto:${site.email}`}>{site.email}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const header = document.querySelector<HTMLElement>('[data-header]');
+  const menu = document.querySelector<HTMLElement>('[data-menu]');
+  if (header?.dataset.overlay === 'true') {
+    const onScroll = () => {
+      const solid = window.scrollY > 40;
+      header.classList.toggle('bg-ink/85', solid);
+      header.classList.toggle('backdrop-blur-md', solid);
+    };
+    onScroll();
+    addEventListener('scroll', onScroll, { passive: true });
+  }
+  const open = () => { menu?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; };
+  const close = () => { menu?.classList.add('hidden'); document.body.style.overflow = ''; };
+  document.querySelector('[data-menu-open]')?.addEventListener('click', open);
+  document.querySelector('[data-menu-close]')?.addEventListener('click', close);
+  addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+</script>

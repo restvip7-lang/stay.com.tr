@@ -1,0 +1,35 @@
+---
+import Base from '../layouts/Base.astro';
+import SaleCard from '../components/SaleCard.astro';
+import ProjectCard from '../components/ProjectCard.astro';
+import NewsCard from '../components/NewsCard.astro';
+import { getNews, getProjects, searchListings } from '../lib/api';
+
+const q = (Astro.url.searchParams.get('q') || '').trim();
+const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е');
+let projects: Awaited<ReturnType<typeof getProjects>> = [];
+let listings: Awaited<ReturnType<typeof searchListings>>['items'] = [];
+let news: Awaited<ReturnType<typeof getNews>> = [];
+if (q) {
+  const n = norm(q);
+  projects = (await getProjects()).filter((p) => norm(`${p.title} ${p.area ?? ''} ${p.city ?? ''}`).includes(n)).slice(0, 6);
+  const all = await searchListings({ operation: 'sale', perPage: 5000 });
+  listings = all.items.filter((x) => norm(`${x.title} ${x.ref ?? ''} ${x.area ?? ''} ${x.city ?? ''}`).includes(n)).slice(0, 12);
+  news = (await getNews()).filter((x) => norm(x.title).includes(n)).slice(0, 4);
+}
+const found = projects.length + listings.length + news.length;
+---
+<Base title={q ? `Поиск: ${q}` : 'Поиск'} description="Поиск по объектам, проектам и новостям Stay Property.">
+  <section class="container-x pt-10 md:pt-16">
+    <h1 class="display h-page">Поиск</h1>
+    <form action="/search/" class="mt-8 flex max-w-2xl gap-2" role="search">
+      <label for="q" class="sr-only">Что ищем</label>
+      <input id="q" name="q" value={q} class="field" placeholder="Название проекта, район или ID объекта" autofocus />
+      <button class="btn btn-dark">Найти</button>
+    </form>
+    {q && <p class="mt-6 text-muted">{found ? `Найдено: ${found}` : 'Ничего не нашлось. Попробуйте другое слово или посмотрите каталог.'}</p>}
+  </section>
+  {projects.length > 0 && <section class="container-x mt-12"><h2 class="display mb-6 text-2xl">Проекты</h2><div class="grid gap-4 md:grid-cols-3">{projects.map((p) => <ProjectCard p={p} />)}</div></section>}
+  {listings.length > 0 && <section class="container-x mt-12"><h2 class="display mb-6 text-2xl">Объекты</h2><div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{listings.map((x) => <SaleCard x={x} />)}</div></section>}
+  {news.length > 0 && <section class="container-x mt-12"><h2 class="display mb-6 text-2xl">Новости</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{news.map((n) => <NewsCard n={n} />)}</div></section>}
+</Base>

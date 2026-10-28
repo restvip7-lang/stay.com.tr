@@ -1,0 +1,101 @@
+---
+import Base from '../layouts/Base.astro';
+import Gallery from './Gallery.astro';
+import Calculator from './Calculator.astro';
+import LeadSection from './LeadSection.astro';
+import SaleCard from './SaleCard.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import Icon from './Icon.astro';
+import { getSimilar, type ListingDetail } from '../lib/api';
+import { money, num, strip } from '../lib/format';
+import { site } from '../lib/site';
+
+interface Props { x: ListingDetail }
+const { x } = Astro.props;
+const operation = x.operation;
+const similar = await getSimilar(x).catch(() => []);
+const place = x.region || [x.area, x.city].filter(Boolean).join(', ');
+const priceLabel = operation === 'rental' && x.price ? `${money(x.price)}/мес` : money(x.price);
+const facts = [
+  ['Тип', `${x.typeLabel}${x.rooms ? ' ' + x.rooms : ''}`],
+  ['Площадь', x.totalArea ? `${num(x.totalArea)} м²` : null],
+  ['До моря', x.distanceToSea ? `${num(x.distanceToSea)} м` : null],
+  ['Год постройки', x.yearBuilt],
+  ['Этаж', x.floor ? String(x.floor) : null],
+  ['Регион', place || null],
+  ['ID объекта', x.ref],
+].filter(([, v]) => v) as [string, string][];
+const fav = { id: x.id, url: x.url, title: x.title, image: x.image, price: priceLabel, meta: place };
+const listHref = operation === 'rental' ? '/rental/' : '/sale/';
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'RealEstateListing',
+  name: x.title,
+  url: new URL(x.url, Astro.site).toString(),
+  image: x.images.slice(0, 5),
+  description: strip(x.html, 300),
+  offers: x.price ? { '@type': 'Offer', price: x.price, priceCurrency: 'EUR' } : undefined,
+};
+---
+<Base title={x.title} description={strip(x.html || `${x.typeLabel} ${place}. ${priceLabel}`, 160)} image={x.image} jsonLd={ld}>
+  <div class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: 'Stay Property', href: '/' }, { label: operation === 'rental' ? 'Аренда' : 'Продажа', href: listHref }, { label: x.title }]} />
+    <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+      <div class="card p-3 md:p-4">
+        <Gallery images={x.images} title={x.title} />
+        {x.html && (
+          <div class="mt-6 border-t border-line px-2 pt-6">
+            <h2 class="display mb-4 text-2xl">Описание</h2>
+            <div class="prose-stay" set:html={x.html} />
+          </div>
+        )}
+      </div>
+      <div class="space-y-4">
+        <div class="card p-5 md:p-6 lg:sticky lg:top-28">
+          <div class="flex items-start justify-between gap-3">
+            <h1 class="font-display text-lg font-medium leading-tight tracking-[-0.02em]">{x.title}</h1>
+            <div class="flex gap-2">
+              <button type="button" data-share class="grid size-11 place-items-center rounded-full border border-line hover:border-ink" aria-label="Поделиться"><Icon name="share" class="size-4" /></button>
+              <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" class="grid size-11 place-items-center rounded-full border border-line hover:border-ink" aria-label="В избранное"><Icon name="heart" class="size-5" /></button>
+            </div>
+          </div>
+          <p class="display mt-6 text-[clamp(32px,3.4vw,44px)]">{priceLabel}</p>
+          {x.pricePerSquare && <p class="text-sm text-muted">{money(x.pricePerSquare)} за м²</p>}
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="chip chip-accent">{operation === 'rental' ? 'Аренда' : 'Продажа'}</span>
+            {x.distanceToSea && <span class="chip">До моря {num(x.distanceToSea)} м</span>}
+          </div>
+          <a href="#lead" class="btn btn-accent mt-6 w-full"><Icon name="phone" class="size-4" />{operation === 'rental' ? 'Узнать о свободных датах' : 'Забронировать'}</a>
+          <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn btn-ghost mt-2 w-full"><Icon name="whatsapp" class="size-4" />Написать в WhatsApp</a>
+          <dl class="mt-6 divide-y divide-line text-[15px]">
+            {facts.map(([k, v]) => (
+              <div class="flex justify-between gap-4 py-3"><dt class="text-muted">{k}</dt><dd class="text-right">{v}</dd></div>
+            ))}
+          </dl>
+        </div>
+        {operation === 'sale' && (
+          <div class="card p-5 md:p-6">
+            <h2 class="display mb-5 text-2xl">Калькулятор рассрочки</h2>
+            <Calculator price={x.price} compact />
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+  <LeadSection context={`listing-${x.id}`} />
+  {similar.length > 0 && (
+    <section class="container-x mt-20">
+      <h2 class="display h-section mb-8">Похожие объекты</h2>
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{similar.map((s) => <SaleCard x={s} />)}</div>
+    </section>
+  )}
+</Base>
+<script>
+  document.querySelectorAll<HTMLButtonElement>('[data-share]').forEach((b) => b.addEventListener('click', async () => {
+    const data = { title: document.title, url: location.href };
+    try {
+      if (navigator.share) await navigator.share(data);
+      else { await navigator.clipboard.writeText(location.href); b.title = 'Ссылка скопирована'; }
+    } catch { /* отмена */ }
+  }));
+</script>

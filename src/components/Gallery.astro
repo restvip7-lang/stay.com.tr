@@ -1,0 +1,34 @@
+---
+import Img from './Img.astro';
+interface Props { images: string[]; title: string }
+const { images, title } = Astro.props;
+const list = images.length ? images : [null];
+---
+<div data-gallery>
+  <div class="relative aspect-[4/3] overflow-hidden rounded-[16px]">
+    <Img src={list[0]} alt={title} class="size-full" loading="eager" />
+    <span class="chip absolute bottom-3 right-3" data-counter>{list.length > 1 ? `1 / ${list.length}` : ''}</span>
+  </div>
+  {list.length > 1 && (
+    <div class="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-7">
+      {list.map((src, i) => (
+        <button type="button" data-thumb={src} data-i={i} class:list={['aspect-square overflow-hidden rounded-[10px] ring-ink ring-offset-2', i === 0 && 'ring-2']} aria-label={`Фото ${i + 1}`}>
+          <Img src={src} alt="" class="size-full" />
+        </button>
+      ))}
+    </div>
+  )}
+</div>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-gallery]').forEach((g) => {
+    const main = g.querySelector<HTMLImageElement>('img')!;
+    const counter = g.querySelector('[data-counter]');
+    const thumbs = [...g.querySelectorAll<HTMLButtonElement>('[data-thumb]')];
+    thumbs.forEach((t) => t.addEventListener('click', () => {
+      main.src = t.dataset.thumb!;
+      main.style.visibility = '';
+      thumbs.forEach((x) => x.classList.toggle('ring-2', x === t));
+      if (counter) counter.textContent = `${Number(t.dataset.i) + 1} / ${thumbs.length}`;
+    }));
+  });
+</script>

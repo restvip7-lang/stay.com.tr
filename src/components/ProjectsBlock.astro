@@ -1,0 +1,56 @@
+---
+import ProjectCard from './ProjectCard.astro';
+import Icon from './Icon.astro';
+import type { Project } from '../lib/api';
+interface Props { title: string; projects: Project[]; visible?: number; moreHref?: string }
+const { title, projects, visible = 5, moreHref } = Astro.props;
+const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, u: p.url, lat: p.lat, lng: p.lng, a: [p.city, p.area].filter(Boolean).join(', '), pr: p.priceFrom }));
+---
+<section class="container-x mt-20 md:mt-28" data-projects>
+  <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <h2 class="display h-section">{title}</h2>
+    <div class="flex rounded-full bg-white p-1 shadow-sm" role="tablist" aria-label="Вид">
+      <button type="button" role="tab" aria-selected="true" data-mode="grid" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="grid" class="size-4" />Плитка</button>
+      <button type="button" role="tab" aria-selected="false" data-mode="map" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="pin" class="size-4" />На карте</button>
+    </div>
+  </div>
+  <div data-view="grid">
+    <div class="grid gap-4 md:grid-cols-2">
+      {projects.map((p, i) => (
+        <div class:list={[i === 0 && 'md:col-span-2', i >= visible && 'hidden']} data-more-item={i >= visible ? '' : undefined}>
+          <ProjectCard p={p} big={i === 0} />
+        </div>
+      ))}
+    </div>
+    {projects.length > visible && (
+      <div class="mt-10 flex justify-center">
+        <button type="button" data-show-more class="btn btn-ghost"><Icon name="plus" class="size-4" />Показать ещё</button>
+      </div>
+    )}
+    {moreHref && <div class="mt-6 flex justify-center"><a href={moreHref} class="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">Все проекты</a></div>}
+  </div>
+  <div data-view="map" hidden>
+    <div data-map data-points={JSON.stringify(points)} class="h-[70svh] min-h-[420px] overflow-hidden rounded-[var(--radius-big)] bg-lavender-2"></div>
+  </div>
+</section>
+
+<style>
+  .mode-btn[aria-selected='true'] { background: var(--color-ink-2); color: #fff; }
+</style>
+
+<script>
+  import { mountMap } from '../scripts/map';
+  document.querySelectorAll<HTMLElement>('[data-projects]').forEach((root) => {
+    const btns = root.querySelectorAll<HTMLButtonElement>('[data-mode]');
+    let mapped = false;
+    btns.forEach((b) => b.addEventListener('click', () => {
+      btns.forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      root.querySelectorAll<HTMLElement>('[data-view]').forEach((v) => (v.hidden = v.dataset.view !== b.dataset.mode));
+      if (b.dataset.mode === 'map' && !mapped) { mapped = true; mountMap(root.querySelector('[data-map]')!); }
+    }));
+    root.querySelector('[data-show-more]')?.addEventListener('click', (e) => {
+      root.querySelectorAll('[data-more-item]').forEach((el) => el.classList.remove('hidden'));
+      (e.currentTarget as HTMLElement).remove();
+    });
+  });
+</script>

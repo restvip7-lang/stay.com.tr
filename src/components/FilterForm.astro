@@ -1,0 +1,214 @@
+---
+import Icon from './Icon.astro';
+import { getFacets, searchListings, type ListingQuery } from '../lib/api';
+import { TYPE_TABS } from '../lib/dict';
+import { num } from '../lib/format';
+
+interface Props { action?: string; operation?: 'sale' | 'rental'; query?: ListingQuery; tabs?: boolean; showAll?: boolean }
+const { action = '/sale/', operation = 'sale', query, tabs = true } = Astro.props;
+const f = await getFacets(operation);
+const q: ListingQuery = query ?? { operation, group: operation === 'sale' ? 'apartments' : 'all' };
+const { total } = await searchListings({ ...q, perPage: 1 });
+const group = q.group ?? 'all';
+const tab = TYPE_TABS.find((t) => t.key === group);
+const priceMin = Math.max(0, Math.floor(f.priceMin / 1000) * 1000);
+const priceMax = Math.ceil(f.priceMax / 100000) * 100000;
+const seaMin = 0;
+const seaMax = Math.min(10000, Math.ceil(f.seaMax / 500) * 500);
+const rooms = [
+  { v: 'studio', l: 'Студия' }, { v: '1+1', l: '1+1' }, { v: '2+1', l: '2+1' }, { v: '3+1', l: '3+1' }, { v: '4+', l: '4+' },
+];
+const selRooms = new Set(q.rooms ?? []);
+---
+<form method="get" action={action} data-filter data-operation={operation} class="filter">
+  {tabs && (
+    <div class="mb-6 flex gap-6 text-lg md:text-xl" role="tablist">
+      {TYPE_TABS.map((t) => (
+        <label class="cursor-pointer">
+          <input type="radio" name="type" value={t.key} checked={group === t.key} class="peer sr-only" />
+          <span class="border-b-2 border-transparent pb-1 text-muted transition-colors peer-checked:border-ink peer-checked:text-ink hover:text-ink">{t.label}</span>
+        </label>
+      ))}
+    </div>
+  )}
+  {!tabs && <input type="hidden" name="type" value={group} />}
+  <div class="grid gap-x-4 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
+    <div>
+      <label class="label" for="f-country">Страна</label>
+      <div class="relative">
+        <select id="f-country" name="country" class="field appearance-none pr-10" data-country>
+          <option value="">Все страны</option>
+          {f.countries.map((c) => <option selected={q.country === c}>{c}</option>)}
+        </select>
+        <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
+      </div>
+    </div>
+    <div>
+      <label class="label" for="f-city">Город</label>
+      <div class="relative">
+        <select id="f-city" name="city" class="field appearance-none pr-10" data-city>
+          <option value="">Все города</option>
+          {f.cities.map((c) => <option data-country={c.country} selected={q.city === c.name}>{c.name}</option>)}
+        </select>
+        <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
+      </div>
+    </div>
+    <div>
+      <label class="label" for="f-area">Район</label>
+      <div class="relative">
+        <select id="f-area" name="area" class="field appearance-none pr-10" data-area>
+          <option value="">Все районы</option>
+          {f.areas.map((a) => <option data-city={a.city} selected={q.area === a.name}>{a.name}</option>)}
+        </select>
+        <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
+      </div>
+    </div>
+    <div>
+      <label class="label" for="f-ref">ID</label>
+      <input id="f-ref" name="ref" class="field" placeholder="Например: STY009" value={q.ref ?? ''} />
+    </div>
+
+    <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step="1000">
+      <legend class="label">Стоимость, €</legend>
+      <div class="flex overflow-hidden rounded-full border border-line bg-white">
+        <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="price_from" inputmode="numeric" placeholder={`от ${num(priceMin)}`} value={q.priceFrom ?? ''} data-lo aria-label="Цена от" />
+        <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="price_to" inputmode="numeric" placeholder={`до ${num(priceMax)}`} value={q.priceTo ?? ''} data-hi aria-label="Цена до" />
+      </div>
+      <div class="dual mt-3" aria-hidden="true">
+        <input type="range" min={priceMin} max={priceMax} step="1000" value={q.priceFrom ?? priceMin} data-slo tabindex="-1" />
+        <input type="range" min={priceMin} max={priceMax} step="1000" value={q.priceTo ?? priceMax} data-shi tabindex="-1" />
+      </div>
+    </fieldset>
+
+    <fieldset class="lg:col-span-2">
+      <legend class="label">Планировка</legend>
+      <div class="flex flex-wrap gap-2">
+        {rooms.map((r) => (
+          <label class="cursor-pointer">
+            <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v)} class="peer sr-only" />
+            <span class="inline-flex h-12 min-w-12 items-center justify-center rounded-full border border-line bg-white px-4 text-[15px] transition-colors peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+
+    <fieldset class="range" data-range data-min={seaMin} data-max={seaMax} data-step="50">
+      <legend class="label">До моря, м</legend>
+      <div class="flex overflow-hidden rounded-full border border-line bg-white">
+        <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="sea_from" inputmode="numeric" placeholder={`от ${seaMin}`} value={q.seaFrom ?? ''} data-lo aria-label="До моря от" />
+        <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="sea_to" inputmode="numeric" placeholder={`до ${num(seaMax)}`} value={q.seaTo ?? ''} data-hi aria-label="До моря до" />
+      </div>
+      <div class="dual mt-3" aria-hidden="true">
+        <input type="range" min={seaMin} max={seaMax} step="50" value={q.seaFrom ?? seaMin} data-slo tabindex="-1" />
+        <input type="range" min={seaMin} max={seaMax} step="50" value={q.seaTo ?? seaMax} data-shi tabindex="-1" />
+      </div>
+    </fieldset>
+  </div>
+  <div class="mt-6 flex flex-wrap items-center justify-end gap-3">
+    <a href={action} class="mr-auto text-sm text-muted hover:text-ink">Сбросить</a>
+    <button type="submit" class="btn btn-accent min-w-[220px]">
+      Показать <span data-total>{num(total)}</span>&nbsp;<span data-noun>{tab ? '' : 'объектов'}</span>
+    </button>
+  </div>
+</form>
+
+<style>
+  .dual { position: relative; height: 18px; }
+  .dual::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--color-ink); border-radius: 2px; }
+  .dual input { position: absolute; inset: 0; width: 100%; appearance: none; background: none; pointer-events: none; margin: 0; }
+  .dual input::-webkit-slider-thumb { appearance: none; pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--color-ink); cursor: pointer; }
+  .dual input::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; cursor: pointer; }
+</style>
+
+<script>
+  import { plural } from '../lib/format';
+  const NOUNS: Record<string, [string, string, string]> = {
+    apartments: ['квартира', 'квартиры', 'квартир'],
+    villas: ['вилла', 'виллы', 'вилл'],
+    duplexes: ['дуплекс', 'дуплекса', 'дуплексов'],
+    all: ['объект', 'объекта', 'объектов'],
+  };
+  document.querySelectorAll<HTMLFormElement>('[data-filter]').forEach((form) => {
+    const fmt = (n: number) => n.toLocaleString('ru-RU');
+    const totalEl = form.querySelector('[data-total]')!;
+    const nounEl = form.querySelector('[data-noun]')!;
+    const setNoun = (n: number) => {
+      const t = (form.querySelector<HTMLInputElement>('[name=type]:checked') || form.querySelector<HTMLInputElement>('[name=type]'))?.value || 'all';
+      nounEl.textContent = plural(n, NOUNS[t] || NOUNS.all);
+    };
+    setNoun(Number(totalEl.textContent?.replace(/\D/g, '') || 0));
+
+    // Связанные списки: страна → город → район.
+    const country = form.querySelector<HTMLSelectElement>('[data-country]')!;
+    const city = form.querySelector<HTMLSelectElement>('[data-city]')!;
+    const area = form.querySelector<HTMLSelectElement>('[data-area]')!;
+    const cascade = () => {
+      city.querySelectorAll('option[data-country]').forEach((o) => {
+        const el = o as HTMLOptionElement;
+        el.hidden = !!country.value && el.dataset.country !== country.value;
+        if (el.hidden && el.selected) city.value = '';
+      });
+      const cityCountry = new Map([...city.options].map((o) => [o.value, o.dataset.country]));
+      area.querySelectorAll('option[data-city]').forEach((o) => {
+        const el = o as HTMLOptionElement;
+        const okCity = !city.value || el.dataset.city === city.value;
+        const okCountry = !country.value || cityCountry.get(el.dataset.city || '') === country.value;
+        el.hidden = !(okCity && okCountry);
+        if (el.hidden && el.selected) area.value = '';
+      });
+    };
+    country.addEventListener('change', cascade);
+    city.addEventListener('change', cascade);
+    cascade();
+
+    // Двойные ползунки ↔ поля ввода.
+    form.querySelectorAll<HTMLElement>('[data-range]').forEach((r) => {
+      const lo = r.querySelector<HTMLInputElement>('[data-lo]')!;
+      const hi = r.querySelector<HTMLInputElement>('[data-hi]')!;
+      const slo = r.querySelector<HTMLInputElement>('[data-slo]')!;
+      const shi = r.querySelector<HTMLInputElement>('[data-shi]')!;
+      const min = Number(r.dataset.min), max = Number(r.dataset.max);
+      const toNum = (s: string) => Number(s.replace(/\D/g, ''));
+      slo.addEventListener('input', () => {
+        if (+slo.value > +shi.value) slo.value = shi.value;
+        lo.value = +slo.value <= min ? '' : fmt(+slo.value);
+      });
+      shi.addEventListener('input', () => {
+        if (+shi.value < +slo.value) shi.value = slo.value;
+        hi.value = +shi.value >= max ? '' : fmt(+shi.value);
+      });
+      [slo, shi].forEach((s) => s.addEventListener('change', () => form.dispatchEvent(new Event('change'))));
+      lo.addEventListener('input', () => { slo.value = String(toNum(lo.value) || min); });
+      hi.addEventListener('input', () => { shi.value = String(toNum(hi.value) || max); });
+    });
+
+    // Живой счётчик.
+    let timer: number | undefined;
+    const update = () => {
+      clearTimeout(timer);
+      timer = window.setTimeout(async () => {
+        const fd = new FormData(form);
+        const sp = new URLSearchParams();
+        for (const [k, v] of fd) if (String(v).trim()) sp.append(k, String(v).replace(/\s/g, ''));
+        sp.set('operation', form.dataset.operation || 'sale');
+        try {
+          const r = await fetch('/api/count?' + sp.toString());
+          const { total } = await r.json();
+          totalEl.textContent = fmt(total);
+          setNoun(total);
+        } catch { /* счётчик не критичен */ }
+      }, 250);
+    };
+    form.addEventListener('change', update);
+    form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) update(); });
+
+    // Чистим пустые поля и пробелы в числах перед отправкой.
+    form.addEventListener('submit', () => {
+      form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input[name],select[name]').forEach((el) => {
+        if (el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio')) return;
+        if (el instanceof HTMLInputElement) el.value = el.value.replace(/\s/g, '');
+        if (!el.value) el.removeAttribute('name');
+      });
+    });
+  });
+</script>
