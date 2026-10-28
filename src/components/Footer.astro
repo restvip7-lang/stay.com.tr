@@ -4,7 +4,8 @@ import Icon from './Icon.astro';
 import Img from './Img.astro';
 import { site } from '../lib/site';
 import { getProjects } from '../lib/api';
-import home from '../content/data/home.json';
+import { getHomeConfig } from '../lib/homeConfig';
+const home = await getHomeConfig();
 
 const all = await getProjects().catch(() => []);
 const projects = home.projects.map((c) => all.find((p) => p.code === c)).filter(Boolean) as Awaited<ReturnType<typeof getProjects>>;

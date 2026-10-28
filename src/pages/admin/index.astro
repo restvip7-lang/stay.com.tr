@@ -1,0 +1,201 @@
+---
+import '../../styles/global.css';
+import { adminEnabled, isAdmin } from '../../lib/adminAuth';
+import { getHomeConfig, storageReady } from '../../lib/homeConfig';
+import { getProjects } from '../../lib/api';
+
+export const prerender = false;
+
+Astro.response.headers.set('Cache-Control', 'no-store');
+const enabled = adminEnabled();
+const authed = isAdmin(Astro.cookies);
+const error = Astro.url.searchParams.has('error');
+
+let data: any = null;
+if (authed) {
+  const [home, projects] = await Promise.all([getHomeConfig(), getProjects()]);
+  data = {
+    home,
+    storage: storageReady(),
+    projects: projects.map((p) => ({ code: p.code, title: p.title, place: [p.city, p.area].filter(Boolean).join(', '), image: p.image, price: p.priceFromLabel ?? '' })),
+  };
+}
+---
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Админка — Stay Property</title>
+    <link rel="icon" href="/favicon.svg" />
+  </head>
+  <body class="min-h-screen">
+    <header class="border-b border-line bg-white">
+      <div class="container-x flex h-16 items-center justify-between">
+        <a href="/" class="font-medium">Stay Property · <span class="text-muted">админка</span></a>
+        {authed && (
+          <form method="post" action="/api/admin/login"><button name="logout" value="1" class="text-sm text-muted hover:text-ink">Выйти</button></form>
+        )}
+      </div>
+    </header>
+
+    {!enabled && (
+      <main class="container-x py-16">
+        <div class="card max-w-xl p-8">
+          <h1 class="display text-3xl">Админка выключена</h1>
+          <p class="mt-4 text-ink-2">Чтобы включить, задайте пароль (не короче 8 символов) в переменной <code>ADMIN_PASSWORD</code> в настройках проекта на Vercel и пересоберите сайт.</p>
+        </div>
+      </main>
+    )}
+
+    {enabled && !authed && (
+      <main class="container-x grid place-items-center py-24">
+        <form method="post" action="/api/admin/login" class="card w-full max-w-sm p-8">
+          <h1 class="display text-3xl">Вход</h1>
+          <label class="label mt-6" for="pw">Пароль</label>
+          <input id="pw" name="password" type="password" required autocomplete="current-password" class="field" autofocus />
+          {error && <p class="mt-3 text-sm text-red-600">Неверный пароль</p>}
+          <button class="btn btn-dark mt-6 w-full">Войти</button>
+        </form>
+      </main>
+    )}
+
+    {authed && (
+      <main class="container-x py-10" id="app">
+        <div class="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 class="display text-4xl">Главная страница</h1>
+            <p class="mt-2 text-muted">Какие проекты Stay показывать на главной, в каком порядке и какие крутить в первом экране.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <span data-status class="text-sm text-muted"></span>
+            <a href="/" target="_blank" class="btn btn-ghost">Открыть сайт</a>
+            <button data-save class="btn btn-accent">Сохранить</button>
+          </div>
+        </div>
+        {!data.storage && <p class="mt-4 rounded-2xl bg-peach px-4 py-3 text-sm">Хранилище не подключено: изменения сохранить нельзя (так бывает при локальном запуске).</p>}
+
+        <section class="mt-8 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+          <div class="card p-6">
+            <div class="flex items-center justify-between gap-4">
+              <h2 class="text-xl font-medium">На главной</h2>
+              <label class="flex items-center gap-2 text-sm text-muted">Сразу видно <input data-visible type="number" min="1" max="50" class="field h-10 w-20 px-3" /></label>
+            </div>
+            <label class="label mt-4">Заголовок блока</label>
+            <input data-title class="field" />
+            <p class="mt-4 text-sm text-muted">★ — проект в слайдере первого экрана. Стрелками меняется порядок.</p>
+            <ol data-selected class="mt-3 grid gap-2"></ol>
+          </div>
+          <div class="card p-6">
+            <h2 class="text-xl font-medium">Все проекты</h2>
+            <input data-search class="field mt-4" placeholder="Поиск по названию или району" />
+            <ul data-all class="mt-3 grid max-h-[70vh] gap-2 overflow-auto pr-1"></ul>
+          </div>
+        </section>
+
+        <section class="card mt-6 p-6">
+          <h2 class="text-xl font-medium">Способы покупки</h2>
+          <div data-variants class="mt-4 grid gap-4 md:grid-cols-3"></div>
+          <h3 class="mt-6 font-medium">Купить онлайн</h3>
+          <div class="mt-3 grid gap-4 md:grid-cols-2">
+            <div><label class="label">Заголовок</label><input data-online="title" class="field" /></div>
+            <div><label class="label">Текст</label><input data-online="text" class="field" /></div>
+          </div>
+        </section>
+      </main>
+    )}
+
+    {authed && <script type="application/json" id="admin-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />}
+    <script>
+      const el = document.getElementById('admin-data');
+      if (el) {
+        const { home, projects } = JSON.parse(el.textContent || '{}');
+        const byCode = new Map(projects.map((p: any) => [p.code, p]));
+        let selected: string[] = home.projects.filter((c: string) => byCode.has(c));
+        const hero = new Set<string>(home.hero.map((h: any) => h.project));
+        const $ = (s: string) => document.querySelector(s) as HTMLElement;
+        const status = $('[data-status]');
+        let dirty = false;
+        const touch = () => { dirty = true; status.textContent = 'Есть несохранённые изменения'; };
+        const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+        const thumb = (p: any) => p.image ? `<img src="${esc(p.image)}" alt="" class="size-12 shrink-0 rounded-xl object-cover bg-lavender-2" loading="lazy">` : '<span class="size-12 shrink-0 rounded-xl bg-lavender-2"></span>';
+        const btn = 'grid size-9 place-items-center rounded-full border border-line hover:border-ink disabled:opacity-30';
+
+        function render() {
+          $('[data-selected]').innerHTML = selected.map((c, i) => {
+            const p: any = byCode.get(c);
+            return `<li class="flex items-center gap-3 rounded-2xl border border-line p-2">
+              <span class="w-5 text-center text-sm text-muted">${i + 1}</span>${thumb(p)}
+              <span class="min-w-0 flex-1"><span class="block truncate font-medium">${esc(p.title)}</span><span class="block truncate text-sm text-muted">${esc(p.place)}</span></span>
+              <button data-hero="${c}" title="В слайдере" class="${btn} ${hero.has(c) ? 'bg-accent text-white border-accent' : ''}">★</button>
+              <button data-up="${i}" title="Выше" class="${btn}" ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button data-down="${i}" title="Ниже" class="${btn}" ${i === selected.length - 1 ? 'disabled' : ''}>↓</button>
+              <button data-remove="${c}" title="Убрать" class="${btn}">✕</button></li>`;
+          }).join('') || '<li class="text-muted">Пока пусто — добавьте проекты справа.</li>';
+          const q = ($('[data-search]') as HTMLInputElement).value.trim().toLowerCase();
+          $('[data-all]').innerHTML = projects
+            .filter((p: any) => !selected.includes(p.code) && (!q || (p.title + ' ' + p.place).toLowerCase().includes(q)))
+            .map((p: any) => `<li class="flex items-center gap-3 rounded-2xl border border-line p-2">${thumb(p)}
+              <span class="min-w-0 flex-1"><span class="block truncate font-medium">${esc(p.title)}</span><span class="block truncate text-sm text-muted">${esc(p.place)}${p.price ? ' · ' + esc(p.price) : ''}</span></span>
+              <button data-add="${p.code}" class="${btn}" title="Добавить на главную">+</button></li>`).join('');
+        }
+
+        document.addEventListener('click', (e) => {
+          const t = (e.target as HTMLElement).closest('button');
+          if (!t) return;
+          const d = t.dataset;
+          if (d.add) selected.push(d.add);
+          else if (d.remove) { selected = selected.filter((c) => c !== d.remove); hero.delete(d.remove); }
+          else if (d.hero) hero.has(d.hero) ? hero.delete(d.hero) : hero.add(d.hero);
+          else if (d.up) { const i = +d.up; [selected[i - 1], selected[i]] = [selected[i], selected[i - 1]]; }
+          else if (d.down) { const i = +d.down; [selected[i + 1], selected[i]] = [selected[i], selected[i + 1]]; }
+          else return;
+          touch();
+          render();
+        });
+        $('[data-search]').addEventListener('input', render);
+
+        const title = $('[data-title]') as HTMLInputElement;
+        const visible = $('[data-visible]') as HTMLInputElement;
+        title.value = home.projectsTitle ?? '';
+        visible.value = String(home.projectsVisible ?? 5);
+        [title, visible].forEach((i) => i.addEventListener('input', touch));
+
+        const variants = home.buyVariants.map((v: any) => ({ ...v }));
+        $('[data-variants]').innerHTML = variants.map((v: any, i: number) => `<div class="rounded-2xl border border-line p-4">
+          <label class="label">Заголовок</label><input data-v="${i}" data-k="title" class="field" value="${esc(v.title)}">
+          <label class="label mt-3">Текст</label><textarea data-v="${i}" data-k="text" rows="3" class="field h-auto rounded-2xl py-3">${esc(v.text)}</textarea></div>`).join('');
+        $('[data-variants]').addEventListener('input', (e) => {
+          const t = e.target as HTMLInputElement;
+          variants[+t.dataset.v!][t.dataset.k!] = t.value;
+          touch();
+        });
+        const online = { ...home.buyOnline };
+        document.querySelectorAll<HTMLInputElement>('[data-online]').forEach((i) => {
+          i.value = online[i.dataset.online!] ?? '';
+          i.addEventListener('input', () => { online[i.dataset.online!] = i.value; touch(); });
+        });
+
+        $('[data-save]').addEventListener('click', async () => {
+          status.textContent = 'Сохраняю…';
+          const body = {
+            ...home,
+            projectsTitle: title.value.trim() || 'STAY Projects',
+            projectsVisible: Number(visible.value) || 5,
+            projects: selected,
+            hero: selected.filter((c) => hero.has(c)).map((project) => ({ project })),
+            buyVariants: variants,
+            buyOnline: online,
+          };
+          const res = await fetch('/api/admin/home', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+          dirty = !r.ok;
+          status.textContent = r.ok ? 'Сохранено. Главная обновится в течение минуты.' : 'Ошибка: ' + (r.error || res.status);
+        });
+        window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+        render();
+      }
+    </script>
+  </body>
+</html>

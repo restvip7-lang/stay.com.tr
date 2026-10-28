@@ -7,7 +7,8 @@ import BuyVariants from '../components/BuyVariants.astro';
 import CompanySpotlight from '../components/CompanySpotlight.astro';
 import MediaNews from '../components/MediaNews.astro';
 import { getHomeSections, getProjects } from '../lib/api';
-import home from '../content/data/home.json';
+import { getHomeConfig } from '../lib/homeConfig';
+const home = await getHomeConfig();
 
 const [projects, sections] = await Promise.all([getProjects(), getHomeSections()]);
 const byCode = (c: string) => projects.find((p) => p.code === c);

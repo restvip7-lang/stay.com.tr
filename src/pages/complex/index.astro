@@ -3,7 +3,8 @@ import Base from '../../layouts/Base.astro';
 import ProjectsBlock from '../../components/ProjectsBlock.astro';
 import ProjectCard from '../../components/ProjectCard.astro';
 import { getProjects } from '../../lib/api';
-import home from '../../content/data/home.json';
+import { getHomeConfig } from '../../lib/homeConfig';
+const home = await getHomeConfig();
 
 const all = await getProjects();
 const own = home.projects.map((c) => all.find((p) => p.code === c)).filter(Boolean) as typeof all;

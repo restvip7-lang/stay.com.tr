@@ -10,7 +10,8 @@ import MediaNews from '../../../components/MediaNews.astro';
 import { getComplex, getProjects } from '../../../lib/api';
 import { sanitize } from '../../../lib/sanitize';
 import { strip } from '../../../lib/format';
-import home from '../../../content/data/home.json';
+import { getHomeConfig } from '../../../lib/homeConfig';
+const home = await getHomeConfig();
 
 const p = await getComplex(Astro.params.code!);
 if (!p) return Astro.rewrite('/404');

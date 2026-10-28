@@ -1,5 +1,6 @@
 ---
-import home from '../content/data/home.json';
+import { getHomeConfig } from '../lib/homeConfig';
+const home = await getHomeConfig();
 const tones: Record<string, string> = {
   lavender: 'bg-lavender text-ink',
   light: 'bg-white text-ink',
