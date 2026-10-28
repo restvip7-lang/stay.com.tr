@@ -15,7 +15,7 @@ export default defineConfig({
   adapter: vercel({
     // Страницы с объектами кэшируются на час, потом пересобираются из API.
     // Админка и её API не кэшируются. После сохранения в админке главная сбрасывается сразу.
-    isr: { expiration: 60 * 60, bypassToken, exclude: [/^\/admin/, /^\/api\/admin/] },
+    isr: { expiration: 60 * 60, bypassToken, exclude: [/^\/admin/, /^\/api\/admin/, /^\/api\/chat/] },
   }),
   vite: { plugins: [tailwindcss()] },
 });

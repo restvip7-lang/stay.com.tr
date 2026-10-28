@@ -4,6 +4,7 @@ import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import LeadForm from '../components/LeadForm.astro';
 import Icon from '../components/Icon.astro';
+import ChatWidget from '../components/ChatWidget.astro';
 import { noindex } from '../lib/site';
 
 interface Props {
@@ -42,6 +43,7 @@ const fullTitle = title.includes('Stay Property') ? title : `${title} — Stay P
       <slot />
     </main>
     <Footer />
+    <ChatWidget />
 
     <dialog data-lead-dialog class="m-auto w-[min(520px,calc(100%-32px))] rounded-[var(--radius-big)] p-0 backdrop:bg-ink/60">
       <div class="relative p-6 md:p-10">

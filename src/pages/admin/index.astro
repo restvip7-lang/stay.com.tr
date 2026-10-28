@@ -3,6 +3,7 @@ import '../../styles/global.css';
 import { adminEnabled, isAdmin } from '../../lib/adminAuth';
 import { getHomeConfig, storageReady } from '../../lib/homeConfig';
 import { getProjects } from '../../lib/api';
+import { ANTHROPIC_MODELS, DEFAULT_MODELS, chatAdminView, getChatSettings } from '../../lib/chatConfig';
 
 export const prerender = false;
 
@@ -13,9 +14,10 @@ const error = Astro.url.searchParams.has('error');
 
 let data: any = null;
 if (authed) {
-  const [home, projects] = await Promise.all([getHomeConfig(), getProjects()]);
+  const [home, projects, chat] = await Promise.all([getHomeConfig(), getProjects(), getChatSettings()]);
   data = {
     home,
+    chat: chatAdminView(chat),
     storage: storageReady(),
     projects: projects.map((p) => ({ code: p.code, title: p.title, place: [p.city, p.area].filter(Boolean).join(', '), image: p.image, price: p.priceFromLabel ?? '' })),
   };
@@ -102,6 +104,45 @@ if (authed) {
             <div><label class="label">Заголовок</label><input data-online="title" class="field" /></div>
             <div><label class="label">Текст</label><input data-online="text" class="field" /></div>
           </div>
+        </section>
+
+        <section class="card mt-6 p-6" id="chat">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-medium">ИИ-помощник в чате</h2>
+              <p class="mt-1 text-sm text-muted">Черепаха-каретта в углу сайта. Подбирает объекты из нашей базы и отвечает на вопросы. Нужен ключ Claude или GPT.</p>
+            </div>
+            <label class="flex items-center gap-2 font-medium"><input type="checkbox" data-c="enabled" class="size-5 accent-[#754be9]" /> Показывать на сайте</label>
+          </div>
+          <div class="mt-5 grid gap-4 md:grid-cols-3">
+            <div>
+              <label class="label" for="c-provider">Провайдер</label>
+              <select id="c-provider" data-c="provider" class="field"><option value="anthropic">Claude (Anthropic)</option><option value="openai">GPT (OpenAI)</option></select>
+            </div>
+            <div>
+              <label class="label" for="c-model">Модель</label>
+              <select id="c-model" data-model-a class="field">{ANTHROPIC_MODELS.map((m) => <option value={m.id}>{m.label}</option>)}</select>
+              <input id="c-model-o" data-model-o class="field hidden" placeholder={DEFAULT_MODELS.openai} />
+            </div>
+            <div>
+              <label class="label" for="c-key">API-ключ</label>
+              <input id="c-key" data-key type="password" autocomplete="off" class="field" />
+              <p data-key-state class="mt-2 text-xs text-muted"></p>
+            </div>
+            <div><label class="label" for="c-name">Имя талисмана</label><input id="c-name" data-c="name" class="field" /></div>
+            <div class="md:col-span-2"><label class="label" for="c-greet">Приветствие</label><input id="c-greet" data-c="greeting" class="field" /></div>
+            <div class="md:col-span-3">
+              <label class="label" for="c-notes">Что ещё знать помощнику (акции, условия, на чём делать акцент)</label>
+              <textarea id="c-notes" data-c="notes" rows="4" class="field h-auto rounded-2xl py-3"></textarea>
+            </div>
+          </div>
+          <div class="mt-5 flex flex-wrap items-center gap-3">
+            <button data-chat-save class="btn btn-accent">Сохранить помощника</button>
+            <button data-chat-test class="btn btn-ghost">Проверить</button>
+            <button data-chat-delkey class="btn btn-ghost">Удалить ключ</button>
+            <span data-chat-status class="text-sm text-muted"></span>
+          </div>
+          <pre data-chat-out class="mt-4 hidden whitespace-pre-wrap rounded-2xl bg-page p-4 text-sm"></pre>
         </section>
       </main>
     )}
@@ -195,6 +236,69 @@ if (authed) {
         });
         window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
         render();
+      }
+    </script>
+    <script>
+      const el2 = document.getElementById('admin-data');
+      if (el2) {
+        const { chat } = JSON.parse(el2.textContent || '{}');
+        const q = (s: string) => document.querySelector(s) as HTMLInputElement;
+        const st = q('[data-chat-status]');
+        const out = q('[data-chat-out]') as unknown as HTMLElement;
+        const prov = q('[data-c="provider"]');
+        const ma = q('[data-model-a]'), mo = q('[data-model-o]');
+        let state = chat;
+        function fill(c: any) {
+          state = c;
+          (q('[data-c="enabled"]') as HTMLInputElement).checked = !!c.enabled;
+          prov.value = c.provider;
+          for (const k of ['name', 'greeting', 'notes']) q(`[data-c="${k}"]`).value = c[k] ?? '';
+          syncModel(c.model);
+          q('[data-key]').value = '';
+          q('[data-key]').placeholder = c.apiKeyHint ? `сохранён ${c.apiKeyHint} — введите новый, чтобы заменить` : c.keyFromEnv ? 'задан в настройках Vercel' : 'вставьте ключ';
+          q('[data-key-state]').textContent = c.hasKey ? 'Ключ есть. Хранится в зашифрованном виде, в браузер не отдаётся.' : 'Ключа нет — чат на сайте не появится.';
+        }
+        function syncModel(model?: string) {
+          const o = prov.value === 'openai';
+          ma.classList.toggle('hidden', o);
+          mo.classList.toggle('hidden', !o);
+          if (model) (o ? mo : ma).value = model;
+          if (!o && !ma.value) ma.selectedIndex = 0;
+        }
+        prov.addEventListener('change', () => syncModel(prov.value === state.provider ? state.model : prov.value === 'openai' ? 'gpt-4.1-mini' : 'claude-opus-5-5'));
+        async function send(body: any) {
+          const res = await fetch('/api/admin/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+          return res.json().catch(() => ({ ok: false, error: res.statusText }));
+        }
+        q('[data-chat-save]').addEventListener('click', async () => {
+          st.textContent = 'Сохраняю…';
+          const o = prov.value === 'openai';
+          const r = await send({
+            enabled: (q('[data-c="enabled"]') as HTMLInputElement).checked,
+            provider: prov.value,
+            model: (o ? mo.value.trim() || 'gpt-4.1-mini' : ma.value),
+            name: q('[data-c="name"]').value,
+            greeting: q('[data-c="greeting"]').value,
+            notes: q('[data-c="notes"]').value,
+            apiKey: q('[data-key]').value.trim(),
+          });
+          if (r.ok) fill(r.saved);
+          st.textContent = r.ok ? 'Сохранено. На сайте обновится в течение минуты.' : 'Ошибка: ' + r.error;
+        });
+        q('[data-chat-delkey]').addEventListener('click', async () => {
+          if (!confirm('Удалить сохранённый ключ?')) return;
+          const r = await send({ deleteKey: true });
+          if (r.ok) fill(r.saved);
+          st.textContent = r.ok ? 'Ключ удалён.' : 'Ошибка: ' + r.error;
+        });
+        q('[data-chat-test]').addEventListener('click', async () => {
+          st.textContent = 'Спрашиваю помощника (сохранённые настройки)…';
+          out.classList.add('hidden');
+          const r = await send({ action: 'test' });
+          st.textContent = r.ok ? `Работает, ответ за ${(r.ms / 1000).toFixed(1)} с, карточек: ${r.cards}` : 'Не работает: ' + r.error;
+          if (r.ok) { out.textContent = r.text; out.classList.remove('hidden'); }
+        });
+        fill(chat);
       }
     </script>
   </body>
