@@ -53,4 +53,10 @@ const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, 
       (e.currentTarget as HTMLElement).remove();
     });
   });
+  // Ссылка «На карте» (…#map) сразу открывает первый блок в виде карты.
+  if (location.hash === '#map') {
+    const root = document.querySelector<HTMLElement>('[data-projects]');
+    root?.querySelector<HTMLButtonElement>('[data-mode="map"]')?.click();
+    root?.scrollIntoView();
+  }
 </script>

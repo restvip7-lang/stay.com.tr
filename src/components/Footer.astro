@@ -11,7 +11,7 @@ const all = await getProjects().catch(() => []);
 const projects = home.projects.map((c) => all.find((p) => p.code === c)).filter(Boolean) as Awaited<ReturnType<typeof getProjects>>;
 const year = new Date().getFullYear();
 ---
-<footer class="mt-24 pb-4 md:mt-32">
+<footer class="mt-24 md:mt-32">
   <div class="container-x">
     <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)]">
       <div class="card flex flex-col gap-3 p-5 md:p-6">
@@ -41,7 +41,10 @@ const year = new Date().getFullYear();
         </ul>
       </div>
     </div>
-    <div class="mt-3 grid gap-8 rounded-[var(--radius-big)] bg-ink p-6 text-white md:grid-cols-[1fr_1fr_auto] md:p-10">
+  </div>
+  <!-- Нижняя полоса — на всю ширину экрана (ТЗ «Адаптив», п. «Футер»). -->
+  <div class="mt-3 bg-ink text-white">
+    <div class="container-x grid gap-8 py-8 md:grid-cols-[1fr_1fr_auto] md:py-12">
       <div class="space-y-3 text-sm text-white/70">
         <p>{site.address}</p>
         <p><a href="/privacy-policy/" class="text-white hover:text-lavender">Политика конфиденциальности</a></p>
@@ -58,7 +61,25 @@ const year = new Date().getFullYear();
           {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" aria-label={s.name} class="opacity-80 hover:opacity-100"><Icon name={s.name} class="size-5" /></a>)}
         </div>
       </div>
-      <a href="#top" class="hidden self-start text-sm text-white/60 hover:text-white md:block">Наверх ↑</a>
     </div>
   </div>
 </footer>
+
+<!-- Кнопка «Наверх»: плавно появляется при прокрутке, плавно возвращает в начало. -->
+<button type="button" data-to-top class="to-top" aria-label="Наверх">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
+</button>
+<style is:global>
+  .to-top { position: fixed; left: 20px; bottom: 24px; z-index: 50; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 999px; background: #fff; color: var(--color-ink); box-shadow: 0 8px 24px #09071426; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .3s, transform .3s, background-color .2s; }
+  .to-top.is-on { opacity: 1; transform: none; pointer-events: auto; }
+  .to-top:hover { background: var(--color-lavender-2); }
+</style>
+<script>
+  const b = document.querySelector<HTMLButtonElement>('[data-to-top]');
+  if (b) {
+    const sync = () => b.classList.toggle('is-on', scrollY > innerHeight * 0.8);
+    addEventListener('scroll', sync, { passive: true });
+    sync();
+    b.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+  }
+</script>

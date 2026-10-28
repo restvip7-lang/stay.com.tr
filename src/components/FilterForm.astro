@@ -4,8 +4,9 @@ import { getFacets, searchListings, type ListingQuery } from '../lib/api';
 import { TYPE_TABS } from '../lib/dict';
 import { num } from '../lib/format';
 
-interface Props { action?: string; operation?: 'sale' | 'rental'; query?: ListingQuery; tabs?: boolean; showAll?: boolean; prive?: boolean }
-const { action = '/sale/', operation = 'sale', query, tabs = true, prive = false } = Astro.props;
+/** catalog — режим страницы списка: «Найдено N объектов» + «Все фильтры», выдача обновляется сама. */
+interface Props { action?: string; operation?: 'sale' | 'rental'; query?: ListingQuery; tabs?: boolean; showAll?: boolean; prive?: boolean; catalog?: boolean }
+const { action = '/sale/', operation = 'sale', query, tabs = true, prive = false, catalog = false } = Astro.props;
 const f = await getFacets(operation);
 const q: ListingQuery = query ?? { operation, group: operation === 'sale' ? 'apartments' : 'all', prive: prive || undefined };
 const { total } = await searchListings({ ...q, perPage: 1 });
@@ -13,14 +14,16 @@ const group = q.group ?? 'all';
 const tab = TYPE_TABS.find((t) => t.key === group);
 const priceMin = Math.max(0, Math.floor(f.priceMin / 1000) * 1000);
 const priceMax = Math.ceil(f.priceMax / 100000) * 100000;
-const seaMin = 0;
-const seaMax = Math.min(10000, Math.ceil(f.seaMax / 500) * 500);
+// До моря — слайдер 1–1000 м (ТЗ «Фильтр», п. 4).
+const seaMin = 1;
+const seaMax = 1000;
+const advancedOpen = !catalog || !!(q.priceFrom || q.priceTo || q.seaFrom || q.seaTo || q.prive || q.citizenship);
 const rooms = [
   { v: 'studio', l: 'Студия' }, { v: '1+1', l: '1+1' }, { v: '2+1', l: '2+1' }, { v: '3+1', l: '3+1' }, { v: '4+', l: '4+' },
 ];
 const selRooms = new Set(q.rooms ?? []);
 ---
-<form method="get" action={action} data-filter data-operation={operation} class="filter">
+<form method="get" action={action} data-filter data-operation={operation} data-catalog={catalog ? '1' : undefined} class="filter">
   {tabs && (
     <div class="mb-6 flex gap-6 text-lg md:text-xl" role="tablist">
       {TYPE_TABS.map((t) => (
@@ -65,10 +68,10 @@ const selRooms = new Set(q.rooms ?? []);
     </div>
     <div>
       <label class="label" for="f-ref">ID</label>
-      <input id="f-ref" name="ref" class="field" placeholder="Например: STY009" value={q.ref ?? ''} />
+      <input id="f-ref" name="ref" class="field" placeholder="Например: STY009" maxlength="20" autocomplete="off" value={q.ref ?? ''} />
     </div>
 
-    <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step="1000" aria-labelledby="f-price-l">
+    <fieldset class:list={['range', !advancedOpen && 'hidden']} data-adv data-range data-min={priceMin} data-max={priceMax} data-step="1000" aria-labelledby="f-price-l">
       <div class="mb-2 flex items-center justify-between gap-2">
         <span class="label mb-0 whitespace-nowrap" id="f-price-l">Стоимость, €</span>
         {operation === 'sale' && (
@@ -79,8 +82,8 @@ const selRooms = new Set(q.rooms ?? []);
         )}
       </div>
       <div class="flex overflow-hidden rounded-full border border-line bg-white">
-        <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="price_from" inputmode="numeric" placeholder={`от ${num(priceMin)}`} value={q.priceFrom ?? ''} data-lo aria-label="Цена от" />
-        <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="price_to" inputmode="numeric" placeholder={`до ${num(priceMax)}`} value={q.priceTo ?? ''} data-hi aria-label="Цена до" />
+        <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="price_from" inputmode="numeric" placeholder={`от ${num(priceMin)}`} value={q.priceFrom ? num(q.priceFrom) : ''} data-lo aria-label="Цена от" />
+        <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="price_to" inputmode="numeric" placeholder={`до ${num(priceMax)}`} value={q.priceTo ? num(q.priceTo) : ''} data-hi aria-label="Цена до" />
       </div>
       <div class="dual mt-3" aria-hidden="true">
         <input type="range" min={priceMin} max={priceMax} step="1000" value={q.priceFrom ?? priceMin} data-slo tabindex="-1" />
@@ -89,7 +92,7 @@ const selRooms = new Set(q.rooms ?? []);
     </fieldset>
 
     <fieldset class="lg:col-span-2">
-      <legend class="label">Планировка</legend>
+      <legend class="label">Количество комнат</legend>
       <div class="flex flex-wrap gap-2">
         {rooms.map((r) => (
           <label class="cursor-pointer">
@@ -100,24 +103,38 @@ const selRooms = new Set(q.rooms ?? []);
       </div>
     </fieldset>
 
-    <fieldset class="range" data-range data-min={seaMin} data-max={seaMax} data-step="50">
+    <fieldset class:list={['range', !advancedOpen && 'hidden']} data-adv data-range data-min={seaMin} data-max={seaMax} data-step="10">
       <legend class="label">До моря, м</legend>
       <div class="flex overflow-hidden rounded-full border border-line bg-white">
         <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="sea_from" inputmode="numeric" placeholder={`от ${seaMin}`} value={q.seaFrom ?? ''} data-lo aria-label="До моря от" />
         <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="sea_to" inputmode="numeric" placeholder={`до ${num(seaMax)}`} value={q.seaTo ?? ''} data-hi aria-label="До моря до" />
       </div>
       <div class="dual mt-3" aria-hidden="true">
-        <input type="range" min={seaMin} max={seaMax} step="50" value={q.seaFrom ?? seaMin} data-slo tabindex="-1" />
-        <input type="range" min={seaMin} max={seaMax} step="50" value={q.seaTo ?? seaMax} data-shi tabindex="-1" />
+        <input type="range" min={seaMin} max={seaMax} step="10" value={q.seaFrom ?? seaMin} data-slo tabindex="-1" />
+        <input type="range" min={seaMin} max={seaMax} step="10" value={q.seaTo ?? seaMax} data-shi tabindex="-1" />
       </div>
     </fieldset>
   </div>
-  <div class="mt-6 flex flex-wrap items-center justify-end gap-3">
-    <a href={action} class="mr-auto text-sm text-muted hover:text-ink">Сбросить</a>
-    <button type="submit" class="btn btn-accent min-w-[220px]">
-      Показать <span data-total>{num(total)}</span>&nbsp;<span data-noun>{tab ? '' : 'объектов'}</span>
-    </button>
+  <!-- Чипсы активных тогглов: крестик выключает тоггл. -->
+  <div data-chips class="mt-4 flex flex-wrap gap-2 empty:hidden">
+    {q.prive && <button type="button" class="chip gap-2 bg-page" data-chip="prive">Только PRIVE <span aria-hidden="true">×</span></button>}
+    {q.citizenship && <button type="button" class="chip gap-2 bg-page" data-chip="citizenship">Гражданство ТР <span aria-hidden="true">×</span></button>}
   </div>
+  {catalog ? (
+    <div class="mt-6 flex flex-wrap items-center gap-3">
+      <p class="mr-auto text-[15px]">Найдено <b data-total class="font-medium">{num(total)}</b> <span data-noun>{tab ? '' : 'объектов'}</span></p>
+      <a href={action} class="text-sm text-muted hover:text-ink">Сбросить</a>
+      <button type="button" data-adv-toggle class="btn btn-ghost" aria-expanded={advancedOpen ? 'true' : 'false'}><Icon name="filter" class="size-5" />Все фильтры</button>
+      <noscript><button type="submit" class="btn btn-accent">Показать</button></noscript>
+    </div>
+  ) : (
+    <div class="mt-6 flex flex-wrap items-center justify-end gap-3">
+      <a href={action} class="mr-auto text-sm text-muted hover:text-ink">Сбросить</a>
+      <button type="submit" class="btn btn-accent min-w-[220px]">
+        <span>Показать <span data-total>{num(total)}</span> <span data-noun>{tab ? '' : 'объектов'}</span></span><Icon name="chevronRight" class="size-4" />
+      </button>
+    </div>
+  )}
 </form>
 
 <style>
@@ -138,6 +155,7 @@ const selRooms = new Set(q.rooms ?? []);
 
 <script>
   import { plural } from '../lib/format';
+  // На кнопке — «Показать 1 квартиру / 2 квартиры / 5 квартир», в строке «Найдено» — «1 квартира».
   const NOUNS: Record<string, [string, string, string]> = {
     apartments: ['квартира', 'квартиры', 'квартир'],
     villas: ['вилла', 'виллы', 'вилл'],
@@ -148,9 +166,11 @@ const selRooms = new Set(q.rooms ?? []);
     const fmt = (n: number) => n.toLocaleString('ru-RU');
     const totalEl = form.querySelector('[data-total]')!;
     const nounEl = form.querySelector('[data-noun]')!;
+    const ACC: Record<string, string> = { квартира: 'квартиру', вилла: 'виллу' };
     const setNoun = (n: number) => {
       const t = (form.querySelector<HTMLInputElement>('[name=type]:checked') || form.querySelector<HTMLInputElement>('[name=type]'))?.value || 'all';
-      nounEl.textContent = plural(n, NOUNS[t] || NOUNS.all);
+      const w = plural(n, NOUNS[t] || NOUNS.all);
+      nounEl.textContent = form.dataset.catalog ? w : ACC[w] ?? w;
     };
     setNoun(Number(totalEl.textContent?.replace(/\D/g, '') || 0));
 
@@ -216,6 +236,89 @@ const selRooms = new Set(q.rooms ?? []);
       }, 250);
     };
     form.addEventListener('change', update);
+
+    // Цена и «до моря»: при клике выделяем всё, тысячи разделяем пробелами.
+    form.querySelectorAll<HTMLInputElement>('[data-lo],[data-hi]').forEach((i) => {
+      let fresh = false;
+      i.addEventListener('focus', () => { i.select(); fresh = true; });
+      i.addEventListener('mouseup', (e) => { if (fresh) { e.preventDefault(); fresh = false; } });
+      i.addEventListener('input', () => {
+        const n = i.value.replace(/\D/g, '').slice(0, 9);
+        i.value = n ? fmt(Number(n)) : '';
+      });
+    });
+
+    // Тогглы PRIVE и «Гражданство ТР»: чипсы с крестиком и режим PRIVE в шапке и заголовках.
+    const chips = form.querySelector<HTMLElement>('[data-chips]')!;
+    const toggles = { prive: 'Только PRIVE', citizenship: 'Гражданство ТР' } as const;
+    const syncToggles = () => {
+      chips.innerHTML = '';
+      for (const [name, label] of Object.entries(toggles)) {
+        const t = form.querySelector<HTMLInputElement>(`[name=${name}]`);
+        if (!t?.checked) continue;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'chip gap-2 bg-page';
+        b.dataset.chip = name;
+        b.innerHTML = `${label} <span aria-hidden="true">×</span>`;
+        b.setAttribute('aria-label', `Убрать фильтр «${label}»`);
+        chips.append(b);
+      }
+      const prive = !!form.querySelector<HTMLInputElement>('[name=prive]')?.checked;
+      document.body.classList.toggle('mode-prive', prive && form.dataset.operation !== 'rental');
+      document.querySelectorAll<HTMLElement>('[data-prive-title]').forEach((h) => {
+        h.dataset.baseTitle ??= h.textContent || '';
+        h.textContent = prive ? h.dataset.priveTitle! : h.dataset.baseTitle;
+      });
+    };
+    chips.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-chip]');
+      if (!b) return;
+      const t = form.querySelector<HTMLInputElement>(`[name=${b.dataset.chip}]`);
+      if (t) { t.checked = false; t.dispatchEvent(new Event('change', { bubbles: true })); }
+    });
+    form.querySelectorAll('[name=prive],[name=citizenship]').forEach((t) => t.addEventListener('change', syncToggles));
+    syncToggles();
+    // «Назад» в браузере: форма восстанавливается из кэша — пересчитываем всё по видимым полям.
+    // Браузер мог восстановить отмеченные поля — пересчитываем по тому, что видно.
+    addEventListener('pageshow', () => { cascade(); syncToggles(); update(); });
+
+    // Страница списка: «Все фильтры» и обновление выдачи без кнопки.
+    if (form.dataset.catalog) {
+      const adv = form.querySelectorAll<HTMLElement>('[data-adv]');
+      const btn = form.querySelector<HTMLButtonElement>('[data-adv-toggle]')!;
+      btn.addEventListener('click', () => {
+        const open = btn.getAttribute('aria-expanded') !== 'true';
+        btn.setAttribute('aria-expanded', String(open));
+        adv.forEach((a) => a.classList.toggle('hidden', !open));
+      });
+      // Новая выдача подгружается на месте, адрес страницы обновляется — «Назад» работает как обычно.
+      let go: number | undefined;
+      let seq = 0;
+      const apply = () => {
+        clearTimeout(go);
+        go = window.setTimeout(async () => {
+          const sp = new URLSearchParams();
+          for (const [k, v] of new FormData(form)) if (String(v).trim()) sp.append(k, String(v).replace(/\s/g, ''));
+          const url = form.action.split('?')[0] + (sp.toString() ? '?' + sp : '');
+          const my = ++seq;
+          const box = document.querySelector<HTMLElement>('[data-results]');
+          box?.classList.add('opacity-50');
+          try {
+            const html = await (await fetch(url)).text();
+            if (my !== seq) return;
+            const next = new DOMParser().parseFromString(html, 'text/html').querySelector('[data-results]');
+            if (box && next) box.innerHTML = next.innerHTML;
+            history.pushState(null, '', url);
+            document.dispatchEvent(new CustomEvent('results:updated'));
+          } catch { form.submit(); }
+          finally { box?.classList.remove('opacity-50'); }
+        }, 450);
+      };
+      addEventListener('popstate', () => location.reload());
+      form.addEventListener('change', apply);
+      form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) apply(); });
+    }
     form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) update(); });
 
     // Чистим пустые поля и пробелы в числах перед отправкой.

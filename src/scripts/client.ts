@@ -15,6 +15,7 @@ export function initLeadForms() {
   });
   dialog?.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
 
+  document.querySelectorAll<HTMLElement>('[data-range-picker]').forEach(initRangePicker);
   document.querySelectorAll<HTMLFormElement>('[data-lead-form]').forEach((form) => {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -24,7 +25,6 @@ export function initLeadForms() {
       let msg = '';
       if (!String(fd.get('name') || '').trim()) msg = 'Укажите имя.';
       else if (phone.replace(/\D/g, '').length < 7) msg = 'Укажите телефон.';
-      else if (!fd.get('agree')) msg = 'Нужно согласие на обработку данных.';
       if (msg) { err.textContent = msg; err.classList.remove('hidden'); return; }
       err.classList.add('hidden');
       // Отправки нет — по решению заказчика заявки пока никуда не уходят.
@@ -44,8 +44,9 @@ function writeFavs(list: Fav[]) {
   try { localStorage.setItem(FAV_KEY, JSON.stringify(list)); } catch { /* приватный режим */ }
 }
 
-export function initFavorites() {
-  const sync = () => {
+/** Подсветка сердечек и счётчик избранного (вызывать после подгрузки новых карточек). */
+export function syncFavorites() {
+  {
     const favs = readFavs();
     const ids = new Set(favs.map((f) => f.id));
     document.querySelectorAll<HTMLElement>('[data-fav]').forEach((b) => {
@@ -58,7 +59,11 @@ export function initFavorites() {
       c.textContent = String(favs.length);
       c.classList.toggle('hidden', favs.length === 0);
     });
-  };
+  }
+}
+
+export function initFavorites() {
+  const sync = syncFavorites;
   document.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-fav]');
     if (!b) return;
@@ -72,4 +77,59 @@ export function initFavorites() {
     document.dispatchEvent(new CustomEvent('favorites:change'));
   });
   sync();
+}
+
+/** Календарь «Заезд — Выезд»: две даты, период подсвечивается. */
+function initRangePicker(root: HTMLElement) {
+  const pop = root.querySelector<HTMLElement>('[data-rp-pop]')!;
+  const val = (k: string) => root.querySelector<HTMLInputElement>(`[data-rp-value="${k}"]`)!;
+  const label = (k: string) => root.querySelector<HTMLElement>(`[data-rp-label="${k}"]`)!;
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const nice = (s: string) => new Date(s + 'T00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const today = iso(new Date());
+  let a = '', b = '';
+  let month = new Date(); month.setDate(1);
+  const draw = () => {
+    const y = month.getFullYear(), m = month.getMonth();
+    const first = (new Date(y, m, 1).getDay() + 6) % 7;
+    const days = new Date(y, m + 1, 0).getDate();
+    let cells = '';
+    for (let i = 0; i < first; i++) cells += '<span></span>';
+    for (let d = 1; d <= days; d++) {
+      const k = iso(new Date(y, m, d));
+      const past = k < today;
+      const edge = k === a || k === b;
+      const mid = a && b && k > a && k < b;
+      cells += `<button type="button" data-day="${k}" ${past ? 'disabled' : ''} class="h-9 rounded-full text-sm ${edge ? 'bg-ink text-white' : mid ? 'bg-lavender' : 'hover:bg-page'} disabled:opacity-30">${d}</button>`;
+    }
+    const title = month.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+    pop.innerHTML = `<div class="mb-3 flex items-center justify-between"><button type="button" data-mon="-1" class="grid size-8 place-items-center rounded-full hover:bg-page" aria-label="Предыдущий месяц">‹</button><b class="font-medium capitalize">${title}</b><button type="button" data-mon="1" class="grid size-8 place-items-center rounded-full hover:bg-page" aria-label="Следующий месяц">›</button></div>
+      <div class="grid grid-cols-7 gap-1 text-center text-xs text-muted">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) => `<span>${d}</span>`).join('')}</div>
+      <div class="mt-1 grid grid-cols-7 gap-1 text-center">${cells}</div>
+      <p class="mt-3 text-xs text-muted">${!a ? 'Выберите дату заезда' : !b ? 'Теперь дату выезда' : 'Готово'}</p>`;
+  };
+  const sync = () => {
+    val('in').value = a; val('out').value = b;
+    label('in').textContent = a ? 'Заезд: ' + nice(a) : 'Заезд';
+    label('out').textContent = b ? 'Выезд: ' + nice(b) : 'Выезд';
+    label('in').parentElement!.classList.toggle('text-muted', !a);
+    label('out').parentElement!.classList.toggle('text-muted', !b);
+  };
+  root.querySelectorAll<HTMLElement>('[data-rp-open]').forEach((o) => o.addEventListener('click', () => {
+    if (o.dataset.rpOpen === 'in') { a = ''; b = ''; sync(); }
+    pop.hidden = false;
+    draw();
+  }));
+  pop.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const mon = t.closest<HTMLElement>('[data-mon]');
+    if (mon) { month.setMonth(month.getMonth() + Number(mon.dataset.mon)); draw(); return; }
+    const day = t.closest<HTMLElement>('[data-day]')?.dataset.day;
+    if (!day) return;
+    if (!a || (a && b) || day <= a) { a = day; b = ''; } else { b = day; }
+    sync();
+    draw();
+    if (a && b) setTimeout(() => (pop.hidden = true), 250);
+  });
+  document.addEventListener('click', (e) => { if (!e.composedPath().includes(root)) pop.hidden = true; });
 }

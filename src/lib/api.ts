@@ -280,7 +280,7 @@ export interface ListingQuery {
   rooms?: string[];
   seaFrom?: number;
   seaTo?: number;
-  sort?: 'new' | 'price-asc' | 'price-desc';
+  sort?: 'new' | 'price-asc' | 'price-desc' | 'area-desc' | 'sea-asc';
   page?: number;
   perPage?: number;
 }
@@ -395,6 +395,8 @@ export async function searchListings(q: ListingQuery) {
   });
   if (q.sort === 'price-asc') items = items.toSorted((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
   if (q.sort === 'price-desc') items = items.toSorted((a, b) => (b.price ?? 0) - (a.price ?? 0));
+  if (q.sort === 'area-desc') items = items.toSorted((a, b) => (b.totalArea ?? 0) - (a.totalArea ?? 0));
+  if (q.sort === 'sea-asc') items = items.toSorted((a, b) => (a.distanceToSea ?? Infinity) - (b.distanceToSea ?? Infinity));
   const total = items.length;
   const page = Math.max(1, q.page ?? 1);
   return { total, page, pages: Math.max(1, Math.ceil(total / per)), items: items.slice((page - 1) * per, page * per) };

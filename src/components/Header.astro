@@ -8,6 +8,17 @@ interface Props { overlay?: boolean }
 const { overlay = false } = Astro.props;
 const services = await getServiceMenu().catch(() => []);
 const path = Astro.url.pathname;
+// Разделы второй строки шапки — по образцу, с нашими страницами.
+const sections = [
+  { label: 'Новостройки', href: '/complex/' },
+  { label: 'Поиск', href: '/sale/' },
+  { label: 'Аренда', href: '/rental/' },
+  { label: 'Компания', href: '/about/' },
+  { label: 'Новости', href: '/ru/news/' },
+  { label: 'Способы покупки', href: '/uslugi/' },
+  { label: 'PRIVE', href: '/prive/' },
+  { label: 'Инвестиции', href: 'https://stayinvestment.com/', external: true },
+];
 ---
 <header
   data-header
@@ -19,12 +30,13 @@ const path = Astro.url.pathname;
 >
   <div class="container-x">
     <div class="flex h-14 items-center gap-4 md:h-16">
-      <a href="/" class="shrink-0 md:hidden" aria-label="Stay Property — на главную"><Logo class="h-6 w-auto" /></a>
-      <nav class="hidden items-center md:flex" aria-label="Направления">
+      <a href="/" class="shrink-0 lg:hidden" aria-label="Stay Property — на главную"><Logo class="h-6 w-auto" /></a>
+      <nav class="hidden items-center lg:flex" aria-label="Направления">
         <a href="/" class="mr-5 shrink-0" aria-label="Stay Property — на главную"><Logo class="h-6 w-auto" /></a>
         {site.brands.map((b, i) => (
           <a
             href={b.href}
+            data-brand={b.label}
             target={b.external ? '_blank' : undefined}
             rel={b.external ? 'noopener' : undefined}
             class:list={[
@@ -37,7 +49,8 @@ const path = Astro.url.pathname;
       </nav>
       <div class="ml-auto flex items-center gap-1 sm:gap-2">
         <a href="/search/" class="grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label="Поиск"><Icon name="search" /></a>
-        <a href={site.phone.href} class="hidden items-center gap-2 px-2 text-[13px] lg:inline-flex"><Icon name="phone" class="size-4" />{site.phone.label}</a>
+        <a href={site.phone.href} class="grid size-10 place-items-center rounded-full hover:bg-current/10 xl:hidden" aria-label={`Позвонить ${site.phone.label}`}><Icon name="phone" /></a>
+        <a href={site.phone.href} class="hidden items-center gap-2 px-2 text-[14px] xl:inline-flex"><Icon name="phone" />{site.phone.label}</a>
         <span class="hidden px-2 text-[13px] font-medium sm:inline">RU</span>
         <a href="/favorites/" class="relative grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label="Избранное">
           <Icon name="heart" />
@@ -46,10 +59,19 @@ const path = Astro.url.pathname;
         <button type="button" data-menu-open class="grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label="Меню"><Icon name="menu" /></button>
       </div>
     </div>
-    <nav class="scroll-x -mt-1 hidden gap-6 pb-3 text-[13px] md:flex" aria-label="Услуги">
-      {services.map((s) => (
-        <a href={s.href} class:list={['whitespace-nowrap opacity-75 transition-opacity hover:opacity-100', path === s.href && 'opacity-100']}>{s.label}</a>
+    <!-- Строка разделов — с 1280px, как на образце (ТЗ «Шапка»). Ниже всё уходит в бургер. -->
+    <nav class="-mt-1 hidden items-center gap-6 pb-3 text-[14px] xl:flex" aria-label="Разделы">
+      {sections.map((x) => (
+        <a href={x.href} target={x.external ? '_blank' : undefined} rel={x.external ? 'noopener' : undefined} class:list={['whitespace-nowrap opacity-75 transition-opacity hover:opacity-100', path.startsWith(x.href) && x.href !== '/' && 'opacity-100']}>{x.label}</a>
       ))}
+      <div class="group relative">
+        <button type="button" class="inline-flex items-center gap-1 opacity-75 hover:opacity-100" aria-haspopup="true">Ещё<Icon name="chevronDown" class="size-4" /></button>
+        <div class="invisible absolute left-0 top-full z-10 min-w-64 pt-2 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+          <ul class="rounded-2xl bg-white p-2 text-ink shadow-[var(--shadow-card)]">
+            {services.map((x) => <li><a href={x.href} class="block rounded-xl px-3 py-2 hover:bg-page">{x.label}</a></li>)}
+          </ul>
+        </div>
+      </div>
     </nav>
   </div>
 </header>

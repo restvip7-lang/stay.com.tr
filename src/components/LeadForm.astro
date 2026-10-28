@@ -1,16 +1,19 @@
 ---
 // Форма заявки. По решению Anuar заявки пока никуда не отправляются:
 // после нажатия посетитель видит «Спасибо», данные остаются только в браузере.
-interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean }
+// booking — форма бронирования аренды: даты заезда и выезда в календаре + комментарий (ТЗ «Аренда»).
+interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean }
 const {
   title = 'Оставьте заявку',
   subtitle = 'Заполните форму — мы перезвоним и подробнее расскажем о возможностях для вас',
   context = '',
   compact = false,
+  submitLabel = 'Отправить',
+  booking = false,
 } = Astro.props;
 ---
 <form data-lead-form class="lead-form" novalidate>
-  {!compact && <h2 class="display h-card mb-2 text-[clamp(28px,3vw,40px)]">{title}</h2>}
+  {!compact && <h2 class="display mb-2 text-[clamp(26px,2.4vw,32px)]">{title}</h2>}
   {!compact && <p class="mb-6 max-w-md text-muted">{subtitle}</p>}
   <input type="hidden" name="context" value={context} />
   <div class="grid gap-3">
@@ -18,12 +21,26 @@ const {
     <input id={`n-${context}`} class="field" name="name" autocomplete="name" placeholder="Имя" required />
     <label class="sr-only" for={`p-${context}`}>Телефон</label>
     <input id={`p-${context}`} class="field" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="Телефон" required />
-    <label class="mt-1 flex items-start gap-2 text-xs text-muted">
-      <input type="checkbox" name="agree" checked required class="mt-0.5 accent-accent" />
-      <span>Нажимая «Отправить», я даю согласие на обработку моих персональных данных и принимаю <a href="/privacy-policy/" class="underline">политику конфиденциальности</a>.</span>
-    </label>
+    {booking && (
+      <div data-range-picker class="relative">
+        <div class="grid grid-cols-2 gap-3">
+          <button type="button" data-rp-open="in" class="field flex items-center text-left text-muted"><span data-rp-label="in">Заезд</span></button>
+          <button type="button" data-rp-open="out" class="field flex items-center text-left text-muted"><span data-rp-label="out">Выезд</span></button>
+        </div>
+        <input type="hidden" name="check_in" data-rp-value="in" />
+        <input type="hidden" name="check_out" data-rp-value="out" />
+        <div data-rp-pop hidden class="absolute left-0 top-[56px] z-20 w-[min(340px,100%)] rounded-2xl border border-line bg-white p-4 shadow-[var(--shadow-card)]"></div>
+      </div>
+    )}
+    {booking && (
+      <>
+        <label class="sr-only" for={`c-${context}`}>Комментарий</label>
+        <textarea id={`c-${context}`} name="comment" rows="3" class="field h-auto rounded-[24px] py-3" placeholder="Комментарий (необязательно)"></textarea>
+      </>
+    )}
     <p data-error class="hidden text-sm text-red-600" role="alert"></p>
-    <button class="btn btn-accent mt-2 w-full" type="submit">Отправить</button>
+    <button class="btn btn-accent mt-2 w-full" type="submit">{submitLabel}</button>
+    <p class="text-xs text-muted">Нажимая на кнопку, вы даете согласие на <a href="/privacy-policy/" class="underline underline-offset-2">обработку персональных данных</a></p>
   </div>
   <div data-done class="hidden py-6 text-center" role="status">
     <p class="display text-2xl">Спасибо!</p>

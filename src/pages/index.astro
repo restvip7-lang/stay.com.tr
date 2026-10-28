@@ -6,6 +6,7 @@ import ProjectsBlock from '../components/ProjectsBlock.astro';
 import BuyVariants from '../components/BuyVariants.astro';
 import CompanySpotlight from '../components/CompanySpotlight.astro';
 import MediaNews from '../components/MediaNews.astro';
+import Icon from '../components/Icon.astro';
 import { getHomeSections, getProjects } from '../lib/api';
 import { getHomeConfig } from '../lib/homeConfig';
 const home = await getHomeConfig();
@@ -14,6 +15,9 @@ const [projects, sections] = await Promise.all([getProjects(), getHomeSections()
 const byCode = (c: string) => projects.find((p) => p.code === c);
 const hero = home.hero.map((h) => byCode(h.project)).filter(Boolean) as typeof projects;
 const list = home.projects.map(byCode).filter(Boolean) as typeof projects;
+// Для режима PRIVE (тоггл в фильтре): закрытые проекты в порядке из админки, затем остальные.
+const priveCfg = (home.prive?.projects ?? []).map(byCode).filter((p) => p?.isPrivate) as typeof projects;
+const priveList = [...priveCfg, ...projects.filter((p) => p.isPrivate && !priveCfg.includes(p))];
 
 const ld = {
   '@context': 'https://schema.org',
@@ -28,11 +32,22 @@ const ld = {
 <Base title="Недвижимость в Турции от застройщика — Stay Property" overlayHeader jsonLd={ld}>
   <HomeHero slides={hero} />
   <section class="container-x mt-16 md:mt-24">
-    <h2 class="display h-section mb-6 hidden md:block">Выбрать недвижимость</h2>
-    <h2 class="display h-section mb-6 md:hidden">Выбрать недвижимость</h2>
-    <FilterForm action="/sale/" />
+    <h2 class="display h-section mb-6">Выбрать недвижимость</h2>
+    <!-- До 1024px вместо фильтра — кнопки и плитки, как на образце (ТЗ «Фильтр», адаптив). -->
+    <div class="grid grid-cols-2 gap-3 lg:hidden">
+      <a href="/sale/?type=apartments" class="btn btn-accent col-span-2 h-14">Выбрать квартиры</a>
+      <a href="/complex/#map" class="btn btn-ghost col-span-2 h-14"><Icon name="pin" class="size-5" />На карте</a>
+      {[
+        { label: 'Виллы', href: '/sale/?type=villas' },
+        { label: 'Дуплексы', href: '/sale/?type=duplexes' },
+      ].map((t) => (
+        <a href={t.href} class="card flex min-h-24 items-end justify-between p-4 text-lg font-medium transition-colors hover:border-ink">{t.label}<Icon name="arrowRight" class="size-5" /></a>
+      ))}
+    </div>
+    <div class="hidden lg:block"><FilterForm action="/sale/" /></div>
   </section>
-  <ProjectsBlock title={home.projectsTitle} projects={list} visible={home.projectsVisible} moreHref="/complex/" />
+  <div class="home-std"><ProjectsBlock title={home.projectsTitle} projects={list} visible={home.projectsVisible} moreHref="/complex/" /></div>
+  {priveList.length > 0 && <div class="home-prive theme-prive"><ProjectsBlock title="Проекты PRIVE" projects={priveList} visible={home.prive?.projectsVisible ?? 8} moreHref="/prive/" prive /></div>}
   <BuyVariants />
   <CompanySpotlight company={sections.company} />
   <MediaNews />

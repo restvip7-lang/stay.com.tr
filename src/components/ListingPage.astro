@@ -65,7 +65,7 @@ const ld = {
             <span class="chip chip-accent">{operation === 'rental' ? 'Аренда' : 'Продажа'}</span>
             {x.distanceToSea && <span class="chip">До моря {num(x.distanceToSea)} м</span>}
           </div>
-          <a href="#lead" class="btn btn-accent mt-6 w-full"><Icon name="phone" class="size-4" />{operation === 'rental' ? 'Узнать о свободных датах' : 'Забронировать'}</a>
+          <a href="#lead" class="btn btn-accent mt-6 w-full"><Icon name="phone" class="size-4" />Забронировать</a>
           <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn btn-ghost mt-2 w-full"><Icon name="whatsapp" class="size-4" />Написать в WhatsApp</a>
           <dl class="mt-6 divide-y divide-line text-[15px]">
             {facts.map(([k, v]) => (
@@ -85,7 +85,9 @@ const ld = {
       </div>
     </div>
   </div>
-  <LeadSection context={`listing-${x.id}`} />
+  {operation === 'rental'
+    ? <LeadSection context={`rental-${x.id}`} booking title="Забронировать" submitLabel="Забронировать" />
+    : <LeadSection context={`listing-${x.id}`} />}
   {similar.length > 0 && (
     <section class="container-x mt-20">
       <h2 class="display h-section mb-8">Похожие объекты</h2>
