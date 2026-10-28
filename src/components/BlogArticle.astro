@@ -1,0 +1,102 @@
+---
+/**
+ * Статья блога (ТЗ Б.3): крошки, H1, автор и даты, оглавление, текст, CTA, объекты по теме,
+ * «Читайте также», FAQ, Article + FAQPage.
+ */
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import Img from './Img.astro';
+import Icon from './Icon.astro';
+import Faq from './Faq.astro';
+import SaleCard from './SaleCard.astro';
+import PostCard from './PostCard.astro';
+import LeadSection from './LeadSection.astro';
+import { t } from '../i18n/ui';
+import type { Lang } from '../i18n/config';
+import type { Item } from '../lib/catalog';
+import { BLOG_CAT_NAME, blogUrl, type BlogCat, type Post } from '../lib/blog';
+import { EDITORIAL } from '../content/company';
+import { articleLd } from '../lib/ld';
+import { dateL } from '../lib/format';
+import type { Robots } from '../lib/page';
+
+interface Props {
+  cat: BlogCat;
+  title: string;
+  description: string;
+  h1: string;
+  html: string;
+  published: string;
+  updated: string;
+  image: string | null;
+  alternates: Partial<Record<Lang, string>>;
+  faq?: { q: string; a: string }[];
+  related?: Item[];
+  relatedHref?: string;
+  more?: Post[];
+  robots?: Robots;
+}
+const { cat, title, description, h1, html, published, updated, image, alternates, faq = [], related = [], relatedHref, more = [], robots = 'index,follow' } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const p = d.pages;
+const url = Astro.url.pathname;
+// Оглавление — по h2 с id.
+const toc = [...html.matchAll(/<h2 id="([^"]+)"[^>]*>([\s\S]*?)<\/h2>/g)].map((m) => ({ id: m[1], text: m[2].replace(/<[^>]+>/g, '') }));
+const author = { name: EDITORIAL.name[lang], url: `/${lang}/team/${EDITORIAL.slug}/`, org: true };
+const crumbs = [{ label: d.home, href: `/${lang}/` }, { label: d.pages.blog, href: blogUrl(lang) }, { label: BLOG_CAT_NAME[lang][cat], href: blogUrl(lang, cat) }, { label: h1 }];
+---
+<Base title={title} description={description} alternates={alternates} image={image} ogType="article" robots={robots} jsonLd={articleLd({ url, headline: h1, image, published, modified: updated || published, author, lang })}>
+  <article class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={crumbs} />
+    <div class="mt-8 grid gap-12 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div class="min-w-0 max-w-3xl">
+        <h1 class="display text-[clamp(30px,4vw,52px)]">{h1}</h1>
+        <p class="mt-5 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+          <span>{p.author}: <a href={author.url} rel="author" class="text-ink hover:text-accent">{author.name}</a></span>
+          {published && <span>{p.published}: <time datetime={published.slice(0, 10)}>{dateL(lang, published)}</time></span>}
+          {updated && updated.slice(0, 10) !== published.slice(0, 10) && <span>{p.updatedAt}: <time datetime={updated.slice(0, 10)}>{dateL(lang, updated)}</time></span>}
+        </p>
+        {image && <div class="mt-8 overflow-hidden rounded-[var(--radius-big)]"><Img src={image} alt={h1} class="aspect-[16/9] w-full" loading="eager" priority /></div>}
+        {toc.length > 2 && (
+          <nav aria-label={p.toc} class="card mt-8 p-6 lg:hidden">
+            <p class="text-sm text-muted">{p.toc}</p>
+            <ol class="mt-2 list-decimal space-y-1 pl-5">{toc.map((x) => <li><a href={`#${x.id}`} class="hover:text-accent">{x.text}</a></li>)}</ol>
+          </nav>
+        )}
+        <div class="prose-stay mt-8 text-[17px]" set:html={html} />
+        <slot />
+      </div>
+      <aside class="space-y-3 lg:sticky lg:top-28 lg:self-start">
+        {toc.length > 2 && (
+          <nav aria-label={p.toc} class="card hidden p-6 lg:block">
+            <p class="text-sm text-muted">{p.toc}</p>
+            <ol class="mt-2 list-decimal space-y-1.5 pl-5 text-[15px]">{toc.map((x) => <li><a href={`#${x.id}`} class="hover:text-accent">{x.text}</a></li>)}</ol>
+          </nav>
+        )}
+        <div class="card p-6">
+          <p class="font-display text-xl font-medium tracking-[-0.01em]">{d.form.consult}</p>
+          <p class="mt-2 text-sm text-muted">{d.getOfferText}</p>
+          <a href="#lead" class="btn btn-accent mt-5 w-full">{d.leaveRequest}</a>
+        </div>
+      </aside>
+    </div>
+  </article>
+  {related.length > 0 && (
+    <section class="container-x mt-20">
+      <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <h2 class="display h-section">{p.related}</h2>
+        {relatedHref && <a href={relatedHref} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{d.hp.allObjects}<Icon name="arrowRight" class="size-4" /></a>}
+      </div>
+      <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{related.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+    </section>
+  )}
+  <Faq items={faq} />
+  {more.length > 0 && (
+    <section class="container-x mt-20">
+      <h2 class="display h-section mb-6">{p.readAlso}</h2>
+      <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{more.map((m) => <li><PostCard p={m} /></li>)}</ul>
+    </section>
+  )}
+  <LeadSection context={`blog-${cat}`} />
+</Base>

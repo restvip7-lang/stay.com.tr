@@ -1,31 +1,36 @@
 ---
 // Форма заявки. По решению Anuar заявки пока никуда не отправляются:
 // после нажатия посетитель видит «Спасибо», данные остаются только в браузере.
-// booking — форма бронирования аренды: даты заезда и выезда в календаре + комментарий (ТЗ «Аренда»).
-interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean }
+// booking — форма бронирования аренды: даты заезда и выезда в календаре + комментарий.
+import { t } from '../i18n/ui';
+interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean; headingLevel?: 'h2' | 'h3' | 'p' }
+const lang = Astro.locals.lang ?? 'ru';
+const f = t(lang).form;
 const {
-  title = 'Оставьте заявку',
-  subtitle = 'Заполните форму — мы перезвоним и подробнее расскажем о возможностях для вас',
+  title = f.title,
+  subtitle = f.subtitle,
   context = '',
   compact = false,
-  submitLabel = 'Отправить',
+  submitLabel = f.send,
   booking = false,
+  headingLevel = 'h2',
 } = Astro.props;
+const H = headingLevel;
 ---
 <form data-lead-form class="lead-form" novalidate>
-  {!compact && <h2 class="display mb-2 text-[clamp(26px,2.4vw,32px)]">{title}</h2>}
+  {!compact && <H class="display mb-2 text-[clamp(26px,2.4vw,32px)]">{title}</H>}
   {!compact && <p class="mb-6 max-w-md text-muted">{subtitle}</p>}
   <input type="hidden" name="context" value={context} />
   <div class="grid gap-3">
-    <label class="sr-only" for={`n-${context}`}>Имя</label>
-    <input id={`n-${context}`} class="field" name="name" autocomplete="name" placeholder="Имя" required />
-    <label class="sr-only" for={`p-${context}`}>Телефон</label>
-    <input id={`p-${context}`} class="field" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="Телефон" required />
+    <label class="sr-only" for={`n-${context}`}>{f.name}</label>
+    <input id={`n-${context}`} class="field" name="name" autocomplete="name" placeholder={f.name} required />
+    <label class="sr-only" for={`p-${context}`}>{f.phone}</label>
+    <input id={`p-${context}`} class="field" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder={f.phone} required />
     {booking && (
       <div data-range-picker class="relative">
         <div class="grid grid-cols-2 gap-3">
-          <button type="button" data-rp-open="in" class="field flex items-center text-left text-muted"><span data-rp-label="in">Заезд</span></button>
-          <button type="button" data-rp-open="out" class="field flex items-center text-left text-muted"><span data-rp-label="out">Выезд</span></button>
+          <button type="button" data-rp-open="in" class="field flex items-center text-left text-muted"><span data-rp-label="in">{f.checkIn}</span></button>
+          <button type="button" data-rp-open="out" class="field flex items-center text-left text-muted"><span data-rp-label="out">{f.checkOut}</span></button>
         </div>
         <input type="hidden" name="check_in" data-rp-value="in" />
         <input type="hidden" name="check_out" data-rp-value="out" />
@@ -34,16 +39,16 @@ const {
     )}
     {booking && (
       <>
-        <label class="sr-only" for={`c-${context}`}>Комментарий</label>
-        <textarea id={`c-${context}`} name="comment" rows="3" class="field h-auto rounded-[24px] py-3" placeholder="Комментарий (необязательно)"></textarea>
+        <label class="sr-only" for={`c-${context}`}>{f.comment}</label>
+        <textarea id={`c-${context}`} name="comment" rows="3" class="field h-auto rounded-[24px] py-3" placeholder={f.comment}></textarea>
       </>
     )}
     <p data-error class="hidden text-sm text-red-600" role="alert"></p>
     <button class="btn btn-accent mt-2 w-full" type="submit">{submitLabel}</button>
-    <p class="text-xs text-muted">Нажимая на кнопку, вы даете согласие на <a href="/privacy-policy/" class="underline underline-offset-2">обработку персональных данных</a></p>
+    <p class="text-xs text-muted">{f.consent} <a href={`/${lang}/privacy-policy/`} class="underline underline-offset-2">{f.consentLink}</a></p>
   </div>
   <div data-done class="hidden py-6 text-center" role="status">
-    <p class="display text-2xl">Спасибо!</p>
-    <p class="mt-2 text-muted">Заявка принята. Менеджер свяжется с вами в ближайшее время.</p>
+    <p class="display text-2xl">{f.thanks}</p>
+    <p class="mt-2 text-muted">{f.accepted}</p>
   </div>
 </form>

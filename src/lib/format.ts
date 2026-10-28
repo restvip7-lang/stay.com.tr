@@ -55,3 +55,39 @@ export function strip(html: string, max = 160): string {
   const t = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
   return t.length > max ? t.slice(0, max - 1).trimEnd() + '…' : t;
 }
+
+/* ---------- Форматирование по языку страницы ---------- */
+import type { Lang } from '../i18n/config';
+import { INTL } from '../i18n/config';
+
+const nfs = new Map<string, Intl.NumberFormat>();
+const nfl = (lang: Lang) => {
+  let f = nfs.get(lang);
+  if (!f) nfs.set(lang, (f = new Intl.NumberFormat(INTL[lang])));
+  return f;
+};
+
+/** Число по правилам языка: 85 000 / 85,000 / 85.000. */
+export const numL = (lang: Lang, n: number | null | undefined) => (n == null ? '' : nfl(lang).format(Math.round(n)));
+
+/** Цена в евро: «85 000 €», «€85,000». */
+export function moneyL(lang: Lang, n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return '';
+  return lang === 'en' ? `€${numL(lang, n)}` : `${numL(lang, n)} €`;
+}
+
+/** Форма слова для числа: ru/sr — 1/2/5, en/de — 1/много, tr — без множественного. */
+export function pluralL(lang: Lang, n: number, forms: [string, string, string]): string {
+  if (lang === 'ru' || lang === 'sr') return plural(n, forms);
+  if (lang === 'tr') return forms[0];
+  return n === 1 ? forms[0] : forms[1];
+}
+
+export function dateL(lang: Lang, d: string | Date): string {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString(INTL[lang], { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+export function monthYearL(lang: Lang, d = new Date()): string {
+  return d.toLocaleDateString(INTL[lang], { month: 'long', year: 'numeric' });
+}

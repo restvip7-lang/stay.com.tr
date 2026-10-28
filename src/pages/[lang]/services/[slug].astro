@@ -1,0 +1,75 @@
+---
+/** Страница услуги (ТЗ 3.6, Б.4): H1, лид, текст, FAQ, Service + FAQPage, другие услуги, статьи, заявка. */
+import Base from '../../../layouts/Base.astro';
+import Img from '../../../components/Img.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import Faq from '../../../components/Faq.astro';
+import LinkCloud from '../../../components/LinkCloud.astro';
+import { isLang } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { SERVICES, serviceBySlug, legacyOf, serviceImage, serviceUrl } from '../../../lib/services';
+import { lawLinks } from '../../../lib/blog';
+import { serviceLd } from '../../../lib/ld';
+import { allLangs } from '../../../lib/page';
+import { sanitize } from '../../../lib/sanitize';
+
+const lang = Astro.params.lang;
+const s = serviceBySlug(Astro.params.slug ?? '');
+if (!isLang(lang) || !s) return Astro.rewrite('/404');
+const d = t(lang);
+const tx = s.tr[lang];
+const old = legacyOf(s);
+// Русский текст со старого сайта, если нового нет.
+const legacyBody = tx.body === null && old ? old : null;
+const img = serviceImage(s);
+const url = serviceUrl(lang, s.slug);
+const others = SERVICES.filter((x) => x.slug !== s.slug);
+const laws = lawLinks(lang, 3);
+const crumbs = [{ label: d.home, href: `/${lang}/` }, { label: d.pages.services, href: serviceUrl(lang) }, { label: tx.title }];
+---
+<Base title={`${tx.title} | Stay Property`} description={tx.description} alternates={allLangs(url)} image={img} jsonLd={serviceLd({ url, name: tx.title, description: tx.description, lang })}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="display h-page mt-6 max-w-5xl">{tx.title}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{tx.lead}</p>
+  </section>
+  {img && <div class="container-x mt-10"><div class="overflow-hidden rounded-[var(--radius-big)]"><Img src={img} alt={tx.title} class="aspect-[21/8] w-full" loading="eager" priority /></div></div>}
+  <section class="container-x mt-12 grid gap-12 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+    <div>
+      {tx.body && <div class="prose-stay text-[17px]" set:html={sanitize(tx.body)} />}
+      {legacyBody && (
+        <>
+          {legacyBody.html && <div class="prose-stay text-[17px]" set:html={sanitize(legacyBody.html)} />}
+          {legacyBody.sections.map((sec) => (
+            <div class="mt-12">
+              {sec.title && <h2 class="display mb-6 text-[clamp(24px,2.6vw,34px)]">{sec.title}</h2>}
+              {sec.steps.length > 0 && (
+                <ol class="grid gap-3 sm:grid-cols-2">
+                  {sec.steps.map((st, i) => (
+                    <li class="card flex gap-4 p-5"><span class="grid size-9 shrink-0 place-items-center rounded-full bg-lavender-2 font-medium text-accent">{i + 1}</span><span class="text-[15px] leading-relaxed">{st}</span></li>
+                  ))}
+                </ol>
+              )}
+              {sec.html && <div class="prose-stay" set:html={sanitize(sec.html)} />}
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+    <aside class="space-y-3 lg:sticky lg:top-28 lg:self-start">
+      <div class="card p-6">
+        <p class="font-display text-xl font-medium tracking-[-0.01em]">{d.form.consult}</p>
+        <p class="mt-2 text-sm text-muted">{d.getOfferText}</p>
+        <a href="#lead" class="btn btn-accent mt-5 w-full">{d.leaveRequest}</a>
+      </div>
+      <nav class="card p-6" aria-label={d.pages.services}>
+        <p class="mb-3 text-sm text-muted">{d.pages.services}</p>
+        <ul class="space-y-2">{others.map((o) => <li><a href={serviceUrl(lang, o.slug)} class="hover:text-accent">{o.tr[lang].title}</a></li>)}</ul>
+      </nav>
+    </aside>
+  </section>
+  {tx.faq && <Faq items={tx.faq} />}
+  {laws.length > 0 && <section class="container-x"><LinkCloud title={d.catalog.laws} links={laws} /></section>}
+  <LeadSection context={`service-${s.slug}`} />
+</Base>

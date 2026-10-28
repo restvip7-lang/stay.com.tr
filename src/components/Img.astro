@@ -1,8 +1,15 @@
 ---
-// Картинка с заглушкой: если адреса нет или файл не загрузился, показываем мягкий фон.
-interface Props { src?: string | null; alt: string; class?: string; loading?: 'lazy' | 'eager'; sizes?: string }
-const { src, alt, class: cls = '', loading = 'lazy' } = Astro.props;
+/**
+ * Картинка: на проде — через оптимизатор Vercel (AVIF/WebP, размеры под экран), явные width/height
+ * против сдвигов вёрстки, lazy ниже первого экрана (ТЗ 2.4, 2.6 п. 6). Если файла нет — мягкий фон.
+ */
+interface Props { src?: string | null; alt: string; class?: string; loading?: 'lazy' | 'eager'; sizes?: string; width?: number; height?: number; priority?: boolean }
+const { src, alt, class: cls = '', loading, sizes = '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw', width = 800, height = 600, priority = false } = Astro.props;
+const WIDTHS = [320, 640, 960, 1280, 1920];
+const opt = import.meta.env.PROD && !!src && /^https:\/\//.test(src);
+const u = (w: number) => `/_vercel/image?url=${encodeURIComponent(src!)}&w=${w}&q=75`;
+const srcset = opt ? WIDTHS.map((w) => `${u(w)} ${w}w`).join(', ') : undefined;
 ---
 {src
-  ? <img src={src} alt={alt} loading={loading} decoding="async" class:list={['img-fallback object-cover', cls]} onerror="this.removeAttribute('src');this.style.visibility='hidden';this.parentElement&&this.parentElement.classList.add('img-fallback')" />
+  ? <img src={opt ? u(960) : src} srcset={srcset} sizes={opt ? sizes : undefined} alt={alt} width={width} height={height} loading={loading ?? (priority ? 'eager' : 'lazy')} fetchpriority={priority ? 'high' : undefined} decoding="async" class:list={['img-fallback object-cover', cls]} onerror="this.removeAttribute('srcset');this.removeAttribute('src');this.style.visibility='hidden';this.parentElement&&this.parentElement.classList.add('img-fallback')" />
   : <div class:list={['img-fallback', cls]} role="img" aria-label={alt}></div>}

@@ -1,0 +1,33 @@
+---
+/** Отзывы (ТЗ 3.7). Тексты — на языке автора; оценок у отзывов нет, поэтому AggregateRating не выводим. */
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import LeadSection from '../../components/LeadSection.astro';
+import { isLang } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { REVIEWS } from '../../content/company';
+import { reviewsLd } from '../../lib/ld';
+import { allLangs } from '../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const url = `/${lang}/reviews/`;
+const ld = reviewsLd(REVIEWS.map((r) => ({ author: r.name, date: r.year || undefined, text: r.text })));
+---
+<Base title={`${d.pages.reviews} — Stay Property`} description={d.pages.reviewsLead} alternates={allLangs(url)} jsonLd={ld ?? undefined}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.reviews }]} />
+    <h1 class="display h-page mt-6">{d.pages.reviews}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.reviewsLead}</p>
+    <div class="mt-10 columns-1 gap-3 md:columns-2 lg:columns-3">
+      {REVIEWS.map((r) => (
+        <figure class="card mb-3 break-inside-avoid p-6">
+          <figcaption class="text-sm text-muted"><span class="block text-lg font-medium text-ink">{r.name}</span>{r.country}{r.year && <> · <time datetime={r.year}>{r.year}</time></>}</figcaption>
+          <blockquote class="mt-4 whitespace-pre-line text-[15px] leading-relaxed text-ink/80">{r.text}</blockquote>
+        </figure>
+      ))}
+    </div>
+  </section>
+  <LeadSection context="reviews" />
+</Base>

@@ -1,12 +1,12 @@
 ---
 import LeadForm from './LeadForm.astro';
 import HowItWorks from './HowItWorks.astro';
-interface Props { context?: string; steps?: string[]; submitLabel?: string; booking?: boolean; title?: string }
-const { context = 'page', steps, submitLabel, booking = false, title } = Astro.props;
+interface Props { context?: string; steps?: string[]; submitLabel?: string; booking?: boolean; title?: string; subtitle?: string }
+const { context = 'page', steps, submitLabel, booking = false, title, subtitle } = Astro.props;
 ---
 <section id="lead" class="container-x mt-20 scroll-mt-24 md:mt-28">
   <div class="card grid gap-12 p-6 md:grid-cols-2 md:p-12">
-    <LeadForm context={context} submitLabel={submitLabel} booking={booking} title={title} />
+    <LeadForm context={context} submitLabel={submitLabel} booking={booking} title={title} subtitle={subtitle} />
     <HowItWorks steps={steps} />
   </div>
 </section>

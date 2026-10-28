@@ -1,0 +1,73 @@
+---
+/**
+ * Каталог по ЧПУ (ТЗ 2.3): /{lang}/{country}/{city}/{district}/{deal}/{type}/{feature}/,
+ * /…/sale/complexes/{slug}, /…/{deal}/id{ID}. Разбор адреса — parseRoute; неизвестный адрес — 404.
+ */
+import CategoryPage from '../../components/CategoryPage.astro';
+import ItemPage from '../../components/ItemPage.astro';
+import ComplexesPage from '../../components/ComplexesPage.astro';
+import ComplexPage from '../../components/ComplexPage.astro';
+import NotFound from '../../components/NotFound.astro';
+import { isLang } from '../../i18n/config';
+import { parseRoute, whitelistFeature, catUrl, findItem, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
+import { findSeen, daysSince, SOLD_DAYS } from '../../lib/seen';
+
+const lang = Astro.params.lang;
+const segs = (Astro.params.path ?? '').split('/').filter(Boolean);
+const route = isLang(lang) ? await parseRoute(segs).catch(() => null) : null;
+
+let view: 'cat' | 'item' | 'complexes' | 'complex' | '404' | '410' = '404';
+let item: Item | null = null;
+let sold = false;
+let soldAt: string | null = null;
+let complex = null as Awaited<ReturnType<typeof getComplexes>>[number] | null;
+
+if (route && isLang(lang)) {
+  if (route.kind === 'hub') view = 'cat';
+  else if (route.kind === 'listing') {
+    const wf = route.page === 1 ? whitelistFeature(route.cat, Astro.url.searchParams) : null;
+    if (wf) return Astro.redirect(catUrl(lang, { ...route.cat, feature: wf }), 301);
+    // Страница за пределами выдачи — 404, а не пустая страница.
+    const n = route.page > 1 ? (await filtered(route.cat, parseFilters(Astro.url.searchParams))).length : 0;
+    view = route.page > 1 && route.page > Math.ceil(n / PER_PAGE) ? '404' : 'cat';
+  } else if (route.kind === 'complexes') {
+    const n = (await getComplexes()).filter((x) => matchComplex(x, route.cat)).length;
+    view = route.page > Math.max(1, Math.ceil(n / 24)) ? '404' : 'complexes';
+  } else if (route.kind === 'complex') {
+    complex = (await getComplexes()).find((c) => c.slug === route.slug) ?? null;
+    if (complex) {
+      const canon = complexUrl(lang, complex);
+      if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
+      view = 'complex';
+    }
+  } else if (route.kind === 'item') {
+    item = await findItem(route.id);
+    if (item) {
+      // Объект сменил район, город или тип сделки — 301 на канонический адрес (ТЗ 3.3).
+      const canon = itemUrl(lang, item);
+      if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
+      view = 'item';
+    } else {
+      // Пропал из API: «Продано» с похожими SOLD_DAYS дней, потом 410.
+      const s = await findSeen(route.cat.deal, route.id);
+      if (s) {
+        if (daysSince(s.lastSeen) > SOLD_DAYS) view = '410';
+        else {
+          const canon = itemUrl(lang, s);
+          if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
+          item = { ...s, rawType: null, bedrooms: s.rooms ? Number(String(s.rooms).split('+')[0]) || null : null, floor: null, ref: null, isPrivate: false, titleRu: '', features: [], unit: s.id.startsWith('u'), citizenship: false };
+          sold = true;
+          soldAt = s.lastSeen;
+          view = 'item';
+        }
+      }
+    }
+  }
+}
+---
+{view === 'cat' && route && (route.kind === 'hub' || route.kind === 'listing') && <CategoryPage cat={route.cat} page={route.kind === 'listing' ? route.page : 1} hub={route.kind === 'hub'} />}
+{view === 'complexes' && route?.kind === 'complexes' && <ComplexesPage cat={route.cat} page={route.page} />}
+{view === 'complex' && complex && <ComplexPage c={complex} />}
+{view === 'item' && item && <ItemPage x={item} sold={sold} soldAt={soldAt} />}
+{view === '404' && <NotFound />}
+{view === '410' && <NotFound gone />}

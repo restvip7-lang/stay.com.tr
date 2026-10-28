@@ -1,0 +1,49 @@
+---
+/** PRIVE — закрытые проекты Stay: слайдер, фильтр (режим PRIVE), проекты, о компании. Состав — из админки. */
+import Base from '../../layouts/Base.astro';
+import HomeHero from '../../components/HomeHero.astro';
+import CatalogFilter from '../../components/CatalogFilter.astro';
+import ProjectsBlock from '../../components/ProjectsBlock.astro';
+import CompanySpotlight from '../../components/CompanySpotlight.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { isLang } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { getHomeSections } from '../../lib/api';
+import { getHomeConfig } from '../../lib/homeConfig';
+import { getComplexes, filtered, parseFilters } from '../../lib/catalog';
+import { allLangs } from '../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const [home, complexes, sections] = await Promise.all([getHomeConfig(), getComplexes(), getHomeSections()]);
+const byCode = (c: string) => complexes.find((p) => p.code === c);
+const cfg = home.prive;
+const hero = cfg.hero.map(byCode).filter(Boolean) as typeof complexes;
+const ordered = cfg.projects.map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
+const list = [...ordered, ...complexes.filter((p) => p.isPrivate && !ordered.includes(p))];
+const turkeySale = { country: 'turkey', deal: 'sale' as const };
+const f = parseFilters(new URLSearchParams('prive=1'));
+const total = (await filtered(turkeySale, f)).length;
+const T = {
+  ru: { title: 'PRIVE — закрытые проекты Stay Property', h1: 'PRIVE: закрытые проекты Stay Property', lead: 'Специальные условия и лоты, которых нет в открытой продаже.' },
+  en: { title: 'PRIVE — Stay Property private projects', h1: 'PRIVE: Stay Property private projects', lead: 'Special terms and units that are not on open sale.' },
+  tr: { title: 'PRIVE — Stay Property özel projeleri', h1: 'PRIVE: Stay Property özel projeleri', lead: 'Stay Property PRIVE: açık satışta olmayan özel koşullar ve daireler.' },
+  de: { title: 'PRIVE — exklusive Projekte von Stay Property', h1: 'PRIVE: exklusive Projekte von Stay Property', lead: 'Sonderkonditionen und Einheiten, die nicht im offenen Verkauf sind.' },
+  sr: { title: 'PRIVE — zatvoreni projekti Stay Property', h1: 'PRIVE: zatvoreni projekti Stay Property', lead: 'Posebni uslovi i jedinice kojih nema u otvorenoj prodaji.' },
+}[lang];
+---
+<Base title={T.title} description={T.lead} alternates={allLangs(`/${lang}/prive/`)} overlayHeader>
+  <div class="theme-prive">
+    <HomeHero slides={hero} h1={T.h1} lead={T.lead} />
+    <section class="container-x mt-10">
+      <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: 'PRIVE' }]} />
+    </section>
+    <section class="container-x mt-10 md:mt-16">
+      <h2 class="display h-section mb-6">{d.hp.choose}</h2>
+      <CatalogFilter cat={turkeySale} f={f} total={total} mode="home" />
+    </section>
+    <ProjectsBlock title={d.hp.priveProjects} projects={list} visible={cfg.projectsVisible} prive />
+    <CompanySpotlight company={sections.company} />
+  </div>
+</Base>

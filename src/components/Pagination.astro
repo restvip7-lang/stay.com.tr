@@ -1,22 +1,22 @@
 ---
-interface Props { page: number; pages: number; url: URL }
-const { page, pages, url } = Astro.props;
-const href = (p: number) => {
-  const u = new URL(url);
-  if (p <= 1) u.searchParams.delete('page'); else u.searchParams.set('page', String(p));
-  return u.pathname + u.search;
-};
+/** Пагинация /page-N/ (ТЗ 8.2): первая страница — базовый адрес, параметры фильтра сохраняются. */
+import { t } from '../i18n/ui';
+interface Props { page: number; pages: number; base: string; query?: string }
+const { page, pages, base, query = '' } = Astro.props;
+const d = t(Astro.locals.lang ?? 'ru');
+const q = query ? `?${query}` : '';
+const href = (p: number) => (p <= 1 ? base : `${base}page-${p}/`) + q;
 const around = [...new Set([1, page - 2, page - 1, page, page + 1, page + 2, pages])].filter((p) => p >= 1 && p <= pages).sort((a, b) => a - b);
 ---
 {pages > 1 && (
-  <nav class="mt-12 flex flex-wrap items-center justify-center gap-2" aria-label="Страницы">
-    {page > 1 && <a href={href(page - 1)} class="btn btn-ghost !px-4" rel="prev">←</a>}
+  <nav class="mt-12 flex flex-wrap items-center justify-center gap-2" aria-label={d.pagesLabel}>
+    {page > 1 && <a href={href(page - 1)} class="btn btn-ghost !px-4" rel="prev" aria-label={d.page(page - 1)}>←</a>}
     {around.map((p, i) => (
       <>
         {i > 0 && p - around[i - 1] > 1 && <span class="px-1 text-muted">…</span>}
         <a href={href(p)} class:list={['grid size-12 place-items-center rounded-full border text-[15px]', p === page ? 'border-ink bg-ink text-white' : 'border-line bg-white hover:border-ink']} aria-current={p === page ? 'page' : undefined}>{p}</a>
       </>
     ))}
-    {page < pages && <a href={href(page + 1)} class="btn btn-ghost !px-4" rel="next">→</a>}
+    {page < pages && <a href={href(page + 1)} class="btn btn-ghost !px-4" rel="next" aria-label={d.page(page + 1)}>→</a>}
   </nav>
 )}

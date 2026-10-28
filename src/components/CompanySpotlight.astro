@@ -1,18 +1,23 @@
 ---
 import Img from './Img.astro';
 import type { HomeSections } from '../lib/api';
+import { COMPANY } from '../content/homeText';
+import { t } from '../i18n/ui';
 interface Props { company: HomeSections['company'] }
 const { company } = Astro.props;
-const title = company.title.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
+const lang = Astro.locals.lang ?? 'ru';
+const tr = lang === 'ru' ? null : COMPANY[lang];
+const title = tr?.title ?? company.title.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim();
+const html = tr?.html ?? company.description;
 const imgs = company.imageUrls;
-const m = company.metrics;
+const m = company.metrics.map((x, i) => ({ value: x.value, label: tr?.metrics[i] ?? x.label }));
 ---
 <section class="container-x mt-24 md:mt-32">
   <div class="grid gap-8 md:grid-cols-2">
     <h2 class="display h-section max-w-[12ch]">{title}</h2>
     <div>
-      <div class="prose-stay text-[17px]" set:html={company.description} />
-      <a href="/about/" class="mt-2 inline-block font-medium underline-offset-4 hover:underline">О компании</a>
+      <div class="prose-stay text-[17px]" set:html={html} />
+      <a href={`/${lang}/about/`} class="mt-2 inline-block font-medium underline-offset-4 hover:underline">{t(lang).hp.aboutLink}</a>
     </div>
   </div>
   <div class="relative mx-auto mt-14 max-w-5xl md:h-[640px]">

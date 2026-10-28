@@ -1,22 +1,31 @@
 ---
+/** Карточка жилого комплекса: одна ссылка на всю карточку, заголовок — h3 (ТЗ 10). */
 import Img from './Img.astro';
-import type { Project } from '../lib/api';
-interface Props { p: Project; big?: boolean; prive?: boolean }
-const { p, big = false, prive = false } = Astro.props;
+import type { Complex } from '../lib/catalog';
+import { complexUrl } from '../lib/catalog';
+import { cityBySlug, districtBySlug } from '../lib/geo';
+import { moneyL } from '../lib/format';
+import { t } from '../i18n/ui';
+interface Props { p: Complex; big?: boolean; prive?: boolean; headingLevel?: 'h2' | 'h3' | 'p' }
+const { p, big = false, prive = false, headingLevel = 'h3' } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const place = [p.district ? districtBySlug(p.city, p.district)?.name[lang] : null, cityBySlug(p.city)?.name[lang]].filter(Boolean).join(', ');
+const H = headingLevel;
 ---
-<a href={p.url} class:list={['group card flex h-full flex-col overflow-hidden p-1 pb-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5', prive && 'card-prive']}>
+<article class:list={['group card relative flex h-full flex-col overflow-hidden p-1 pb-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5', prive && 'card-prive']}>
   <span class:list={['relative block overflow-hidden rounded-[16px]', big ? 'aspect-[16/9] md:aspect-[21/8]' : 'aspect-[4/3]']}>
-    <Img src={p.image} alt={p.title} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" />
+    <Img src={p.image} alt={`${p.title} — ${place}`} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" width={big ? 1280 : 640} height={big ? 560 : 480} sizes={big ? '100vw' : undefined} />
     <span class="absolute left-3 top-3 flex gap-2">
       {prive && <span class="chip chip-accent">PRIVE</span>}
-      {p.action && <span class:list={['chip', prive ? 'chip-dark' : 'chip-accent']}>{p.action}</span>}
+      {p.action && lang === 'ru' && <span class:list={['chip', prive ? 'chip-dark' : 'chip-accent']}>{p.action}</span>}
     </span>
   </span>
   <span class="flex items-start justify-between gap-4 px-4 pt-4">
     <span>
-      <span class:list={['display block', big ? 'text-2xl md:text-3xl' : 'text-xl', prive && 'text-accent']}>{p.title}</span>
-      <span class:list={['mt-1 block text-sm', prive ? 'text-accent' : 'text-muted']}>{[p.city, p.area].filter(Boolean).join(', ') || 'Турция'}</span>
+      <H class:list={['display block', big ? 'text-2xl md:text-3xl' : 'text-xl', prive && 'text-accent']}><a href={complexUrl(lang, p)} class="after:absolute after:inset-0 after:content-['']">{p.title}</a></H>
+      <span class:list={['mt-1 block text-sm', prive ? 'text-accent' : 'text-muted']}>{place}</span>
     </span>
-    {p.priceFrom && <span class:list={['shrink-0 text-right font-medium', prive ? 'text-base text-accent' : 'text-lg']}>от {p.priceFrom.toLocaleString('ru-RU')} €</span>}
+    {p.priceFrom && <span class:list={['shrink-0 text-right font-medium', prive ? 'text-base text-accent' : 'text-lg']}>{d.from(moneyL(lang, p.priceFrom))}</span>}
   </span>
-</a>
+</article>

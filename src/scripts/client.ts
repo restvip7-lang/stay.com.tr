@@ -1,4 +1,15 @@
 // Небольшой клиентский код: формы заявок, избранное, модальное окно.
+// Тексты берём из <script id="i18n"> (их кладёт layout на языке страницы).
+
+type ClientDict = { form: Record<string, string>; loading: string; showMore: string; linkCopied: string; filter: Record<string, string> };
+let dict: ClientDict | null = null;
+export function T(): ClientDict {
+  if (!dict) {
+    try { dict = JSON.parse(document.getElementById('i18n')?.textContent || '{}'); } catch { dict = null; }
+  }
+  return dict ?? ({ form: {}, filter: {} } as unknown as ClientDict);
+}
+export const pageLocale = () => document.documentElement.lang || 'ru';
 
 export function initLeadForms() {
   const dialog = document.querySelector<HTMLDialogElement>('[data-lead-dialog]');
@@ -23,8 +34,8 @@ export function initLeadForms() {
       const err = form.querySelector<HTMLElement>('[data-error]')!;
       const phone = String(fd.get('phone') || '').replace(/[^\d+]/g, '');
       let msg = '';
-      if (!String(fd.get('name') || '').trim()) msg = 'Укажите имя.';
-      else if (phone.replace(/\D/g, '').length < 7) msg = 'Укажите телефон.';
+      if (!String(fd.get('name') || '').trim()) msg = T().form.errName;
+      else if (phone.replace(/\D/g, '').length < 7) msg = T().form.errPhone;
       if (msg) { err.textContent = msg; err.classList.remove('hidden'); return; }
       err.classList.add('hidden');
       // Отправки нет — по решению заказчика заявки пока никуда не уходят.
@@ -85,7 +96,10 @@ function initRangePicker(root: HTMLElement) {
   const val = (k: string) => root.querySelector<HTMLInputElement>(`[data-rp-value="${k}"]`)!;
   const label = (k: string) => root.querySelector<HTMLElement>(`[data-rp-label="${k}"]`)!;
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  const nice = (s: string) => new Date(s + 'T00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const loc = pageLocale();
+  const f = T().form;
+  const nice = (s: string) => new Date(s + 'T00:00').toLocaleDateString(loc, { day: 'numeric', month: 'short' });
+  const wd = [...Array(7)].map((_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(loc, { weekday: 'short' }));
   const today = iso(new Date());
   let a = '', b = '';
   let month = new Date(); month.setDate(1);
@@ -102,16 +116,16 @@ function initRangePicker(root: HTMLElement) {
       const mid = a && b && k > a && k < b;
       cells += `<button type="button" data-day="${k}" ${past ? 'disabled' : ''} class="h-9 rounded-full text-sm ${edge ? 'bg-ink text-white' : mid ? 'bg-lavender' : 'hover:bg-page'} disabled:opacity-30">${d}</button>`;
     }
-    const title = month.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-    pop.innerHTML = `<div class="mb-3 flex items-center justify-between"><button type="button" data-mon="-1" class="grid size-8 place-items-center rounded-full hover:bg-page" aria-label="Предыдущий месяц">‹</button><b class="font-medium capitalize">${title}</b><button type="button" data-mon="1" class="grid size-8 place-items-center rounded-full hover:bg-page" aria-label="Следующий месяц">›</button></div>
-      <div class="grid grid-cols-7 gap-1 text-center text-xs text-muted">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map((d) => `<span>${d}</span>`).join('')}</div>
+    const title = month.toLocaleDateString(loc, { month: 'long', year: 'numeric' });
+    pop.innerHTML = `<div class="mb-3 flex items-center justify-between"><button type="button" data-mon="-1" class="grid size-8 place-items-center rounded-full hover:bg-page" aria-label="${f.prevMonth}">‹</button><b class="font-medium capitalize">${title}</b><button type="button" data-mon="1" class="grid size-8 place-items-center rounded-full hover:bg-page" aria-label="${f.nextMonth}">›</button></div>
+      <div class="grid grid-cols-7 gap-1 text-center text-xs text-muted">${wd.map((d) => `<span>${d}</span>`).join('')}</div>
       <div class="mt-1 grid grid-cols-7 gap-1 text-center">${cells}</div>
-      <p class="mt-3 text-xs text-muted">${!a ? 'Выберите дату заезда' : !b ? 'Теперь дату выезда' : 'Готово'}</p>`;
+      <p class="mt-3 text-xs text-muted">${!a ? f.pickIn : !b ? f.pickOut : f.ready}</p>`;
   };
   const sync = () => {
     val('in').value = a; val('out').value = b;
-    label('in').textContent = a ? 'Заезд: ' + nice(a) : 'Заезд';
-    label('out').textContent = b ? 'Выезд: ' + nice(b) : 'Выезд';
+    label('in').textContent = a ? `${f.checkIn}: ${nice(a)}` : f.checkIn;
+    label('out').textContent = b ? `${f.checkOut}: ${nice(b)}` : f.checkOut;
     label('in').parentElement!.classList.toggle('text-muted', !a);
     label('out').parentElement!.classList.toggle('text-muted', !b);
   };

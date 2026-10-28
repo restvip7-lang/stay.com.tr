@@ -1,0 +1,157 @@
+---
+/**
+ * Рубрика блога (/{lang}/blog/{cat}/, /page-N/) и статья (/{lang}/blog/{cat}/{slug}/) — ТЗ 3.4, Б.3.
+ */
+import Base from '../../../../layouts/Base.astro';
+import Breadcrumbs from '../../../../components/Breadcrumbs.astro';
+import PostCard from '../../../../components/PostCard.astro';
+import Pagination from '../../../../components/Pagination.astro';
+import BlogArticle from '../../../../components/BlogArticle.astro';
+import LinkCloud from '../../../../components/LinkCloud.astro';
+import { isLang, LANGS, type Lang } from '../../../../i18n/config';
+import { t } from '../../../../i18n/ui';
+import { SITE } from '../../../../i18n/config';
+import { BLOG_CATS, BLOG_CAT_NAME, BLOG_CAT_LEAD, blogUrl, postsOf, lawBySlug, guideBySlug, guideCat, guideName, guideTitle, type BlogCat } from '../../../../lib/blog';
+import { getNewsItemL } from '../../../../lib/api';
+import { itemsOf, stats, catUrl, getComplexes, matchComplex, featureCounts, typeCounts, INDEX_MIN } from '../../../../lib/catalog';
+import { TYPE_WORDS, FEATURE_LABEL, DEAL_WORDS } from '../../../../lib/segments';
+import { moneyL, numL, mdToHtml, strip, monthYearL } from '../../../../lib/format';
+import { sanitize } from '../../../../lib/sanitize';
+import { allLangs, someLangs } from '../../../../lib/page';
+import { itemListLd } from '../../../../lib/ld';
+import { geoIn, geoOf } from '../../../../lib/seo';
+
+const lang = Astro.params.lang;
+const cat = Astro.params.cat as BlogCat;
+const rest = (Astro.params.rest ?? '').split('/').filter(Boolean);
+if (!isLang(lang) || !BLOG_CATS.includes(cat) || rest.length > 1) return Astro.rewrite('/404');
+const d = t(lang);
+const pageM = rest[0]?.match(/^page-(\d+)$/);
+const isList = rest.length === 0 || !!pageM;
+const PER = 12;
+
+/* ---------- Список ---------- */
+let list = null as null | { page: number; pages: number; posts: Awaited<ReturnType<typeof postsOf>>; all: number };
+if (isList) {
+  const page = pageM ? Number(pageM[1]) : 1;
+  if (pageM && page < 2) return Astro.redirect(blogUrl(lang, cat), 301);
+  const all = await postsOf(lang, cat);
+  const pages = Math.max(1, Math.ceil(all.length / PER));
+  if (page > pages) return Astro.rewrite('/404');
+  list = { page, pages, posts: all.slice((page - 1) * PER, page * PER), all: all.length };
+}
+
+/* ---------- Статья ---------- */
+const slug = isList ? '' : rest[0];
+let art = null as null | {
+  title: string; description: string; h1: string; html: string; published: string; updated: string; image: string | null;
+  alternates: Partial<Record<Lang, string>>; faq?: { q: string; a: string }[]; related: Awaited<ReturnType<typeof itemsOf>>; relatedHref?: string;
+};
+let guide = null as null | { name: string; inName: string; rows: { ty: string; label: string; href: string; s: ReturnType<typeof stats> }[]; landings: { href: string; text: string; n: number }[]; complexes: number; complexesHref: string; total: number };
+
+if (!isList && cat === 'laws') {
+  const a = lawBySlug(slug);
+  const tx = a?.tr[lang];
+  if (!a || !tx) return Astro.rewrite('/404');
+  const langs = LANGS.filter((l) => a.tr[l]);
+  const relCat = { country: 'turkey', city: 'alanya', deal: 'sale' as const, ...(slug.includes('citizenship') ? { feature: 'citizenship' as const, type: 'apartments' as const } : {}) };
+  art = {
+    title: `${tx.title} | Stay Property`, description: tx.description, h1: tx.title, html: tx.body, published: a.published, updated: a.updated, image: a.image,
+    alternates: someLangs(blogUrl(lang, cat, slug), langs), faq: tx.faq,
+    related: (await itemsOf(relCat)).slice(0, 4), relatedHref: catUrl(lang, relCat),
+  };
+} else if (!isList && cat === 'area-guides') {
+  const g = guideBySlug(slug);
+  if (!g) return Astro.rewrite('/404');
+  const gc = guideCat(g);
+  const name = guideName(lang, g);
+  const sale = { ...gc, deal: 'sale' as const };
+  const types = await typeCounts(sale);
+  const rows = (await Promise.all(types.map(async ([ty]) => ({ ty, label: TYPE_WORDS[lang][ty].pl, href: catUrl(lang, { ...sale, type: ty }), s: stats(await itemsOf({ ...sale, type: ty })) })))).filter((r) => r.s.n > 0);
+  const feats = (await featureCounts({ ...sale, type: 'apartments' })).filter(([, n]) => n >= INDEX_MIN).slice(0, 8);
+  const rentN = (await itemsOf({ ...gc, deal: 'rent' })).length;
+  const landings = [
+    ...rows.filter((r) => r.s.n >= INDEX_MIN).map((r) => ({ href: r.href, text: `${r.label}: ${DEAL_WORDS[lang].sale.name.toLocaleLowerCase(lang)}`, n: r.s.n })),
+    ...feats.map(([f, n]) => ({ href: catUrl(lang, { ...sale, type: 'apartments', feature: f }), text: `${TYPE_WORDS[lang].apartments.pl}: ${FEATURE_LABEL[lang][f].toLocaleLowerCase(lang)}`, n })),
+    ...(rentN >= INDEX_MIN ? [{ href: catUrl(lang, { ...gc, deal: 'rent' }), text: DEAL_WORDS[lang].rent.name, n: rentN }] : []),
+  ];
+  const cx = (await getComplexes()).filter((x) => matchComplex(x, gc)).length;
+  const total = (await itemsOf(sale)).length;
+  guide = { name, inName: geoIn(lang, geoOf(gc)), rows, landings, complexes: cx, complexesHref: catUrl(lang, gc, { complexes: true }), total };
+  const ids = ['about', 'life', 'buy'];
+  const html = g.text[lang].map((p, i) => (i === 0 ? `<p>${p}</p>` : `<h2 id="${ids[i] ?? `s${i}`}">${[
+    { ru: 'Жизнь и инфраструктура', en: 'Living and amenities', tr: 'Yaşam ve altyapı', de: 'Leben und Infrastruktur', sr: 'Život i infrastruktura' },
+    { ru: 'Кому подходит', en: 'Who it suits', tr: 'Kimler için uygun', de: 'Für wen es passt', sr: 'Kome odgovara' },
+    { ru: 'Особенности', en: 'Highlights', tr: 'Öne çıkanlar', de: 'Besonderheiten', sr: 'Posebnosti' },
+  ][i - 1]?.[lang] ?? ''}</h2><p>${p}</p>`)).join('');
+  const min = rows.length ? Math.min(...rows.map((r) => r.s.minPrice ?? Infinity)) : null;
+  const desc = {
+    ru: `${name}: где жить, что рядом и сколько стоит жильё. ${total ? `${total} объектов в продаже${min && isFinite(min) ? `, цены от ${moneyL(lang, min)}` : ''}.` : ''}`,
+    en: `${name}: where to live, what is nearby and what property costs. ${total ? `${total} properties for sale${min && isFinite(min) ? `, prices from ${moneyL(lang, min)}` : ''}.` : ''}`,
+    tr: `${name}: nerede yaşanır, yakında neler var ve fiyatlar. ${total ? `Satılık ${total} gayrimenkul${min && isFinite(min) ? `, fiyatlar ${moneyL(lang, min)}'dan başlıyor` : ''}.` : ''}`,
+    de: `${name}: Wohnen, Umgebung und Immobilienpreise. ${total ? `${total} Objekte zum Kauf${min && isFinite(min) ? `, Preise ab ${moneyL(lang, min)}` : ''}.` : ''}`,
+    sr: `${name}: gde živeti, šta je u blizini i koliko koštaju nekretnine. ${total ? `${total} nekretnina na prodaju${min && isFinite(min) ? `, cene od ${moneyL(lang, min)}` : ''}.` : ''}`,
+  }[lang];
+  art = {
+    title: `${guideTitle(lang, g)} | Stay Property`, description: desc.trim(), h1: guideTitle(lang, g), html, published: '2026-10-28', updated: new Date().toISOString().slice(0, 10), image: null,
+    alternates: allLangs(blogUrl(lang, cat, slug)), related: (await itemsOf(sale)).slice(0, 4), relatedHref: catUrl(lang, sale),
+  };
+} else if (!isList && cat === 'news') {
+  const n = await getNewsItemL(lang, slug);
+  if (!n) return Astro.rewrite('/404');
+  const langs = LANGS.filter((l) => n.langs.includes(l));
+  art = {
+    title: n.seoTitle || `${n.title} | Stay Property`, description: n.seoDescription || strip(n.excerpt || n.content, 160), h1: n.title,
+    html: sanitize(mdToHtml(n.content)), published: n.date, updated: n.updated, image: n.image,
+    alternates: someLangs(blogUrl(lang, cat, slug), langs.length ? langs : [lang]), related: [],
+  };
+}
+
+const more = art ? (await postsOf(lang, cat)).filter((p) => p.slug !== slug).slice(0, 4) : [];
+const listUrl = blogUrl(lang, cat);
+const listTitle = `${BLOG_CAT_NAME[lang][cat]} — ${d.pages.blog} Stay Property${list && list.page > 1 ? ` (${d.page(list.page)})` : ''}`;
+const otherCats = BLOG_CATS.filter((c) => c !== cat).map((c) => ({ href: blogUrl(lang, c), text: BLOG_CAT_NAME[lang][c] }));
+const upd = monthYearL(lang);
+---
+{list && (
+  <Base title={listTitle} description={BLOG_CAT_LEAD[lang][cat]} canonical={list.page > 1 ? `${listUrl}page-${list.page}/` : listUrl}
+        robots={list.all ? 'index,follow' : 'noindex,follow'} alternates={allLangs(listUrl)}
+        jsonLd={list.posts.length ? itemListLd(list.posts.map((p) => ({ url: SITE + p.href, name: p.title }))) : undefined}>
+    <section class="container-x pt-6 md:pt-10">
+      <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.blog, href: blogUrl(lang) }, { label: BLOG_CAT_NAME[lang][cat], href: list.page > 1 ? listUrl : undefined }, ...(list.page > 1 ? [{ label: d.page(list.page) }] : [])]} />
+      <h1 class="display h-page mt-6">{BLOG_CAT_NAME[lang][cat]}</h1>
+      <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{BLOG_CAT_LEAD[lang][cat]}</p>
+      {list.posts.length
+        ? <ul class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{list.posts.map((p) => <li><PostCard p={p} headingLevel="h2" /></li>)}</ul>
+        : <p class="card mt-10 p-10 text-center text-muted">{d.pages.searchEmpty}</p>}
+      <Pagination page={list.page} pages={list.pages} base={listUrl} />
+      <LinkCloud title={d.pages.categories} links={otherCats} />
+    </section>
+  </Base>
+)}
+{art && (
+  <BlogArticle cat={cat} {...art} more={more}>
+    {guide && guide.rows.length > 0 && (
+      <section class="mt-12">
+        <h2 id="prices" class="display mb-4 text-[clamp(24px,2.6vw,34px)]">{d.catalog.priceStats}: {guide.name}</h2>
+        <div class="card overflow-x-auto">
+          <table class="w-full text-left text-[14px]">
+            <thead class="text-muted"><tr><th scope="col" class="p-3 font-normal">{d.catalog.colType}</th><th scope="col" class="p-3 font-normal">{d.catalog.colCount}</th><th scope="col" class="p-3 font-normal">{d.catalog.colRange}</th><th scope="col" class="p-3 font-normal">{d.catalog.colAvg}</th></tr></thead>
+            <tbody>
+              {guide.rows.map((r) => (
+                <tr class="border-t border-line">
+                  <th scope="row" class="p-3 font-normal"><a href={r.href} class="hover:text-accent">{r.label}</a></th>
+                  <td class="p-3">{numL(lang, r.s.n)}</td>
+                  <td class="p-3 whitespace-nowrap">{r.s.minPrice ? `${moneyL(lang, r.s.minPrice)}${r.s.maxPrice && r.s.maxPrice > r.s.minPrice ? ` – ${moneyL(lang, r.s.maxPrice)}` : ''}` : '—'}</td>
+                  <td class="p-3 whitespace-nowrap">{r.s.avgPerM2 ? moneyL(lang, r.s.avgPerM2) : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p class="mt-3 text-xs text-muted">{d.catalog.updated(upd)}</p>
+      </section>
+    )}
+    {guide && <LinkCloud title={d.catalog.popular(guide.inName)} links={[...guide.landings, ...(guide.complexes ? [{ href: guide.complexesHref, text: d.nav.complexes, n: guide.complexes }] : [])]} />}
+  </BlogArticle>
+)}

@@ -1,0 +1,338 @@
+---
+/**
+ * Посадочная каталога (ТЗ 5, 6.2, 8, Приложение Б.2): хаб гео или листинг гео × сделка × тип × фича.
+ * Порядок блоков: крошки → H1 и лид → дочерние гео → фильтр и сортировка → выдача и пагинация →
+ * «Уточнить запрос» → SEO-текст → статистика цен → FAQ → перелинковка → гайд и законы → заявка.
+ */
+import Base from '../layouts/Base.astro';
+import { overrideFor } from '../lib/seoConfig';
+import { sanitize } from '../lib/sanitize';
+import Breadcrumbs from './Breadcrumbs.astro';
+import CatalogFilter from './CatalogFilter.astro';
+import SaleCard from './SaleCard.astro';
+import Pagination from './Pagination.astro';
+import LinkCloud from './LinkCloud.astro';
+import Faq from './Faq.astro';
+import LeadSection from './LeadSection.astro';
+import Img from './Img.astro';
+import Icon from './Icon.astro';
+import { t } from '../i18n/ui';
+import {
+  catUrl, itemUrl, itemsOf, filtered, parseFilters, hasFilters, noFilters, stats, INDEX_MIN, PER_PAGE, SORTS,
+  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, type Cat, type Item,
+} from '../lib/catalog';
+import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
+import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '../lib/seo';
+import { DEAL_WORDS, FEATURE_LABEL, TYPE_WORDS, featureDef, featureAllowed, type Deal } from '../lib/segments';
+import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
+import { itemListLd } from '../lib/ld';
+import { moneyL, numL, dateL } from '../lib/format';
+import { allLangs, type Robots } from '../lib/page';
+import { guideFor, lawLinks } from '../lib/blog';
+import { SITE } from '../i18n/config';
+
+interface Props { cat: Cat; page: number; hub: boolean }
+const { cat, page, hub } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const c = d.catalog;
+const sp = Astro.url.searchParams;
+const filters = hasFilters(sp);
+const f = parseFilters(sp);
+const g = geoOf(cat);
+const base = catUrl(lang, cat);
+
+// Хаб без сделки показывает продажу; листинг — свою сделку с фильтрами.
+const deal: Deal = cat.deal ?? 'sale';
+const listCat: Cat & { deal: Deal } = { ...cat, deal };
+const plain = await filtered(listCat, noFilters());
+const list = hub || !filters ? plain : await filtered(listCat, f);
+const s = stats(hub ? await itemsOf({ country: cat.country, city: cat.city, district: cat.district }) : plain);
+const n = hub ? s.n : plain.length;
+
+const pages = Math.max(1, Math.ceil(list.length / PER_PAGE));
+const shown = hub ? list.slice(0, 12) : list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+
+// Индексация (ТЗ 5.2, 8.1): фильтры → noindex + canonical на чистый адрес; 1–2 объекта → noindex; 0 → noindex и альтернативы.
+let robots: Robots = 'index,follow';
+if (filters || n < INDEX_MIN) robots = 'noindex,follow';
+const canonical = filters ? base : page > 1 ? `${base}page-${page}/` : base;
+const meta = catMeta(lang, cat, s, page);
+// H1 и SEO-текст из админки (ТЗ 14).
+const ov = page === 1 && !filters ? await overrideFor(base).catch(() => null) : null;
+if (ov?.h1) meta.h1 = ov.h1;
+
+// Пусто — показываем ближайшие варианты: без фичи → без типа → без района → весь город.
+let alternatives: Item[] = [];
+if (!hub && n === 0) {
+  const steps: Cat[] = [
+    { ...cat, feature: undefined },
+    { ...cat, feature: undefined, type: undefined },
+    { ...cat, feature: undefined, type: undefined, district: undefined },
+    { country: cat.country, deal },
+  ];
+  for (const st of steps) {
+    alternatives = (await itemsOf(st)).slice(0, 12);
+    if (alternatives.length) break;
+  }
+}
+
+// Дочерние гео: города страны или районы города.
+const children = !cat.district ? (await childGeo(cat)).slice(0, hub ? 12 : 24) : [];
+const childCat = (slug: string): Cat => (cat.city ? { ...cat, district: slug } : { country: cat.country, city: slug, deal: cat.deal, type: cat.type, feature: cat.feature });
+const childName = (slug: string) => (cat.city ? districtBySlug(cat.city, slug)?.name[lang] : cityBySlug(slug)?.name[lang]) ?? slug;
+const childLinks = hub ? [] : (await Promise.all(children.map(async (ch) => {
+  const cc = childCat(ch.slug);
+  const k = await countOf({ ...cc, deal });
+  return k ? { href: catUrl(lang, cc), text: childName(ch.slug), n: k } : null;
+}))).filter(Boolean) as { href: string; text: string; n: number }[];
+
+// «Уточнить запрос»: фича-лендинги с ≥3 объектами (для листинга с типом) или типы (без типа).
+const types = await typeCounts({ ...cat, deal });
+const refine = cat.type
+  ? (await featureCounts({ ...cat, deal, feature: undefined })).filter(([, k]) => k >= INDEX_MIN).sort((a, b) => b[1] - a[1])
+      .map(([fs, k]) => ({ href: catUrl(lang, { ...cat, deal, feature: fs }), text: FEATURE_LABEL[lang][fs], n: k, current: cat.feature === fs }))
+  : [];
+const typeLinks = types.filter(([, k]) => k > 0).map(([ty, k]) => ({ href: catUrl(lang, { country: cat.country, city: cat.city, district: cat.district, deal, type: ty }), text: TYPE_WORDS[lang][ty].pl, n: k, current: cat.type === ty && !cat.feature }));
+
+// Соседи и та же категория у соседей.
+const near = await neighbours(cat);
+const nearName = (x: Cat) => (x.district ? districtBySlug(x.city!, x.district)?.name[lang] : x.city ? cityBySlug(x.city)?.name[lang] : countryBySlug(x.country)?.name[lang]) ?? '';
+const nearLinks = (await Promise.all(near.map(async (x) => ({ href: catUrl(lang, x), text: nearName(x), n: (await itemsOf(x)).length })))).filter((l) => l.n > 0);
+const sameNearby = hub || (!cat.type && !cat.feature) ? [] : (await Promise.all(near.map(async (x) => {
+  const cc: Cat = { ...x, deal, type: cat.type, feature: cat.feature };
+  const k = await countOf(cc);
+  return k >= INDEX_MIN ? { href: catUrl(lang, cc), text: nearName(x), n: k } : null;
+}))).filter(Boolean) as { href: string; text: string; n: number }[];
+
+// Продажа ↔ аренда (тот же гео и тип; фичи, которых нет у другой сделки, отбрасываем).
+const other: Deal = deal === 'sale' ? 'rent' : 'sale';
+const fd = cat.feature ? featureDef(cat.feature) : null;
+const otherCat: Cat = { country: cat.country, city: cat.city, district: cat.district, deal: other, type: cat.type, feature: fd && featureAllowed(fd, other, cat.type ?? null, cat.country) ? cat.feature : undefined };
+const otherN = await countOf(otherCat);
+
+// «Популярное в гео»: самые наполненные фича-лендинги квартир.
+const popular = (await featureCounts({ country: cat.country, city: cat.city, district: cat.district, deal: 'sale', type: 'apartments' }))
+  .filter(([fs, k]) => k >= INDEX_MIN && !(cat.type === 'apartments' && cat.feature === fs)).sort((a, b) => b[1] - a[1]).slice(0, 8)
+  .map(([fs, k]) => ({ href: catUrl(lang, { country: cat.country, city: cat.city, district: cat.district, deal: 'sale', type: 'apartments', feature: fs }), text: `${TYPE_WORDS[lang].apartments.pl}: ${FEATURE_LABEL[lang][fs].toLocaleLowerCase(lang)}`, n: k }));
+
+// Статистика цен по типам.
+const priceRows = (await Promise.all(types.map(async ([ty]) => ({ ty, s: stats(await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal, type: ty })) })))).filter((r) => r.s.n > 0);
+
+// Комплексы гео (для хаба и для текста).
+const complexes = (await getComplexes()).filter((x) => matchComplex(x, cat));
+const cxMeta = complexes.length ? complexesMeta(lang, g, complexes.length, Math.min(...complexes.map((x) => x.priceFrom ?? Infinity).filter(Number.isFinite)) || null) : null;
+
+// SEO-текст, FAQ — только на первой странице.
+const guide = guideFor(lang, cat);
+const laws = lawLinks(lang, 3);
+const textLinks = [
+  { href: `/${lang}/services/due-diligence/`, text: SERVICE_TITLES[lang]['due-diligence'].toLocaleLowerCase(lang) },
+  ...(complexes.length ? [{ href: catUrl(lang, cat, { complexes: true }), text: d.nav.complexes.toLocaleLowerCase(lang) }] : []),
+];
+const text = ov?.text ? sanitize(ov.text) : page === 1 && n > 0 ? catText({ lang, cat, s, byType: types, near: nearLinks.map((l) => l.text), links: textLinks }) : '';
+const faq = page === 1 ? catFaq(lang, cat, s) : [];
+
+const crumbs = catCrumbs(lang, cat);
+if (page > 1) crumbs.push({ label: d.page(page) });
+
+const ld = shown.length ? [itemListLd(shown.map((x) => ({ url: SITE + itemUrl(lang, x), name: `${TYPE_WORDS[lang][x.type].one}${x.rooms ? ' ' + x.rooms : ''}` })))] : [];
+const query = [...sp.entries()].filter(([k]) => k !== 'page').map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
+const sortHref = (k: string) => {
+  const u = new URLSearchParams(sp);
+  if (k === 'new') u.delete('sort'); else u.set('sort', k);
+  const q = u.toString();
+  return base + (q ? `?${q}` : '');
+};
+const lead = hub
+  ? meta.lead
+  : n
+    ? meta.lead
+    : `${c.empty}. ${c.alternatives}.`;
+const updated = dateL(lang, new Date());
+const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(async (dl) => ({ dl, k: (await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal: dl })).length })))).filter((x) => x.k > 0) : [];
+---
+<Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={ld}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="display h-page mt-6" data-prive-title={meta.h1}>{meta.h1}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{lead}</p>
+
+    {hub && (
+      <ul class="mt-8 grid gap-3 sm:grid-cols-3">
+        {dealTiles.map(({ dl, k }) => (
+          <li><a href={catUrl(lang, { country: cat.country, city: cat.city, district: cat.district, deal: dl })} class="card flex min-h-28 items-end justify-between p-5 text-xl font-medium hover:border-ink">{DEAL_WORDS[lang][dl].name}<span class="text-muted">{numL(lang, k)}</span></a></li>
+        ))}
+        {complexes.length > 0 && <li><a href={catUrl(lang, cat, { complexes: true })} class="card flex min-h-28 items-end justify-between p-5 text-xl font-medium hover:border-ink">{d.nav.complexes}<span class="text-muted">{numL(lang, complexes.length)}</span></a></li>}
+      </ul>
+    )}
+
+    {hub && children.length > 0 && (
+      <section class="mt-14">
+        <h2 class="display mb-6 text-[clamp(26px,2.6vw,36px)]">{cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))}</h2>
+        <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+          {children.map((ch) => (
+            <li>
+              <a href={catUrl(lang, childCat(ch.slug))} class="group card relative block overflow-hidden p-1">
+                <span class="block aspect-[4/3] overflow-hidden rounded-[16px]"><Img src={ch.image} alt={childName(ch.slug)} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" width={400} height={300} /></span>
+                <span class="flex items-center justify-between gap-2 px-3 py-3"><span class="font-medium">{childName(ch.slug)}</span><span class="text-sm text-muted">{numL(lang, ch.n)}</span></span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {!hub && (
+      <div class="mt-10 md:mt-12"><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
+    )}
+  </section>
+
+  <section class="mt-12 bg-white/60 py-10 md:mt-16 md:py-14">
+    <div class="container-x transition-opacity" data-swap="results">
+      {hub ? (
+        <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <h2 class="display text-[clamp(26px,2.6vw,36px)]">{c.top}</h2>
+          <a href={catUrl(lang, { ...cat, deal: 'sale' })} class="btn btn-ghost">{c.allIn(geoIn(lang, g))}<Icon name="arrowRight" class="size-4" /></a>
+        </div>
+      ) : (
+        <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+          <nav class="flex flex-wrap gap-2 text-sm" aria-label={d.filter.sort}>
+            {SORTS.map((k) => <a href={sortHref(k)} rel="nofollow" class:list={['chip px-4 py-2', f.sort === k && '!border-ink !bg-ink text-white']}>{d.sorts[k]}</a>)}
+          </nav>
+          <div class="flex gap-1 rounded-full border border-line bg-white p-1" role="group" aria-label={c.view}>
+            <button type="button" data-layout="grid" class="view-btn" aria-label={c.grid} title={c.grid}><Icon name="grid" /></button>
+            <button type="button" data-layout="list" class="view-btn" aria-label={c.list} title={c.list}><Icon name="list" /></button>
+          </div>
+        </div>
+      )}
+      {shown.length ? (
+        <ul data-grid class="results-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{shown.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+      ) : (
+        <>
+          <div class="card p-10 text-center">
+            <p class="display text-2xl">{n === 0 ? c.empty : c.nothing}</p>
+            <p class="mt-2 text-muted">{c.nothingText}</p>
+            <div class="mt-6 flex justify-center gap-3"><a href={base} class="btn btn-ghost">{c.resetFilter}</a><a href="#lead" class="btn btn-accent">{d.leaveRequest}</a></div>
+          </div>
+          {alternatives.length > 0 && (
+            <>
+              <h2 class="display mb-6 mt-12 text-[clamp(24px,2.4vw,32px)]">{c.alternatives}</h2>
+              <ul class="results-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{alternatives.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+            </>
+          )}
+        </>
+      )}
+      {!hub && page < pages && (
+        <div class="mt-10 flex justify-center"><a href={`${base}page-${page + 1}/${query ? `?${query}` : ''}`} data-more class="btn btn-ghost min-w-[240px]">{d.showMore}</a></div>
+      )}
+      {!hub && <div data-pager><Pagination page={page} pages={pages} base={base} query={query} /></div>}
+    </div>
+  </section>
+
+  <section class="container-x mt-6">
+    {refine.length > 0 && <LinkCloud title={c.refine} links={refine} />}
+    {!cat.type && typeLinks.length > 1 && <LinkCloud title={c.refine} links={typeLinks} />}
+    {childLinks.length > 0 && <LinkCloud title={cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))} links={childLinks} />}
+  </section>
+
+  {text && (
+    <section class="container-x mt-20 md:mt-24">
+      <div class="grid gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+        <div class="prose-stay text-[17px]" set:html={text} />
+        {priceRows.length > 0 && (
+          <div>
+            <h2 class="mb-4 text-xl font-medium tracking-[-0.01em]">{c.priceStats}</h2>
+            <div class="card overflow-x-auto">
+              <table class="w-full text-left text-[14px]">
+                <caption class="sr-only">{c.priceStats}: {meta.h1}</caption>
+                <thead class="text-muted"><tr><th scope="col" class="p-3 font-normal">{c.colType}</th><th scope="col" class="p-3 font-normal">{c.colCount}</th><th scope="col" class="p-3 font-normal">{c.colRange}</th>{deal === 'sale' && <th scope="col" class="p-3 font-normal">{c.colAvg}</th>}</tr></thead>
+                <tbody>
+                  {priceRows.map((r) => (
+                    <tr class="border-t border-line">
+                      <th scope="row" class="p-3 font-normal"><a href={catUrl(lang, { country: cat.country, city: cat.city, district: cat.district, deal, type: r.ty })} class="hover:text-accent">{TYPE_WORDS[lang][r.ty].pl}</a></th>
+                      <td class="p-3">{numL(lang, r.s.n)}</td>
+                      <td class="p-3 whitespace-nowrap">{r.s.minPrice ? `${moneyL(lang, r.s.minPrice)}${r.s.maxPrice && r.s.maxPrice > r.s.minPrice ? ` – ${moneyL(lang, r.s.maxPrice)}` : ''}` : '—'}</td>
+                      {deal === 'sale' && <td class="p-3 whitespace-nowrap">{r.s.avgPerM2 ? moneyL(lang, r.s.avgPerM2) : '—'}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p class="mt-3 text-xs text-muted">{c.updated(updated)}</p>
+          </div>
+        )}
+      </div>
+    </section>
+  )}
+
+  <Faq items={faq} />
+
+  <section class="container-x mt-16">
+    {!cat.type && typeLinks.length > 0 && hub && <LinkCloud title={c.otherTypes} links={typeLinks} />}
+    {cat.type && <LinkCloud title={c.otherTypes} links={typeLinks.filter((l) => !l.current)} />}
+    {nearLinks.length > 0 && <LinkCloud title={c.neighbours} links={nearLinks} />}
+    {sameNearby.length > 0 && <LinkCloud title={c.sameNearby} links={sameNearby} />}
+    {!hub && otherN > 0 && <LinkCloud title={c.dealSwitch} links={[{ href: catUrl(lang, otherCat), text: `${DEAL_WORDS[lang][other].name}: ${(otherCat.type ? TYPE_WORDS[lang][otherCat.type].pl : geoName(lang, g))}`, n: otherN }]} />}
+    {popular.length > 0 && <LinkCloud title={c.popular(geoIn(lang, g))} links={popular} />}
+    {cxMeta && !hub && <LinkCloud title={d.nav.complexes} links={[{ href: catUrl(lang, cat, { complexes: true }), text: cxMeta.h1, n: complexes.length }]} />}
+    {(guide || laws.length > 0) && (
+      <div class="mt-10 grid gap-3 md:grid-cols-2">
+        {guide && <a href={guide.href} class="card flex items-center justify-between gap-4 p-6 hover:border-ink"><span><span class="block text-sm text-muted">{c.guide(guide.name)}</span><span class="mt-1 block text-lg font-medium">{guide.title}</span></span><Icon name="arrowRight" class="size-5 shrink-0" /></a>}
+        {laws.length > 0 && (
+          <div class="card p-6">
+            <p class="text-sm text-muted">{c.laws}</p>
+            <ul class="mt-2 space-y-1.5">{laws.map((l) => <li><a href={l.href} class="font-medium hover:text-accent">{l.title}</a></li>)}</ul>
+          </div>
+        )}
+      </div>
+    )}
+  </section>
+
+  <LeadSection context={`cat-${base}`} title={c.ctaTitle} subtitle={c.ctaText} booking={deal === 'rent' && !hub} />
+</Base>
+
+<style is:global>
+  .view-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; color: var(--color-muted); }
+  .view-btn[aria-pressed="true"] { background: var(--color-ink); color: #fff; }
+  .view-list .results-grid { grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 640px) {
+    .view-list .sale-card { display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 8px; }
+    .view-list .sc-img { grid-row: 1 / 3; grid-column: 1; }
+    .view-list .sc-body { grid-column: 2; }
+    .view-list .sc-fav { top: 20px; left: 252px; right: auto; }
+  }
+</style>
+<script>
+  import { syncFavorites, T } from '../scripts/client';
+  const KEY = 'stay-view';
+  const setView = (v: string) => {
+    document.documentElement.classList.toggle('view-list', v === 'list');
+    document.querySelectorAll<HTMLElement>('[data-layout]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layout === v)));
+    try { localStorage.setItem(KEY, v); } catch { /* */ }
+  };
+  let saved = 'grid';
+  try { saved = localStorage.getItem(KEY) || 'grid'; } catch { /* */ }
+  setView(saved);
+  document.addEventListener('click', async (e) => {
+    const el = e.target as HTMLElement;
+    const v = el.closest<HTMLElement>('[data-layout]');
+    if (v) { setView(v.dataset.layout!); return; }
+    // «Показать ещё»: дозагружаем следующую страницу /page-N/ под текущими карточками.
+    const more = el.closest<HTMLAnchorElement>('[data-more]');
+    if (!more) return;
+    e.preventDefault();
+    more.textContent = T().loading;
+    try {
+      const doc = new DOMParser().parseFromString(await (await fetch(more.href)).text(), 'text/html');
+      document.querySelector('[data-grid]')?.append(...doc.querySelectorAll('[data-grid] > *'));
+      const pager = document.querySelector('[data-pager]');
+      const nextPager = doc.querySelector('[data-pager]');
+      if (pager && nextPager) pager.innerHTML = nextPager.innerHTML;
+      const nextMore = doc.querySelector<HTMLAnchorElement>('[data-more]');
+      if (nextMore) { more.href = nextMore.href; more.textContent = T().showMore; } else more.parentElement?.remove();
+      syncFavorites();
+    } catch { location.href = more.href; }
+  });
+  document.addEventListener('results:updated', () => setView(document.documentElement.classList.contains('view-list') ? 'list' : 'grid'));
+</script>

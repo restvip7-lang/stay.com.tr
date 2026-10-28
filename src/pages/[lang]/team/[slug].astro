@@ -1,0 +1,64 @@
+---
+/** Страница сотрудника или редакции (ТЗ Б.3: автор статей, Person/Organization). */
+import Base from '../../../layouts/Base.astro';
+import Img from '../../../components/Img.astro';
+import Icon from '../../../components/Icon.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import PostCard from '../../../components/PostCard.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import { isLang, SITE } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { memberBySlug, EDITORIAL, MEMBER_ROLE, SPEAKS, langNames } from '../../../content/company';
+import { postsOf } from '../../../lib/blog';
+import { ORG_ID } from '../../../lib/ld';
+import { allLangs } from '../../../lib/page';
+
+const lang = Astro.params.lang;
+const slug = Astro.params.slug ?? '';
+if (!isLang(lang)) return Astro.rewrite('/404');
+const m = memberBySlug(slug);
+const isEd = slug === EDITORIAL.slug;
+if (!m && !isEd) return Astro.rewrite('/404');
+const d = t(lang);
+const url = `/${lang}/team/${slug}/`;
+const name = m ? m.name[lang] : EDITORIAL.name[lang];
+const posts = isEd ? [...(await postsOf(lang, 'laws')), ...(await postsOf(lang, 'area-guides'))].slice(0, 8) : [];
+const ld = m
+  ? { '@context': 'https://schema.org', '@type': 'Person', name, url: SITE + url, image: m.photo, jobTitle: MEMBER_ROLE[lang], worksFor: { '@id': ORG_ID }, ...(m.email ? { email: m.email } : {}), knowsLanguage: m.langs }
+  : { '@context': 'https://schema.org', '@type': 'Organization', name, url: SITE + url, parentOrganization: { '@id': ORG_ID }, description: EDITORIAL.bio[lang] };
+---
+<Base title={`${name} — Stay Property`} description={m ? `${name}, ${MEMBER_ROLE[lang].toLocaleLowerCase(lang)} Stay Property. ${SPEAKS[lang]}: ${langNames(lang, m.langs)}.` : EDITORIAL.bio[lang].slice(0, 160)} alternates={allLangs(url)} ogType="profile" image={m?.photo} jsonLd={ld}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.team, href: `/${lang}/team/` }, { label: name }]} />
+    <div class="mt-8 grid gap-10 md:grid-cols-[280px_minmax(0,1fr)]">
+      {m ? <div class="aspect-square overflow-hidden rounded-[var(--radius-big)] bg-lavender-2"><Img src={m.photo} alt={name} class="size-full object-top" priority /></div>
+         : <div class="grid aspect-square place-items-center rounded-[var(--radius-big)] bg-lavender-2 font-display text-4xl text-accent">Stay</div>}
+      <div>
+        <h1 class="display h-page">{name}</h1>
+        {m ? (
+          <>
+            <p class="mt-3 text-lg text-muted">{MEMBER_ROLE[lang]}</p>
+            {m.langs.length > 0 && <p class="mt-6"><span class="text-muted">{SPEAKS[lang]}:</span> {langNames(lang, m.langs)}</p>}
+            <div class="mt-6 flex flex-wrap gap-3">
+              {m.phone && <a class="btn btn-ghost" href={`tel:${m.phone.replace(/[^\d+]/g, '')}`}>{m.phone}</a>}
+              {m.email && <a class="btn btn-ghost" href={`mailto:${m.email}`}>{m.email}</a>}
+              {m.whatsapp && <a class="btn btn-accent" href={m.whatsapp} target="_blank" rel="noopener"><Icon name="whatsapp" class="size-4" />WhatsApp</a>}
+            </div>
+          </>
+        ) : (
+          <>
+            <h2 class="mt-8 text-xl font-medium">{d.pages.aboutAuthor}</h2>
+            <p class="mt-3 max-w-3xl text-[17px] text-ink/80">{EDITORIAL.bio[lang]}</p>
+          </>
+        )}
+      </div>
+    </div>
+  </section>
+  {posts.length > 0 && (
+    <section class="container-x mt-20">
+      <h2 class="display h-section mb-6">{d.pages.articlesBy}</h2>
+      <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{posts.map((p) => <li><PostCard p={p} /></li>)}</ul>
+    </section>
+  )}
+  <LeadSection context={`team-${slug}`} />
+</Base>

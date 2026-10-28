@@ -1,0 +1,218 @@
+---
+/**
+ * Карточка жилого комплекса (ТЗ 3.4, Б.5): hero с H1, статусом и ценой от/до → ключевые факты →
+ * планировки с ценами «от» → описание → галерея и видео → объекты комплекса → карта → рассрочка →
+ * FAQ → другие комплексы и посадочные района → форма. Описание из API есть только на русском,
+ * поэтому версии на других языках пока noindex (см. отчёт).
+ */
+import Base from '../layouts/Base.astro';
+import Img from './Img.astro';
+import Icon from './Icon.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import Calculator from './Calculator.astro';
+import LeadSection from './LeadSection.astro';
+import ProjectCard from './ProjectCard.astro';
+import SaleCard from './SaleCard.astro';
+import Faq from './Faq.astro';
+import LinkCloud from './LinkCloud.astro';
+import { t } from '../i18n/ui';
+import { getComplex } from '../lib/api';
+import { getComplexes, getUnits, getItems, complexUrl, catUrl, matchComplex, type Complex } from '../lib/catalog';
+import { cityBySlug, districtBySlug } from '../lib/geo';
+import { geoOf, complexMeta } from '../lib/seo';
+import { complexFaq } from '../lib/complexText';
+import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
+import { complexLd, videoLd } from '../lib/ld';
+import { guideFor } from '../lib/blog';
+import { sanitize } from '../lib/sanitize';
+import { moneyL, numL, strip } from '../lib/format';
+import { TYPE_WORDS } from '../lib/segments';
+import type { Robots } from '../lib/page';
+
+interface Props { c: Complex }
+const { c } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const tc = d.complex;
+const p = await getComplex(c.project.slug);
+const g = geoOf(c);
+const city = cityBySlug(c.city)!;
+const district = c.district ? districtBySlug(c.city, c.district) : null;
+const place = [district?.name[lang], city.name[lang]].filter(Boolean).join(', ');
+const self = complexUrl(lang, c);
+
+const units = [...(p?.units ?? c.project.units)].sort((a, b) => (a.priceFrom ?? 0) - (b.priceFrom ?? 0));
+// Объекты комплекса из каталога: квартиры проектов Stay и объекты Portfolio с этим кодом.
+const objects = [...(await getUnits()), ...(await getItems())].filter((x) => x.complex === c.code);
+const prices = [...units.map((u) => u.priceFrom), ...objects.map((x) => x.price)].filter((v): v is number => !!v);
+const low = prices.length ? Math.min(...prices) : c.priceFrom;
+const high = prices.length > 1 ? Math.max(...prices) : c.priceTo;
+const buildEnd = p?.facts.find((f) => f.label === 'build-end')?.value ?? null;
+const meta = complexMeta(lang, c.title, g, low, high, c.rooms, buildEnd);
+const hero = p?.heroImages[0] ?? c.image;
+const gallery = (p?.gallery.length ? p.gallery : p?.heroImages ?? []).filter(Boolean);
+const intro = p?.introHtml ? sanitize(p.introHtml) : '';
+const description = strip(p?.introHtml || meta.description, 300);
+const ytId = p?.video?.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1] ?? null;
+const FACT_LABEL: Record<string, string> = { price: tc.priceRange, 'build-end': tc.deadline, mix: tc.layouts, location: tc.location };
+
+// Русский — единственный язык с описанием комплекса из API; остальные версии — без индексации и без hreflang.
+const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
+const alternates = { ru: complexUrl('ru', c) };
+
+const nearby = (await getComplexes()).filter((x) => x.slug !== c.slug && matchComplex(x, { country: c.country, city: c.city, district: c.district ?? undefined }));
+const others = (nearby.length >= 3 ? nearby : [...nearby, ...(await getComplexes()).filter((x) => x.slug !== c.slug && x.city === c.city && !nearby.includes(x))]).slice(0, 3);
+const geoCat = { country: c.country, city: c.city, district: c.district ?? undefined };
+const guide = guideFor(lang, geoCat);
+const links = [
+  { href: catUrl(lang, { ...geoCat, deal: 'sale', type: 'apartments' }), text: `${TYPE_WORDS[lang].apartments.pl}: ${place}` },
+  { href: catUrl(lang, geoCat, { complexes: true }), text: `${d.nav.complexes}: ${district?.name[lang] ?? city.name[lang]}` },
+  ...(c.district ? [{ href: catUrl(lang, { country: c.country, city: c.city }, { complexes: true }), text: `${d.nav.complexes}: ${city.name[lang]}` }] : []),
+  ...(guide ? [{ href: guide.href, text: guide.title }] : []),
+  { href: `/${lang}/services/due-diligence/`, text: SERVICE_TITLES[lang]['due-diligence'] },
+];
+const faq = complexFaq(lang, c.title, low, high, p?.installment ? { down: p.installment.initialPay, months: p.installment.months } : null);
+const crumbs = catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
+const vld = p?.video ? videoLd(p.video, c.title, description, new Date().toISOString()) : null;
+const ld = [
+  complexLd({ url: self, name: c.title, description, images: [hero, ...gallery].filter(Boolean) as string[], city: city.name.en, region: district?.name.en ?? city.name.en, country: c.country === 'turkey' ? 'TR' : c.country === 'uae' ? 'AE' : 'CY', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, units: objects.length || null, amenities: p?.amenities ?? [], low, high, offers: objects.length || units.length }),
+  ...(vld ? [vld] : []),
+];
+const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
+---
+<Base title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} overlayHeader jsonLd={ld}>
+  <section class="relative isolate overflow-hidden bg-ink text-white">
+    <Img src={hero} alt={`${c.title} — ${place}`} class="absolute inset-0 -z-10 size-full" priority sizes="100vw" width={1920} height={1080} />
+    <div class="absolute inset-0 -z-10 bg-gradient-to-b from-ink/70 via-ink/30 to-ink/80"></div>
+    <div class="container-x flex min-h-[80svh] flex-col justify-center pb-16 pt-36">
+      <h1 class="display h-hero max-w-5xl">{meta.h1}</h1>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <span class="chip chip-dark">{place}</span>
+        {low && <span class="chip chip-dark">{d.from(moneyL(lang, low))}{high && high > low ? ` – ${moneyL(lang, high)}` : ''}</span>}
+        {buildEnd && <span class="chip chip-dark">{tc.deadline}: {buildEnd}</span>}
+        {c.rooms.map((r) => <span class="chip chip-dark">{r}</span>)}
+        {p?.promo && lang === 'ru' && <span class="chip chip-accent">{p.promo}</span>}
+      </div>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href="#lead" class="btn btn-accent">{tc.getPrice}</a>
+        {ytId && <a href="#video" class="btn btn-outline-light"><Icon name="play" class="size-4" />{tc.video}</a>}
+      </div>
+    </div>
+  </section>
+
+  <div class="container-x border-b border-line py-4"><Breadcrumbs items={crumbs} /></div>
+
+  {(p?.facts.length ?? 0) > 0 && (
+    <section class="container-x mt-10">
+      <h2 class="sr-only">{tc.facts}</h2>
+      <dl class="grid grid-cols-2 gap-3 md:grid-cols-4">
+        {p!.facts.map((f) => <div class="card p-4"><dt class="text-xs text-muted">{FACT_LABEL[f.label] ?? f.label}</dt><dd class="mt-1 text-[15px]">{f.value}</dd></div>)}
+        {objects.length > 0 && <div class="card p-4"><dt class="text-xs text-muted">{tc.available}</dt><dd class="mt-1 text-[15px]">{numL(lang, objects.length)}</dd></div>}
+      </dl>
+      {(p?.amenities.length ?? 0) > 0 && (
+        <ul class="mt-4 flex flex-wrap gap-2" aria-label={tc.amenities}>{p!.amenities.map((a) => <li class="chip px-4 py-2">{a}</li>)}</ul>
+      )}
+    </section>
+  )}
+
+  {units.length > 0 && (
+    <section id="choose" class="container-x mt-16 scroll-mt-28">
+      <h2 class="display h-section mb-8">{tc.layouts}</h2>
+      <div class="card overflow-x-auto">
+        <table class="w-full min-w-[520px] text-left text-[15px]">
+          <caption class="sr-only">{tc.layouts}: {c.title}</caption>
+          <thead class="text-sm text-muted"><tr><th scope="col" class="p-4 font-normal">{tc.layoutType}</th><th scope="col" class="p-4 font-normal">{d.item.rooms}</th><th scope="col" class="p-4 font-normal">{tc.layoutArea}</th><th scope="col" class="p-4 font-normal">{tc.layoutPrice}</th><th class="p-4"><span class="sr-only">{tc.getPrice}</span></th></tr></thead>
+          <tbody>
+            {units.map((u) => (
+              <tr class="border-t border-line">
+                <td class="p-4">{u.type}</td>
+                <td class="p-4">{u.rooms ?? '—'}</td>
+                <td class="p-4">{u.areaFrom ? `${numL(lang, u.areaFrom)} ${d.m2}` : '—'}</td>
+                <td class="p-4 font-medium">{u.priceFrom ? moneyL(lang, u.priceFrom) : d.priceOnRequest}</td>
+                <td class="p-4 text-right"><a href="#lead" class="text-accent hover:underline">{tc.getPrice}</a></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )}
+
+  <section class="container-x mt-16 grid gap-8 md:grid-cols-2">
+    <div class="overflow-hidden rounded-[var(--radius-big)]"><Img src={gallery[1] ?? hero} alt={`${c.title} — ${d.photo} 2`} class="aspect-[4/3] size-full" width={960} height={720} /></div>
+    <div>
+      <h2 class="display h-section mb-6">{tc.description}</h2>
+      {lang !== 'ru' && <p class="mb-4 rounded-2xl bg-lavender-2 p-4 text-sm">{tc.noText}</p>}
+      {intro ? <div class="prose-stay" lang="ru" set:html={intro} /> : <p class="text-muted">{meta.description}</p>}
+    </div>
+  </section>
+
+  {gallery.length > 2 && (
+    <section class="container-x mt-16">
+      <h2 class="display h-section mb-6">{d.item.gallery}</h2>
+      <div class="scroll-x flex snap-x snap-mandatory gap-3">
+        {gallery.map((src, i) => (
+          <a href={src} target="_blank" rel="noopener" class="w-[82%] shrink-0 snap-start overflow-hidden rounded-[var(--radius-card)] sm:w-[calc((100%-12px)/2)] lg:w-[calc((100%-24px)/3)]">
+            <Img src={src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="aspect-[4/3] w-full" width={640} height={480} />
+          </a>
+        ))}
+      </div>
+    </section>
+  )}
+
+  {ytId && (
+    <section id="video" class="container-x mt-16 scroll-mt-28">
+      <h2 class="display h-section mb-6">{tc.video}</h2>
+      <div class="relative aspect-video overflow-hidden rounded-[var(--radius-card)] bg-ink" data-yt={ytId}>
+        <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={tc.video}>
+          <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
+          <span class="relative grid size-20 place-items-center rounded-full bg-white text-ink shadow-lg"><Icon name="play" class="size-7" /></span>
+        </button>
+      </div>
+    </section>
+  )}
+
+  {objects.length > 0 && (
+    <section class="container-x mt-16">
+      <h2 class="display h-section mb-8">{tc.available}</h2>
+      <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{objects.slice(0, 12).map((x) => <li><SaleCard x={x} /></li>)}</ul>
+    </section>
+  )}
+
+  {(p?.lat ?? c.lat) && (p?.lng ?? c.lng) && (
+    <section class="container-x mt-16">
+      <h2 class="display h-section mb-6">{tc.location}</h2>
+      <div data-map data-zoom="14" data-points={JSON.stringify([{ t: c.title, u: '', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, a: place }])} class="h-[420px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
+    </section>
+  )}
+
+  <section class="mt-16 bg-white/60 py-14 md:py-20">
+    <div class="container-x">
+      <h2 class="display h-section mb-8">{tc.installment}</h2>
+      <Calculator price={low} withMortgage downPct={p?.installment?.initialPay} months={p?.installment?.months} />
+    </div>
+  </section>
+
+  <Faq items={faq} />
+
+  {others.length > 0 && (
+    <section class="container-x mt-16">
+      <h2 class="display h-section mb-8">{tc.others}</h2>
+      <ul class="grid gap-4 md:grid-cols-3">{others.map((o) => <li><ProjectCard p={o} /></li>)}</ul>
+    </section>
+  )}
+  <section class="container-x"><LinkCloud title={d.catalog.popular(district?.in[lang] ?? city.in[lang])} links={links} /></section>
+
+  <LeadSection context={`complex-${c.code}`} title={tc.lead} subtitle={tc.leadText} submitLabel={tc.getPrice} />
+</Base>
+<script>
+  import { mountMap } from '../scripts/map';
+  document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
+    v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  }));
+  const mapEl = document.querySelector<HTMLElement>('[data-map]');
+  if (mapEl) {
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });
+    io.observe(mapEl);
+  }
+</script>

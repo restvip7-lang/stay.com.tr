@@ -1,19 +1,22 @@
 ---
 import Img from './Img.astro';
-interface Props { images: string[]; title: string }
-const { images, title } = Astro.props;
+import { t } from '../i18n/ui';
+/** alt — шаблон «{тип} {комнаты} — {район}, {площадь} — фото N» (ТЗ 10). */
+interface Props { images: string[]; alt: string }
+const { images, alt } = Astro.props;
+const d = t(Astro.locals.lang ?? 'ru');
 const list = images.length ? images : [null];
 ---
 <div data-gallery>
   <div class="relative aspect-[4/3] overflow-hidden rounded-[16px]">
-    <Img src={list[0]} alt={title} class="size-full" loading="eager" />
+    <Img src={list[0]} alt={`${alt} — ${d.photo} 1`} class="size-full" loading="eager" priority width={960} height={720} />
     <span class="chip absolute bottom-3 right-3" data-counter>{list.length > 1 ? `1 / ${list.length}` : ''}</span>
   </div>
   {list.length > 1 && (
     <div class="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-7">
       {list.map((src, i) => (
-        <button type="button" data-thumb={src} data-i={i} class:list={['aspect-square overflow-hidden rounded-[10px] ring-ink ring-offset-2', i === 0 && 'ring-2']} aria-label={`Фото ${i + 1}`}>
-          <Img src={src} alt="" class="size-full" />
+        <button type="button" data-thumb={src} data-i={i} data-alt={`${alt} — ${d.photo} ${i + 1}`} class:list={['aspect-square overflow-hidden rounded-[10px] ring-ink ring-offset-2', i === 0 && 'ring-2']} aria-label={`${d.photo} ${i + 1}`}>
+          <Img src={src} alt="" class="size-full" width={120} height={120} />
         </button>
       ))}
     </div>
@@ -25,8 +28,10 @@ const list = images.length ? images : [null];
     const counter = g.querySelector('[data-counter]');
     const thumbs = [...g.querySelectorAll<HTMLButtonElement>('[data-thumb]')];
     thumbs.forEach((t) => t.addEventListener('click', () => {
-      main.src = t.dataset.thumb!;
-      main.style.visibility = '';
+      const img = t.querySelector('img');
+      main.removeAttribute('srcset');
+      main.src = img?.currentSrc && img.currentSrc.includes('w=') ? img.currentSrc.replace(/w=\d+/, 'w=960') : t.dataset.thumb!;
+      main.alt = t.dataset.alt || main.alt;
       thumbs.forEach((x) => x.classList.toggle('ring-2', x === t));
       if (counter) counter.textContent = `${Number(t.dataset.i) + 1} / ${thumbs.length}`;
     }));

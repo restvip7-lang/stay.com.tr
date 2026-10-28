@@ -1,16 +1,23 @@
 ---
 import { getHomeConfig } from '../lib/homeConfig';
+import { localizeHref } from '../lib/legacy';
+import { BUY } from '../content/homeText';
+import { t } from '../i18n/ui';
 const home = await getHomeConfig();
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+// Русские тексты — из админки; для других языков — переводы, ссылки те же.
+const tr = lang === 'ru' ? null : BUY[lang];
 const tones: Record<string, string> = {
   lavender: 'bg-lavender text-ink',
   light: 'bg-white text-ink',
   dark: 'bg-ink text-white',
 };
-const v = home.buyVariants;
-const online = home.buyOnline;
+const v = home.buyVariants.map((c, i) => ({ ...c, ...(tr?.variants[i] ?? {}), href: localizeHref(lang, c.href) }));
+const online = { ...home.buyOnline, ...(tr?.online ?? {}), href: localizeHref(lang, home.buyOnline.href) };
 ---
 <section class="container-x mt-20 md:mt-28">
-  <h2 class="display h-section mb-8">Способы покупки</h2>
+  <h2 class="display h-section mb-8">{d.hp.buyWays}</h2>
   <div class="grid gap-3 md:grid-cols-3">
     {v.map((c) => (
       <a href={c.href} class:list={['group relative flex min-h-[220px] flex-col overflow-hidden rounded-[var(--radius-card)] p-6 transition-transform hover:-translate-y-0.5 md:min-h-[260px]', tones[c.tone]]}>

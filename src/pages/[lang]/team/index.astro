@@ -1,0 +1,43 @@
+---
+/** Команда (ТЗ 3.5): менеджеры и редакция блога. */
+import Base from '../../../layouts/Base.astro';
+import Img from '../../../components/Img.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import { isLang } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { TEAM, EDITORIAL, MEMBER_ROLE, SPEAKS, langNames } from '../../../content/company';
+import { allLangs } from '../../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const url = `/${lang}/team/`;
+---
+<Base title={`${d.pages.team} — ${d.footer.company}`} description={d.pages.teamLead} alternates={allLangs(url)}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.about, href: `/${lang}/about/` }, { label: d.pages.team }]} />
+    <h1 class="display h-page mt-6">{d.pages.team}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.teamLead}</p>
+    <ul class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {TEAM.map((m) => (
+        <li class="card relative flex gap-4 p-4">
+          <div class="size-24 shrink-0 overflow-hidden rounded-2xl bg-lavender-2"><Img src={m.photo} alt={m.name[lang]} class="size-full object-top" /></div>
+          <div class="min-w-0 text-[14px]">
+            <h2 class="text-base font-medium"><a href={`/${lang}/team/${m.slug}/`} class="after:absolute after:inset-0 hover:text-accent">{m.name[lang]}</a></h2>
+            <p class="mt-1 text-muted">{MEMBER_ROLE[lang]}</p>
+            {m.langs.length > 0 && <p class="mt-1 text-muted">{SPEAKS[lang]}: {langNames(lang, m.langs)}</p>}
+          </div>
+        </li>
+      ))}
+      <li class="card relative flex gap-4 p-4">
+        <div class="grid size-24 shrink-0 place-items-center rounded-2xl bg-lavender-2 font-display text-accent">Stay</div>
+        <div class="min-w-0 text-[14px]">
+          <h2 class="text-base font-medium"><a href={`/${lang}/team/${EDITORIAL.slug}/`} class="after:absolute after:inset-0 hover:text-accent">{EDITORIAL.name[lang]}</a></h2>
+          <p class="mt-1 text-muted">{d.pages.blog}</p>
+        </div>
+      </li>
+    </ul>
+  </section>
+  <LeadSection context="team" />
+</Base>

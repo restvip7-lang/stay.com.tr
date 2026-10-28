@@ -1,18 +1,11 @@
 ---
+import { t } from '../i18n/ui';
 interface Props { steps?: string[]; title?: string }
-const {
-  title = 'Как это работает',
-  steps = [
-    'Выбираете объект в каталоге STAY Property',
-    'Оставляете заявку',
-    'Получаете консультацию по покупке',
-    'Согласовываете условия бронирования',
-    'Переходите к оформлению сделки',
-  ],
-} = Astro.props;
+const f = t(Astro.locals.lang ?? 'ru').form;
+const { title = f.how, steps = f.steps } = Astro.props;
 ---
 <div>
-  <h3 class="display mb-6 text-[clamp(24px,2.4vw,32px)]">{title}</h3>
+  <p class="display mb-6 text-[clamp(24px,2.4vw,32px)]">{title}</p>
   <ol class="relative space-y-5">
     {steps.map((s, i) => (
       <li class="relative flex items-center gap-4">

@@ -30,10 +30,12 @@ export async function mountMap(el: HTMLElement) {
   const icon = L.divIcon({ className: '', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#754be9;border:3px solid #fff;box-shadow:0 2px 8px #0005"></span>', iconSize: [18, 18] });
   const markers = pts.map((p) =>
     L.marker([p.lat, p.lng], { icon }).bindPopup(
-      `<a href="${p.u}" style="font-weight:600;color:#090714">${p.t}</a>${p.a ? `<br><span style="color:#8e909a">${p.a}</span>` : ''}${p.pr ? `<br>от ${p.pr.toLocaleString('ru-RU')} €` : ''}`,
+      (p.u ? `<a href="${p.u}" style="font-weight:600;color:#090714">${p.t}</a>` : `<b>${p.t}</b>`) + `${p.a ? `<br><span style="color:#8e909a">${p.a}</span>` : ''}${p.pr ? `<br>${el.dataset.from ?? ''} ${p.pr.toLocaleString(document.documentElement.lang || 'ru')} €` : ''}`,
     ),
   );
   const group = L.featureGroup(markers).addTo(map);
-  if (markers.length) map.fitBounds(group.getBounds().pad(0.15));
+  // Одна точка — район, без точного адреса: показываем крупным планом города (ТЗ 13).
+  if (markers.length === 1) map.setView([pts[0].lat, pts[0].lng], Number(el.dataset.zoom || 14));
+  else if (markers.length) map.fitBounds(group.getBounds().pad(0.15));
   else map.setView([36.54, 32.0], 11);
 }

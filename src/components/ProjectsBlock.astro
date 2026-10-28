@@ -1,17 +1,22 @@
 ---
 import ProjectCard from './ProjectCard.astro';
 import Icon from './Icon.astro';
-import type { Project } from '../lib/api';
-interface Props { title?: string; projects: Project[]; visible?: number; moreHref?: string; prive?: boolean }
-const { title, projects, visible = 5, moreHref, prive = false } = Astro.props;
-const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, u: p.url, lat: p.lat, lng: p.lng, a: [p.city, p.area].filter(Boolean).join(', '), pr: p.priceFrom }));
+import { complexUrl, type Complex } from '../lib/catalog';
+import { cityBySlug, districtBySlug } from '../lib/geo';
+import { t } from '../i18n/ui';
+interface Props { title?: string; projects: Complex[]; visible?: number; moreHref?: string; moreText?: string; prive?: boolean; headingLevel?: 'h2' | 'h1' }
+const { title, projects, visible = 5, moreHref, moreText, prive = false, headingLevel = 'h2' } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const H = headingLevel;
+const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, u: complexUrl(lang, p), lat: p.lat, lng: p.lng, a: [p.district ? districtBySlug(p.city, p.district)?.name[lang] : null, cityBySlug(p.city)?.name[lang]].filter(Boolean).join(', '), pr: p.priceFrom }));
 ---
 <section class="container-x mt-20 md:mt-28" data-projects>
   <div class:list={['mb-8 flex flex-wrap items-end gap-4', title ? 'justify-between' : 'justify-end']}>
-    {title && <h2 class="display h-section">{title}</h2>}
-    <div class="flex rounded-full bg-white p-1 shadow-sm" role="tablist" aria-label="Вид">
-      <button type="button" role="tab" aria-selected="true" data-mode="grid" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="grid" class="size-4" />Плитка</button>
-      <button type="button" role="tab" aria-selected="false" data-mode="map" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="pin" class="size-4" />На карте</button>
+    {title && <H class="display h-section">{title}</H>}
+    <div class="flex rounded-full bg-white p-1 shadow-sm" role="tablist" aria-label={d.complex.viewAria}>
+      <button type="button" role="tab" aria-selected="true" data-mode="grid" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="grid" class="size-4" />{d.complex.tile}</button>
+      <button type="button" role="tab" aria-selected="false" data-mode="map" class="mode-btn inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"><Icon name="pin" class="size-4" />{d.complex.onMap}</button>
     </div>
   </div>
   <div data-view="grid">
@@ -24,13 +29,13 @@ const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, 
     </div>
     {projects.length > visible && (
       <div class="mt-10 flex justify-center">
-        <button type="button" data-show-more class="btn btn-ghost"><Icon name="plus" class="size-4" />Показать ещё</button>
+        <button type="button" data-show-more class="btn btn-ghost"><Icon name="plus" class="size-4" />{d.showMore}</button>
       </div>
     )}
-    {moreHref && <div class="mt-6 flex justify-center"><a href={moreHref} class="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">Все проекты</a></div>}
+    {moreHref && <div class="mt-6 flex justify-center"><a href={moreHref} class="text-sm text-muted underline-offset-4 hover:text-ink hover:underline">{moreText ?? d.complex.all}</a></div>}
   </div>
   <div data-view="map" hidden>
-    <div data-map data-points={JSON.stringify(points)} class="h-[70svh] min-h-[420px] overflow-hidden rounded-[var(--radius-big)] bg-lavender-2"></div>
+    <div data-map data-from={d.from('').trim()} data-points={JSON.stringify(points)} class="h-[70svh] min-h-[420px] overflow-hidden rounded-[var(--radius-big)] bg-lavender-2"></div>
   </div>
 </section>
 

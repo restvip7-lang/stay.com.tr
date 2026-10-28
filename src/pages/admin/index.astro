@@ -4,6 +4,9 @@ import { adminEnabled, isAdmin } from '../../lib/adminAuth';
 import { getHomeConfig, storageReady } from '../../lib/homeConfig';
 import { getProjects } from '../../lib/api';
 import { ANTHROPIC_MODELS, DEFAULT_MODELS, chatAdminView, getChatSettings } from '../../lib/chatConfig';
+import { getSeoConfig } from '../../lib/seoConfig';
+import { categoryCounts } from '../../lib/sitemap';
+import { catUrl, INDEX_MIN } from '../../lib/catalog';
 
 export const prerender = false;
 
@@ -13,7 +16,16 @@ const authed = isAdmin(Astro.cookies);
 const error = Astro.url.searchParams.has('error');
 
 let data: any = null;
+let thin: { url: string; n: number }[] = [];
+let seoText = { redirects: '', overrides: '{}' };
 if (authed) {
+  const [seo, counts] = await Promise.all([getSeoConfig(), categoryCounts()]);
+  // Отчёт «категории вне индекса» (ТЗ 14): 1–2 объекта — noindex по порогу.
+  thin = counts.filter((c) => c.n < INDEX_MIN).map((c) => ({ url: catUrl('ru', c.cat), n: c.n })).sort((a, b) => a.url.localeCompare(b.url));
+  seoText = {
+    redirects: seo.redirects.map((r) => (r.status === 410 ? `${r.from} 410` : `${r.from} ${r.to}`)).join('\n'),
+    overrides: JSON.stringify(seo.overrides, null, 2),
+  };
   const [home, projects, chat] = await Promise.all([getHomeConfig(), getProjects(), getChatSettings()]);
   data = {
     home,
@@ -144,9 +156,48 @@ if (authed) {
           </div>
           <pre data-chat-out class="mt-4 hidden whitespace-pre-wrap rounded-2xl bg-page p-4 text-sm"></pre>
         </section>
+
+        <section class="card mt-6 p-6" id="seo">
+          <h2 class="text-xl font-medium">SEO</h2>
+          <p class="mt-1 text-sm text-muted">Переопределения мета-тегов и текстов для любой страницы на любом языке, редиректы 301 и снятые страницы (410). Сохранение сбрасывает кэш сайта.</p>
+          <div class="mt-5 grid gap-6 lg:grid-cols-2">
+            <div>
+              <label class="label" for="seo-redirects">Редиректы — по одному в строке: «откуда куда» или «откуда 410»</label>
+              <textarea id="seo-redirects" data-seo-redirects rows="12" class="field h-auto py-3 font-mono text-[13px]" placeholder="/ru/old-page/ /ru/turkey/alanya/sale/&#10;/ru/removed-page/ 410" set:text={seoText.redirects}></textarea>
+              <p class="mt-2 text-xs text-muted">Цепочки и циклы не сохранятся — укажите сразу конечный адрес.</p>
+            </div>
+            <div>
+              <label class="label" for="seo-overrides">Переопределения страниц (JSON): адрес → title, description, h1, text (HTML), robots</label>
+              <textarea id="seo-overrides" data-seo-overrides rows="12" class="field h-auto py-3 font-mono text-[13px]" set:text={seoText.overrides}></textarea>
+              <p class="mt-2 text-xs text-muted">Пример: {'{"/ru/turkey/alanya/sale/": {"title": "…", "h1": "…", "robots": "noindex,follow"}}'}. H1 и текст применяются на посадочных каталога, title, description и robots — на любой странице.</p>
+            </div>
+          </div>
+          <div class="mt-5 flex flex-wrap items-center gap-3">
+            <button data-seo-save class="btn btn-accent">Сохранить SEO</button>
+            <span data-seo-status class="text-sm text-muted"></span>
+          </div>
+          <details class="mt-8">
+            <summary class="cursor-pointer font-medium">Категории вне индекса по порогу: {thin.length} (1–2 объекта, порог — {INDEX_MIN})</summary>
+            <ul class="mt-3 max-h-96 overflow-auto text-sm">{thin.map((x) => <li class="flex justify-between gap-4 border-t border-line py-1.5"><a href={x.url} target="_blank" class="truncate hover:text-accent">{x.url}</a><span class="text-muted">{x.n}</span></li>)}</ul>
+          </details>
+        </section>
       </main>
     )}
 
+    <script>
+      const seoBtn = document.querySelector<HTMLButtonElement>('[data-seo-save]');
+      seoBtn?.addEventListener('click', async () => {
+        const st = document.querySelector<HTMLElement>('[data-seo-status]')!;
+        const lines = (document.querySelector<HTMLTextAreaElement>('[data-seo-redirects]')!.value || '').split('\n').map((l) => l.trim()).filter(Boolean);
+        const redirects = lines.map((l) => { const [from, to] = l.split(/\s+/); return to === '410' ? { from, to: '', status: 410 } : { from, to, status: 301 }; });
+        let overrides = {};
+        try { overrides = JSON.parse(document.querySelector<HTMLTextAreaElement>('[data-seo-overrides]')!.value || '{}'); } catch { st.textContent = 'Ошибка: переопределения — не JSON'; return; }
+        st.textContent = 'Сохраняю…';
+        const res = await fetch('/api/admin/seo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ redirects, overrides }) });
+        const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+        st.textContent = r.ok ? `Сохранено: ${r.saved.redirects.length} редиректов, ${Object.keys(r.saved.overrides).length} переопределений.` : 'Ошибка: ' + (r.error || res.status);
+      });
+    </script>
     {authed && <script type="application/json" id="admin-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />}
     <script>
       const el = document.getElementById('admin-data');
@@ -263,7 +314,7 @@ if (authed) {
           ma.classList.toggle('hidden', o);
           mo.classList.toggle('hidden', !o);
           if (model) (o ? mo : ma).value = model;
-          if (!o && !ma.value) ma.selectedIndex = 0;
+          if (!o && !ma.value) (ma as unknown as HTMLSelectElement).selectedIndex = 0;
         }
         prov.addEventListener('change', () => syncModel(prov.value === state.provider ? state.model : prov.value === 'openai' ? 'gpt-4.1-mini' : 'claude-opus-5-5'));
         async function send(body: any) {

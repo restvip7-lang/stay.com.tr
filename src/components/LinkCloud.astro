@@ -1,0 +1,16 @@
+---
+/** Блок перелинковки: заголовок + ссылки-чипсы с числом объектов (ТЗ 6.2). */
+interface Props { title: string; links: { href: string; text: string; n?: number; current?: boolean }[]; as?: 'h2' | 'h3' }
+const { title, links, as = 'h2' } = Astro.props;
+const H = as;
+---
+{links.length > 0 && (
+  <nav aria-label={title} class="mt-10">
+    <H class="mb-4 text-xl font-medium tracking-[-0.01em]">{title}</H>
+    <ul class="flex flex-wrap gap-2">
+      {links.map((l) => (
+        <li><a href={l.href} class:list={['chip px-4 py-2 text-[14px] hover:border-ink', l.current && '!border-ink !bg-ink text-white']} aria-current={l.current ? 'page' : undefined}>{l.text}{l.n != null && <span class="ml-1.5 opacity-50">{l.n}</span>}</a></li>
+      ))}
+    </ul>
+  </nav>
+)}

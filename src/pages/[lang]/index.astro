@@ -1,0 +1,139 @@
+---
+/**
+ * Главная (ТЗ Б.1): H1 и лид, фильтр, популярные запросы, новые объекты, проекты Stay и PRIVE,
+ * районы Алании, услуги, способы покупки, о компании с цифрами, отзывы, медиа, SEO-текст, FAQ, заявка.
+ * Проекты и слайдер берутся из админки.
+ */
+import Base from '../../layouts/Base.astro';
+import HomeHero from '../../components/HomeHero.astro';
+import CatalogFilter from '../../components/CatalogFilter.astro';
+import ProjectsBlock from '../../components/ProjectsBlock.astro';
+import BuyVariants from '../../components/BuyVariants.astro';
+import CompanySpotlight from '../../components/CompanySpotlight.astro';
+import MediaNews from '../../components/MediaNews.astro';
+import SaleCard from '../../components/SaleCard.astro';
+import LinkCloud from '../../components/LinkCloud.astro';
+import Faq from '../../components/Faq.astro';
+import LeadSection from '../../components/LeadSection.astro';
+import Icon from '../../components/Icon.astro';
+import { isLang } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { getHomeSections } from '../../lib/api';
+import { getHomeConfig } from '../../lib/homeConfig';
+import { getComplexes, itemsOf, catUrl, stats, noFilters } from '../../lib/catalog';
+import { footerColumns, menuCities } from '../../lib/nav';
+import { SERVICES, serviceUrl } from '../../lib/services';
+import { REVIEWS } from '../../content/company';
+import { homeSeo } from '../../content/homeText';
+import { websiteLd } from '../../lib/ld';
+import { allLangs } from '../../lib/page';
+import { moneyL } from '../../lib/format';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const h = d.hp;
+
+const [home, complexes, sections, cols, cities] = await Promise.all([getHomeConfig(), getComplexes(), getHomeSections(), footerColumns(lang), menuCities(lang, 12)]);
+const byCode = (c: string) => complexes.find((p) => p.code === c);
+const hero = home.hero.map((x) => byCode(x.project)).filter(Boolean) as typeof complexes;
+const list = home.projects.map(byCode).filter(Boolean) as typeof complexes;
+const priveCfg = (home.prive?.projects ?? []).map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
+const priveList = [...priveCfg, ...complexes.filter((p) => p.isPrivate && !priveCfg.includes(p))];
+
+const turkeySale = { country: 'turkey', deal: 'sale' as const };
+const saleAll = await itemsOf(turkeySale);
+const newest = saleAll.filter((x) => x.image).slice(0, 8);
+// «Цены от» — по жилью дороже 10 000 €: парковки и ошибки ввода не попадают в текст.
+const s = stats(saleAll.filter((x) => (x.price ?? 0) >= 10_000 && x.type !== 'land' && x.type !== 'commercial'));
+const alanya = cities.find((c) => c.slug === 'alanya');
+const seo = homeSeo(lang, { sale: saleAll.length, complexes: complexes.length, minPrice: s.minPrice ? moneyL(lang, s.minPrice) : '' });
+const url = `/${lang}/`;
+const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale' });
+---
+<Base title={`${h.h1} — Stay Property`} description={h.lead} alternates={allLangs(url)} overlayHeader jsonLd={websiteLd(lang)}>
+  <HomeHero slides={hero} h1={h.h1} lead={h.lead} />
+
+  <section class="container-x mt-16 md:mt-24">
+    <h2 class="display h-section mb-6">{h.choose}</h2>
+    <!-- До 1024px вместо фильтра — кнопки и плитки, как на образце. -->
+    <div class="grid grid-cols-2 gap-3 lg:hidden">
+      <a href={catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale', type: 'apartments' })} class="btn btn-accent col-span-2 h-14">{h.chooseApts}</a>
+      <a href={catUrl(lang, { country: 'turkey' }, { complexes: true })} class="btn btn-ghost col-span-2 h-14"><Icon name="pin" class="size-5" />{h.onMap}</a>
+      {[
+        { label: h.villas, href: catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale', type: 'villas' }) },
+        { label: h.duplexes, href: catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale', type: 'duplexes' }) },
+      ].map((x) => (
+        <a href={x.href} class="card flex min-h-24 items-end justify-between p-4 text-lg font-medium transition-colors hover:border-ink">{x.label}<Icon name="arrowRight" class="size-5" /></a>
+      ))}
+    </div>
+    <div class="hidden lg:block"><CatalogFilter cat={turkeySale} f={noFilters()} total={saleAll.length} mode="home" /></div>
+    <LinkCloud title={h.popular} links={cols.landings} />
+  </section>
+
+  {newest.length > 0 && (
+    <section class="container-x mt-20 md:mt-28">
+      <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <h2 class="display h-section">{h.newest}</h2>
+        <a href={catUrl(lang, turkeySale)} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{h.allObjects}<Icon name="arrowRight" class="size-4" /></a>
+      </div>
+      <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{newest.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+    </section>
+  )}
+
+  <div class="home-std"><ProjectsBlock title={home.projectsTitle} projects={list} visible={home.projectsVisible} moreHref={catUrl(lang, { country: 'turkey' }, { complexes: true })} moreText={h.allComplexes} /></div>
+  {priveList.length > 0 && <div class="home-prive theme-prive"><ProjectsBlock title={h.priveProjects} projects={priveList} visible={home.prive?.projectsVisible ?? 8} moreHref={`/${lang}/prive/`} prive /></div>}
+
+  {alanya && alanya.districts.length > 0 && (
+    <section class="container-x mt-20 md:mt-28">
+      <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <h2 class="display h-section">{h.districts}</h2>
+        <a href={alanyaSale} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{alanya.name}<Icon name="arrowRight" class="size-4" /></a>
+      </div>
+      <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+        {alanya.districts.map((x) => (
+          <li><a href={x.href} class="card flex min-h-24 flex-col justify-between p-4 transition-colors hover:border-ink"><span class="text-lg font-medium">{x.name}</span><span class="text-sm text-muted">{d.catalog.colCount}: {x.n}</span></a></li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <section class="container-x mt-20 md:mt-28">
+    <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <h2 class="display h-section">{h.services}</h2>
+      <a href={serviceUrl(lang)} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{d.nav.services}<Icon name="arrowRight" class="size-4" /></a>
+    </div>
+    <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {SERVICES.slice(0, 6).map((x) => (
+        <li><a href={serviceUrl(lang, x.slug)} class="card flex h-full flex-col p-5 transition-colors hover:border-ink"><span class="text-lg font-medium">{x.tr[lang].title}</span><span class="mt-2 text-sm text-muted">{x.tr[lang].lead}</span></a></li>
+      ))}
+    </ul>
+  </section>
+
+  <BuyVariants />
+  <CompanySpotlight company={sections.company} />
+
+  <section class="container-x mt-20 md:mt-28">
+    <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+      <h2 class="display h-section">{h.reviews}</h2>
+      <a href={`/${lang}/reviews/`} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{h.allReviews}<Icon name="arrowRight" class="size-4" /></a>
+    </div>
+    <div class="grid gap-3 md:grid-cols-3">
+      {REVIEWS.slice(0, 3).map((r) => (
+        <figure class="card flex flex-col p-6">
+          <figcaption class="text-sm text-muted"><span class="block text-lg font-medium text-ink">{r.name}</span>{r.country} · {r.year}</figcaption>
+          <blockquote class="mt-4 line-clamp-[8] whitespace-pre-line text-[15px] leading-relaxed text-ink/80">{r.text}</blockquote>
+        </figure>
+      ))}
+    </div>
+  </section>
+
+  <MediaNews />
+
+  <section class="container-x mt-20 md:mt-28">
+    <h2 class="display h-section mb-6">{h.seoTitle}</h2>
+    <div class="prose-stay max-w-3xl text-[17px]" set:html={seo.html} />
+  </section>
+  <Faq items={seo.faq} title={h.faq} />
+  <LeadSection context="home" />
+</Base>

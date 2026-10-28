@@ -17,7 +17,7 @@ const BASE = (import.meta.env.STAY_API_BASE as string | undefined) || 'https://d
 const TTL = 10 * 60 * 1000;
 const cache = new Map<string, { at: number; value: unknown }>();
 
-async function getJson<T>(path: string, tries = 3, timeout = 15_000): Promise<T> {
+export async function getJson<T>(path: string, tries = 3, timeout = 5_000): Promise<T> {
   let last: unknown;
   for (let i = 0; i < tries; i++) {
     try {
@@ -36,7 +36,12 @@ async function getJson<T>(path: string, tries = 3, timeout = 15_000): Promise<T>
 }
 
 /** Берёт данные из API, при ошибке — из сохранённого снимка. */
-async function cached<T>(key: string, load: () => Promise<T>, fallback?: () => T): Promise<T> {
+/** Сбросить данные в памяти (после вебхука revalidate). Последняя копия остаётся запасной на случай сбоя API. */
+export function expireCache() {
+  for (const v of cache.values()) v.at = 0;
+}
+
+export async function cached<T>(key: string, load: () => Promise<T>, fallback?: () => T): Promise<T> {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < TTL) return hit.value as T;
   try {
@@ -44,6 +49,8 @@ async function cached<T>(key: string, load: () => Promise<T>, fallback?: () => T
     cache.set(key, { at: Date.now(), value });
     return value;
   } catch (e) {
+    // API недоступен: отдаём последнюю удачную копию, потом снимок (не 404 при первом сбое — ТЗ 2.6 п. 7).
+    if (hit) return hit.value as T;
     if (fallback) return fallback();
     throw e;
   }
@@ -116,6 +123,10 @@ export interface Project {
 
 export interface NewsItem {
   id: number;
+  langs: string[];
+  updated: string;
+  seoTitle: string | null;
+  seoDescription: string | null;
   slug: string;
   title: string;
   excerpt: string;
@@ -159,7 +170,7 @@ function toListing(x: RawListing): Listing {
   };
 }
 
-function fixImage(u?: string | null): string | null {
+export function fixImage(u?: string | null): string | null {
   if (!u) return null;
   return u.replace(/([^:])\/\/+/g, '$1/');
 }
@@ -214,7 +225,11 @@ function toNews(x: RawListing): NewsItem {
     content: x.content || '',
     image: fixImage(x.coverImageUrl || x.imageUrl || x.image || null),
     date: x.publishedAt || x.updatedAt || '',
-    url: `/ru/news/${x.slug}/`,
+    updated: x.updatedAt || x.publishedAt || '',
+    langs: x.availableLanguages || ['ru'],
+    seoTitle: x.seoTitle || null,
+    seoDescription: x.seoDescription || null,
+    url: `/${x.languageCode || 'ru'}/blog/news/${x.slug}/`,
   };
 }
 
@@ -236,7 +251,7 @@ export async function getHomeSections(): Promise<HomeSections> {
 
 export async function getProjects(): Promise<Project[]> {
   const d = await cached('projects', () => getJson<{ items: RawListing[] }>('/api/projects'), () => fxProjects as any);
-  return d.items.filter((x) => x.isActive !== false).map(toProject);
+  return d.items.filter((x: RawListing) => x.isActive !== false).map(toProject);
 }
 
 export async function getProject(slug: string): Promise<Project | null> {
@@ -245,8 +260,11 @@ export async function getProject(slug: string): Promise<Project | null> {
   return all.find((p) => p.slug === s) ?? null;
 }
 
-async function allListings(operation: 'sale' | 'rental'): Promise<Listing[]> {
-  const raw = await cached(
+export type { RawListing };
+
+/** Сырые записи API (все объекты сделки). */
+export async function rawListings(operation: 'sale' | 'rental'): Promise<RawListing[]> {
+  return cached(
     `listings-${operation}`,
     async () => {
       const items: RawListing[] = [];
@@ -261,7 +279,26 @@ async function allListings(operation: 'sale' | 'rental'): Promise<Listing[]> {
     },
     () => (operation === 'sale' ? fxSale : fxRental) as RawListing[],
   );
-  return raw.map(toListing);
+}
+
+/** id объектов, у которых есть перевод на язык (непустой title в выдаче этого языка) — для sitemap. */
+export async function translatedIds(operation: 'sale' | 'rental', lang: string): Promise<Set<string>> {
+  const list = await cached(`listings-${operation}-${lang}-ids`, async () => {
+    const ids: string[] = [];
+    let n = 0;
+    for (let page = 1; page < 20; page++) {
+      const d = await getJson<{ items: RawListing[]; total: number }>(`/api/sale?source=portfolio&language=${lang}&operation=${operation}&limit=500&page=${page}`);
+      n += d.items.length;
+      for (const x of d.items) if (String(x.title || '').trim()) ids.push(String(x.id));
+      if (n >= d.total || d.items.length === 0) break;
+    }
+    return ids;
+  });
+  return new Set(list);
+}
+
+async function allListings(operation: 'sale' | 'rental'): Promise<Listing[]> {
+  return (await rawListings(operation)).map(toListing);
 }
 
 export interface ListingQuery {
@@ -340,8 +377,8 @@ function toUnit(x: RawListing): Listing {
   };
 }
 
-async function allUnits(): Promise<Listing[]> {
-  const raw = await cached(
+export async function rawUnits(): Promise<RawListing[]> {
+  return cached(
     'units',
     async () => {
       const seen = new Map<string, RawListing>();
@@ -355,10 +392,13 @@ async function allUnits(): Promise<Listing[]> {
     },
     () => fxUnits as RawListing[],
   );
-  return raw.map(toUnit);
 }
 
-async function citizenshipIds(): Promise<Set<string>> {
+async function allUnits(): Promise<Listing[]> {
+  return (await rawUnits()).map(toUnit);
+}
+
+export async function citizenshipIds(): Promise<Set<string>> {
   const ids = await cached(
     'units-citizenship',
     async () => {
@@ -472,6 +512,27 @@ export async function getNews(limit = 200): Promise<NewsItem[]> {
   return d.news.map(toNews).slice(0, limit);
 }
 
+/** Новости на языке страницы (API отдаёт переводы и список доступных языков). */
+export async function getNewsL(lang: string, limit = 200): Promise<NewsItem[]> {
+  try {
+    const d = await cached(`news-${lang}`, () => getJson<{ news: RawListing[] }>(`/api/news?language=${lang}&limit=200`));
+    return d.news.filter((x) => !x.languageCode || x.languageCode === lang).map(toNews).sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
+  } catch {
+    return lang === 'ru' ? getNews(limit) : [];
+  }
+}
+
+export async function getNewsItemL(lang: string, slug: string): Promise<NewsItem | null> {
+  try {
+    const d = await cached(`news-${lang}-${slug}`, () => getJson<RawListing>(`/api/news/${encodeURIComponent(slug)}?language=${lang}`));
+    const x = (d as any).item ?? d;
+    if (x.languageCode && x.languageCode !== lang) return null;
+    return toNews(x);
+  } catch {
+    return (await getNewsL(lang)).find((n) => n.slug === slug) ?? null;
+  }
+}
+
 export async function getNewsItem(slug: string): Promise<NewsItem | null> {
   try {
     const d = await cached(`news-${slug}`, () => getJson<RawListing>(`/api/news/${encodeURIComponent(slug)}?language=ru`));
@@ -535,4 +596,41 @@ export async function getComplex(slug: string): Promise<ComplexDetail | null> {
     lat: map?.latitude ?? p.lat,
     lng: map?.longitude ?? p.lng,
   };
+}
+
+/* ---------- Карточка объекта на языке страницы ---------- */
+
+export interface DetailL {
+  title: string;
+  html: string;
+  images: string[];
+  yearBuilt: string | null;
+  region: string | null;
+  infrastructure: string[];
+  pricePerSquare: number | null;
+  video: string | null;
+  updated: string | null;
+}
+
+/** Описание объекта на языке lang; null — перевода нет (API отдаёт пустой заголовок). */
+export async function getDetailL(id: string, operation: 'sale' | 'rental', lang: string): Promise<DetailL | null> {
+  const key = `detail-${operation}-${id}-${lang}`;
+  try {
+    const d = await cached(key, () => getJson<{ item: RawListing }>(`/api/sale/${encodeURIComponent(id)}?source=portfolio&language=${lang}&operation=${operation}`, 2, 5_000));
+    const x = d.item;
+    if (!x || !String(x.title || '').trim()) return null;
+    return {
+      title: String(x.title).trim(),
+      html: x.detailText || '',
+      images: (x.imageUrls || [x.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
+      yearBuilt: x.yearBuilt ?? null,
+      region: x.regionName ?? null,
+      infrastructure: x.infrastructure || [],
+      pricePerSquare: x.pricePerSquare != null ? Number(x.pricePerSquare) || null : null,
+      video: x.videoUrl || x.video || null,
+      updated: x.updatedAt || null,
+    };
+  } catch {
+    return null;
+  }
 }

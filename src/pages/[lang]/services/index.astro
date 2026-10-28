@@ -1,0 +1,42 @@
+---
+/** Хаб услуг (ТЗ 3.6). */
+import Base from '../../../layouts/Base.astro';
+import Img from '../../../components/Img.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import { isLang } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { SITE } from '../../../i18n/config';
+import { SERVICES, serviceImage, serviceUrl } from '../../../lib/services';
+import { itemListLd } from '../../../lib/ld';
+import { allLangs } from '../../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const url = serviceUrl(lang);
+const title = `${d.pages.services} Stay Property`;
+---
+<Base title={title} description={d.pages.servicesLead} alternates={allLangs(url)} jsonLd={itemListLd(SERVICES.map((s) => ({ url: SITE + serviceUrl(lang, s.slug), name: s.tr[lang].title })))}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.services }]} />
+    <h1 class="display h-page mt-6">{d.pages.services}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.servicesLead}</p>
+    <div class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {SERVICES.map((s) => {
+        const img = serviceImage(s);
+        return (
+          <a href={serviceUrl(lang, s.slug)} class="group card flex flex-col overflow-hidden p-1">
+            {img ? <span class="block aspect-[16/10] overflow-hidden rounded-[16px]"><Img src={img} alt="" class="size-full transition-transform duration-700 group-hover:scale-[1.03]" /></span>
+                 : <span class="block aspect-[16/10] rounded-[16px] bg-lavender-2" aria-hidden="true" />}
+            <span class="block p-4">
+              <span class="block text-lg font-medium tracking-[-0.01em] group-hover:text-accent">{s.tr[lang].title}</span>
+              <span class="mt-2 block text-sm text-muted">{s.tr[lang].lead}</span>
+            </span>
+          </a>
+        );
+      })}
+    </div>
+  </section>
+  <LeadSection context="services" />
+</Base>

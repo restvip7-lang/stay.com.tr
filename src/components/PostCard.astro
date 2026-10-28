@@ -1,0 +1,19 @@
+---
+/** Карточка материала блога. */
+import Img from './Img.astro';
+import type { Post } from '../lib/blog';
+import { dateL } from '../lib/format';
+interface Props { p: Post; headingLevel?: 'h2' | 'h3' }
+const { p, headingLevel = 'h3' } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const H = headingLevel;
+---
+<article class="group card relative flex h-full flex-col overflow-hidden p-1">
+  {p.image
+    ? <span class="block aspect-[4/3] overflow-hidden rounded-[16px]"><Img src={p.image} alt="" class="size-full transition-transform duration-700 group-hover:scale-[1.03]" /></span>
+    : <span class="grid aspect-[4/3] place-items-center rounded-[16px] bg-lavender-2 p-6 text-center font-display text-xl tracking-[-0.01em] text-accent" aria-hidden="true">Stay Property</span>}
+  <span class="flex flex-1 flex-col p-4">
+    <H class="line-clamp-4 text-[17px] font-normal leading-snug group-hover:text-accent"><a href={p.href} class="after:absolute after:inset-0">{p.title}</a></H>
+    {p.date && <time class="mt-auto pt-6 text-xs text-muted" datetime={p.date.slice(0, 10)}>{dateL(lang, p.date)}</time>}
+  </span>
+</article>

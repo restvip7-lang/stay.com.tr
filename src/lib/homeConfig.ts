@@ -5,7 +5,6 @@
  * значения по умолчанию из src/content/data/home.json.
  */
 import defaults from '../content/data/home.json';
-import { createHash } from 'node:crypto';
 
 export type HomeConfig = Omit<typeof defaults, '_comment'>;
 
@@ -67,10 +66,4 @@ export async function saveHomeConfig(x: unknown): Promise<HomeConfig> {
   });
   memo = { at: Date.now(), value };
   return value;
-}
-
-/** Токен сброса кэша страниц (ISR). Выводится из токена хранилища, отдельный секрет не нужен. */
-export function isrBypassToken(): string | undefined {
-  const t = blobToken();
-  return t ? createHash('sha256').update('isr:' + t).digest('hex') : undefined;
 }

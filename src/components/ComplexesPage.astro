@@ -1,0 +1,72 @@
+---
+/** Листинг жилых комплексов гео (ТЗ 3.4): ≥3 комплексов — index, иначе noindex; плитка и карта, пагинация /page-N/. */
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import ProjectsBlock from './ProjectsBlock.astro';
+import Pagination from './Pagination.astro';
+import LinkCloud from './LinkCloud.astro';
+import LeadSection from './LeadSection.astro';
+import Faq from './Faq.astro';
+import { t } from '../i18n/ui';
+import { SITE } from '../i18n/config';
+import { getComplexes, matchComplex, catUrl, complexUrl, INDEX_MIN, type Cat } from '../lib/catalog';
+import { cityBySlug, districtBySlug } from '../lib/geo';
+import { complexesMeta, geoOf, geoIn } from '../lib/seo';
+import { complexFaq } from '../lib/complexText';
+import { catCrumbs } from '../lib/nav';
+import { itemListLd } from '../lib/ld';
+import { allLangs, type Robots } from '../lib/page';
+
+interface Props { cat: Cat; page: number }
+const { cat, page } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const g = geoOf(cat);
+const all = (await getComplexes()).filter((x) => matchComplex(x, cat)).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+const PER = 24;
+const pages = Math.max(1, Math.ceil(all.length / PER));
+const shown = all.slice((page - 1) * PER, page * PER);
+const prices = all.map((x) => x.priceFrom).filter((p): p is number => !!p);
+const meta = complexesMeta(lang, g, all.length, prices.length ? Math.min(...prices) : null, page);
+const base = catUrl(lang, cat, { complexes: true });
+const robots: Robots = all.length >= INDEX_MIN ? 'index,follow' : 'noindex,follow';
+const canonical = page > 1 ? `${base}page-${page}/` : base;
+
+// Районы/города, где есть комплексы.
+const counts = new Map<string, number>();
+for (const x of await getComplexes()) {
+  if (x.country !== cat.country) continue;
+  if (cat.city && x.city === cat.city && x.district) counts.set(x.district, (counts.get(x.district) ?? 0) + 1);
+  if (!cat.city) counts.set(x.city, (counts.get(x.city) ?? 0) + 1);
+}
+const geoLinks = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => ({
+  href: catUrl(lang, cat.city ? { country: cat.country, city: cat.city, district: s } : { country: cat.country, city: s }, { complexes: true }),
+  text: (cat.city ? districtBySlug(cat.city, s)?.name[lang] : cityBySlug(s)?.name[lang]) ?? s,
+  n,
+  current: s === (cat.city ? cat.district : cat.city),
+}));
+const crumbs = catCrumbs(lang, { ...cat, complexes: true });
+if (page > 1) crumbs.push({ label: d.page(page) });
+const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang), prices.length ? Math.min(...prices) : null, null, null).slice(1) : [];
+---
+<Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={shown.length ? itemListLd(shown.map((x) => ({ url: SITE + complexUrl(lang, x), name: x.title }))) : undefined}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="display h-page mt-6">{meta.h1}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{meta.lead}</p>
+    {geoLinks.length > 1 && <LinkCloud title={cat.city ? d.catalog.districts(cityBySlug(cat.city)!.name[lang], cityBySlug(cat.city)!.gen) : d.catalog.cities(geoIn(lang, g))} links={geoLinks} />}
+  </section>
+  {shown.length > 0
+    ? <ProjectsBlock projects={shown} visible={PER} />
+    : <section class="container-x mt-12"><div class="card p-10 text-center"><p class="display text-2xl">{d.catalog.empty}</p><a href={catUrl(lang, { country: cat.country, city: cat.city }, { complexes: true })} class="btn btn-ghost mt-6">{d.complex.all}</a></div></section>}
+  <div class="container-x"><Pagination page={page} pages={pages} base={base} /></div>
+  <section class="container-x">
+    <LinkCloud title={d.catalog.otherTypes} links={[
+      { href: catUrl(lang, { ...cat, deal: 'sale', type: 'apartments', feature: 'new' }), text: d.nav.complexes },
+      { href: catUrl(lang, { ...cat, deal: 'sale' }), text: d.nav.sale },
+      { href: catUrl(lang, { ...cat, deal: 'rent' }), text: d.nav.rent },
+    ]} />
+  </section>
+  <Faq items={faq} />
+  <LeadSection context={`complexes-${base}`} title={d.catalog.ctaTitle} subtitle={d.catalog.ctaText} />
+</Base>

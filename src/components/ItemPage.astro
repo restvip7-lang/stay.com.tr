@@ -1,0 +1,257 @@
+---
+/**
+ * Карточка объекта (ТЗ 3.3, 13): цена в EUR + переключатель валют, характеристики таблицей <dl>,
+ * описание на языке страницы, галерея, карта района, комплекс, чипсы-ссылки на фича-лендинги,
+ * «Купить безопасно», похожие ±20% по цене, форма заявки. Проданный объект — плашка и похожие.
+ */
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import Gallery from './Gallery.astro';
+import Calculator from './Calculator.astro';
+import LeadSection from './LeadSection.astro';
+import SaleCard from './SaleCard.astro';
+import Icon from './Icon.astro';
+import { t } from '../i18n/ui';
+import { LANGS, SITE, type Lang } from '../i18n/config';
+import { getDetailL, type DetailL } from '../lib/api';
+import { getItems, getUnits, itemUrl, catUrl, countOf, getComplexes, complexUrl, INDEX_MIN, type Item } from '../lib/catalog';
+import { cityBySlug, districtBySlug } from '../lib/geo';
+import { geoOf, itemMeta } from '../lib/seo';
+import { FEATURE_LABEL, TYPE_WORDS } from '../lib/segments';
+import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
+import { listingLd, videoLd } from '../lib/ld';
+import { moneyL, numL, dateL, strip } from '../lib/format';
+import { sanitize } from '../lib/sanitize';
+import { site } from '../lib/site';
+import type { Robots } from '../lib/page';
+
+interface Props { x: Item; sold?: boolean; soldAt?: string | null }
+const { x, sold = false, soldAt = null } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const ti = d.item;
+const op = x.deal === 'rent' ? 'rental' : 'sale';
+const g = geoOf(x);
+const city = cityBySlug(x.city)!;
+const district = x.district ? districtBySlug(x.city, x.district) : null;
+const place = [district?.name[lang], city.name[lang]].filter(Boolean).join(', ');
+const tw = TYPE_WORDS[lang][x.type];
+
+// Переводы описания: у квартир в проектах Stay описание только на русском.
+const details: Partial<Record<Lang, DetailL | null>> = {};
+if (x.unit) details.ru = null;
+else await Promise.all(LANGS.map(async (l) => { details[l] = await getDetailL(x.id, op, l); }));
+const own = details[lang] ?? null;
+const fallback = own ?? (lang === 'tr' || lang === 'de' ? details.en ?? details.ru : details.ru ?? details.en) ?? null;
+const translated = LANGS.filter((l) => details[l]);
+const self = itemUrl(lang, x);
+// hreflang — только между языками, где у объекта есть перевод (ТЗ 4.2).
+const alternates = Object.fromEntries((translated.length ? translated : (['ru'] as Lang[])).map((l) => [l, itemUrl(l, x)]));
+const hasText = !!own || (x.unit && lang === 'ru');
+const robots: Robots = hasText ? 'index,follow' : 'noindex,follow';
+
+const images = fallback?.images?.length ? fallback.images : x.image ? [x.image] : [];
+const descHtml = own?.html ? sanitize(own.html) : '';
+const fallbackHtml = !own && fallback?.html ? sanitize(fallback.html) : '';
+const descText = strip(own?.html || '', 300);
+const meta = itemMeta(lang, x, g, descText || `${tw.one}${x.rooms ? ' ' + x.rooms : ''} ${place}. ${moneyL(lang, x.price)}`);
+const altBase = `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}${district ? ` — ${district.name[lang]}` : ''}${x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}`;
+
+const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
+const perM2 = (own ?? fallback)?.pricePerSquare ?? (x.price && x.area && x.deal === 'sale' ? Math.round(x.price / x.area) : null);
+const isNew = x.features.includes('new');
+const complex = x.complex ? (await getComplexes()).find((c) => c.code === x.complex) ?? null : null;
+const facts: [string, string | null, string?][] = [
+  [ti.type, `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}`],
+  [ti.rooms, x.rooms],
+  [ti.area, x.area ? `${numL(lang, x.area)} ${d.m2}` : null],
+  [ti.floor, x.floor ? String(x.floor) : null],
+  [ti.toSea, x.sea ? `${numL(lang, x.sea)} ${d.m}` : null],
+  [ti.year, (own ?? fallback)?.yearBuilt ?? null],
+  [ti.status, x.deal === 'sale' ? (isNew ? ti.newBuild : x.features.includes('resale') ? ti.resale : null) : null],
+  [ti.district, district?.name[lang] ?? null, x.district ? catUrl(lang, { country: x.country, city: x.city, district: x.district }) : undefined],
+  [ti.city, city.name[lang], catUrl(lang, { country: x.country, city: x.city })],
+  [ti.complex, complex?.title ?? null, complex ? complexUrl(lang, complex) : undefined],
+  [ti.id, x.ref ?? x.id],
+];
+
+// Чипсы-фичи → ссылки на фича-лендинги района (если там ≥3 объектов, иначе города).
+const chipLinks = (await Promise.all(x.features.filter((f) => !/price-to/.test(f)).map(async (f) => {
+  for (const c of [{ country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type, feature: f }, { country: x.country, city: x.city, deal: x.deal, type: x.type, feature: f }]) {
+    if ((await countOf(c)) >= INDEX_MIN) return { href: catUrl(lang, c), text: FEATURE_LABEL[lang][f] };
+  }
+  return { href: null, text: FEATURE_LABEL[lang][f] };
+})));
+
+// Похожие: та же сделка, город и тип, цена ±20%; сначала тот же район.
+const pool = x.unit ? await getUnits() : await getItems();
+const similar = pool
+  .filter((y) => y.id !== x.id && y.deal === x.deal && y.city === x.city && y.type === x.type && (!x.price || (y.price && Math.abs(y.price - x.price) <= x.price * 0.2)))
+  .sort((a, b) => Number(b.district === x.district) - Number(a.district === x.district) || Math.abs((a.price ?? 0) - (x.price ?? 0)) - Math.abs((b.price ?? 0) - (x.price ?? 0)))
+  .slice(0, 6);
+
+const crumbs = catCrumbs(lang, { country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type }, meta.h1);
+const video = (own ?? fallback)?.video ?? null;
+const vld = video ? videoLd(video, meta.h1, meta.description, (own ?? fallback)?.updated ?? new Date().toISOString()) : null;
+const updated = (own ?? fallback)?.updated ?? null;
+const ld = [
+  listingLd({
+    url: self, name: meta.h1, description: meta.description, images: images.slice(0, 8), price: x.price, deal: x.deal, type: x.type,
+    rooms: x.bedrooms != null ? x.bedrooms + 1 : null, area: x.area, city: city.name.en, region: district?.name.en ?? city.name.en, country: x.country === 'turkey' ? 'TR' : x.country === 'uae' ? 'AE' : 'CY', sold, updated: updated ?? undefined,
+  }),
+  ...(vld ? [vld] : []),
+];
+const fav = { id: x.id, url: self, title: `${tw.one}${x.rooms ? ' ' + x.rooms : ''}`, image: x.image, price, meta: place };
+const ytId = video?.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1] ?? null;
+const mapPoint = complex?.lat && complex?.lng ? { lat: complex.lat, lng: complex.lng } : city.lat && city.lng ? { lat: city.lat, lng: city.lng } : null;
+const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
+---
+<Base title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} ogType="product" jsonLd={ld}>
+  <div class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={crumbs} />
+    {sold && (
+      <div class="mt-6 rounded-[var(--radius-card)] bg-ink p-5 text-white md:p-6" role="status">
+        <p class="text-xl font-medium">{d.sold}</p>
+        <p class="mt-1 text-white/70">{d.pages.goneText}{soldAt ? ` · ${dateL(lang, soldAt)}` : ''}</p>
+        <a href="#similar" class="btn btn-outline-light mt-4">{ti.similar}</a>
+      </div>
+    )}
+    <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
+      <div class="card p-3 md:p-4">
+        <Gallery images={images} alt={altBase} />
+        <div class="mt-6 border-t border-line px-2 pt-6">
+          <h2 class="display mb-4 text-2xl">{ti.description}</h2>
+          {descHtml ? <div class="prose-stay" set:html={descHtml} /> : (
+            <>
+              <p class="mb-4 rounded-2xl bg-lavender-2 p-4 text-sm">{ti.noText}</p>
+              {fallbackHtml && <div class="prose-stay text-ink/80" lang={details.en && (lang === 'tr' || lang === 'de') ? 'en' : 'ru'} set:html={fallbackHtml} />}
+            </>
+          )}
+        </div>
+        {chipLinks.length > 0 && (
+          <div class="mt-6 border-t border-line px-2 pt-6">
+            <h2 class="mb-3 text-lg font-medium">{ti.features}</h2>
+            <ul class="flex flex-wrap gap-2">{chipLinks.map((c) => <li>{c.href ? <a href={c.href} class="chip px-4 py-2 hover:border-ink">{c.text}</a> : <span class="chip px-4 py-2">{c.text}</span>}</li>)}</ul>
+          </div>
+        )}
+        {(own ?? fallback)?.infrastructure?.length ? (
+          <div class="mt-6 border-t border-line px-2 pt-6">
+            <h2 class="mb-3 text-lg font-medium">{ti.infra}</h2>
+            <ul class="flex flex-wrap gap-2">{(own ?? fallback)!.infrastructure.map((s) => <li class="chip px-4 py-2">{s}</li>)}</ul>
+          </div>
+        ) : null}
+      </div>
+      <div class="space-y-4">
+        <div class="card p-5 md:p-6 lg:sticky lg:top-28">
+          <div class="flex items-start justify-between gap-3">
+            <h1 class="font-display text-xl font-medium leading-tight tracking-[-0.01em]">{meta.h1}</h1>
+            <div class="flex gap-2">
+              <button type="button" data-share class="grid size-11 place-items-center rounded-full border border-line hover:border-ink" aria-label={d.share}><Icon name="share" class="size-4" /></button>
+              <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" class="grid size-11 place-items-center rounded-full border border-line hover:border-ink" aria-label={d.addFav}><Icon name="heart" class="size-5" /></button>
+            </div>
+          </div>
+          <p class="mt-1 text-muted">{place}</p>
+          <p class:list={['display mt-6 text-[clamp(32px,3.4vw,44px)]', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''}>{price}</p>
+          {x.price && (
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-sm" data-currency>
+              <span class="sr-only">{ti.currency}</span>
+              {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['chip px-3 py-1', c === 'EUR' && '!border-ink']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}
+              <span data-cur-out class="text-muted"></span>
+            </div>
+          )}
+          {perM2 && <p class="mt-2 text-sm text-muted">{moneyL(lang, perM2)} {ti.perM2}</p>}
+          <div class="mt-4 flex flex-wrap gap-2">
+            <span class="chip chip-accent">{x.deal === 'rent' ? d.rent : d.sale}</span>
+            {x.isPrivate && <span class="chip" style="background:#bc906e;color:#fff;border-color:transparent">PRIVE</span>}
+          </div>
+          {!sold && <a href="#lead" class="btn btn-accent mt-6 w-full"><Icon name="phone" class="size-4" />{ti.book}</a>}
+          <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn btn-ghost mt-2 w-full"><Icon name="whatsapp" class="size-4" />{d.whatsapp}</a>
+          <dl class="mt-6 divide-y divide-line text-[15px]">
+            {facts.filter(([, v]) => v).map(([k, v, href]) => (
+              <div class="flex justify-between gap-4 py-3"><dt class="text-muted">{k}</dt><dd class="text-right">{href ? <a href={href} class="text-accent underline-offset-4 hover:underline">{v}</a> : v}</dd></div>
+            ))}
+          </dl>
+          {updated && <p class="mt-4 text-xs text-muted">{ti.updated(dateL(lang, updated))}</p>}
+        </div>
+        {x.deal === 'sale' && !sold && (
+          <div class="card p-5 md:p-6">
+            <h2 class="display mb-5 text-2xl">{ti.calc}</h2>
+            <Calculator price={x.price} compact />
+          </div>
+        )}
+        <div class="card bg-lavender-2 p-5 md:p-6">
+          <h2 class="text-xl font-medium">{ti.safeBuy}</h2>
+          <p class="mt-2 text-[15px] text-ink/80">{ti.safeBuyText}</p>
+          <a href={`/${lang}/services/due-diligence/`} class="mt-3 inline-flex items-center gap-1 font-medium text-accent hover:underline">{SERVICE_TITLES[lang]['due-diligence']}<Icon name="arrowRight" class="size-4" /></a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {ytId && (
+    <section class="container-x mt-16">
+      <h2 class="display h-section mb-6">{d.complex.video}</h2>
+      <div class="relative aspect-video overflow-hidden rounded-[var(--radius-card)] bg-ink" data-yt={ytId}>
+        <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={d.complex.video}>
+          <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
+          <span class="relative grid size-20 place-items-center rounded-full bg-white text-ink shadow-lg"><Icon name="play" class="size-7" /></span>
+        </button>
+      </div>
+    </section>
+  )}
+
+  {mapPoint && (
+    <section class="container-x mt-16">
+      <h2 class="display h-section mb-2">{ti.map}</h2>
+      <p class="mb-6 text-muted">{ti.mapNote}</p>
+      <div data-map data-zoom="12" data-points={JSON.stringify([{ t: place, u: '', lat: mapPoint.lat, lng: mapPoint.lng, a: place }])} class="h-[380px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
+    </section>
+  )}
+
+  {x.deal === 'rent'
+    ? <LeadSection context={`rental-${x.id}`} booking title={ti.book} submitLabel={ti.book} />
+    : <LeadSection context={`listing-${x.id}`} />}
+
+  {similar.length > 0 && (
+    <section id="similar" class="container-x mt-20 scroll-mt-28">
+      <h2 class="display h-section mb-8">{ti.similar}</h2>
+      <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{similar.map((s) => <li><SaleCard x={s} /></li>)}</ul>
+      <a href={catUrl(lang, { country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type })} class="btn btn-ghost mt-8">{d.catalog.allIn(district?.in[lang] ?? city.in[lang])}<Icon name="arrowRight" class="size-4" /></a>
+    </section>
+  )}
+</Base>
+<script>
+  import { T, pageLocale } from '../scripts/client';
+  import { mountMap } from '../scripts/map';
+  document.querySelectorAll<HTMLButtonElement>('[data-share]').forEach((b) => b.addEventListener('click', async () => {
+    const data = { title: document.title, url: location.href };
+    try {
+      if (navigator.share) await navigator.share(data);
+      else { await navigator.clipboard.writeText(location.href); b.title = T().linkCopied; }
+    } catch { /* отмена */ }
+  }));
+  // Валюта: цена в HTML — в евро; пересчёт по курсу ЕЦБ только по клику.
+  const box = document.querySelector<HTMLElement>('[data-currency]');
+  const eur = Number(document.querySelector<HTMLElement>('[data-price-eur]')?.dataset.priceEur || 0);
+  let rates: Record<string, number> | null = null;
+  box?.addEventListener('click', async (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cur]');
+    if (!b || !eur) return;
+    box.querySelectorAll('[data-cur]').forEach((x) => { x.setAttribute('aria-pressed', String(x === b)); x.classList.toggle('!border-ink', x === b); });
+    const out = box.querySelector<HTMLElement>('[data-cur-out]')!;
+    if (b.dataset.cur === 'EUR') { out.textContent = ''; return; }
+    try {
+      rates ??= (await (await fetch('/api/rates')).json()).rates;
+      const r = rates?.[b.dataset.cur!];
+      out.textContent = r ? `≈ ${Math.round(eur * r).toLocaleString(pageLocale(), { style: 'currency', currency: b.dataset.cur!, maximumFractionDigits: 0 })}` : '';
+    } catch { out.textContent = ''; }
+  });
+  document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
+    v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
+  }));
+  const mapEl = document.querySelector<HTMLElement>('[data-map]');
+  if (mapEl) {
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });
+    io.observe(mapEl);
+  }
+</script>

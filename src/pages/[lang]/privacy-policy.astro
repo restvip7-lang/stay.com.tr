@@ -1,0 +1,27 @@
+---
+/** Политика конфиденциальности. Юридический текст готовит компания — пока заглушка, страница закрыта от индексации. */
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { isLang } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { site } from '../../lib/site';
+import { allLangs } from '../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const text = {
+  ru: 'Текст политики конфиденциальности готовит компания. По вопросам обработки персональных данных пишите на',
+  en: 'The privacy policy is being prepared by the company. For questions about personal data processing, write to',
+  tr: 'Gizlilik politikası şirket tarafından hazırlanmaktadır. Kişisel verilerin işlenmesiyle ilgili sorularınız için yazın:',
+  de: 'Die Datenschutzerklärung wird vom Unternehmen erstellt. Fragen zur Verarbeitung personenbezogener Daten richten Sie bitte an',
+  sr: 'Politiku privatnosti priprema kompanija. Za pitanja o obradi ličnih podataka pišite na',
+}[lang];
+---
+<Base title={`${d.pages.privacy} — Stay Property`} description={d.pages.privacy} robots="noindex,follow" alternates={allLangs(`/${lang}/privacy-policy/`)}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.privacy }]} />
+    <h1 class="display h-page mt-6 max-w-4xl">{d.pages.privacy}</h1>
+    <div class="prose-stay mt-10 max-w-3xl text-[17px]"><p>{text} <a href={`mailto:${site.email}`}>{site.email}</a>.</p></div>
+  </section>
+</Base>

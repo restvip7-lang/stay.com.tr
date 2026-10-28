@@ -1,0 +1,39 @@
+---
+/** Хаб блога (ТЗ 3.4): три рубрики и свежие материалы каждой. */
+import Base from '../../../layouts/Base.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import PostCard from '../../../components/PostCard.astro';
+import Icon from '../../../components/Icon.astro';
+import { isLang } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { BLOG_CATS, BLOG_CAT_NAME, BLOG_CAT_LEAD, blogUrl, postsOf } from '../../../lib/blog';
+import { allLangs } from '../../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const groups = (await Promise.all(BLOG_CATS.map(async (cat) => ({ cat, posts: (await postsOf(lang, cat)).slice(0, 4) })))).filter((g) => g.posts.length);
+const url = blogUrl(lang);
+---
+<Base title={`${d.pages.blog} Stay Property — ${BLOG_CAT_NAME[lang].laws.toLocaleLowerCase(lang)}, ${BLOG_CAT_NAME[lang]['area-guides'].toLocaleLowerCase(lang)}`} description={d.pages.blogLead} alternates={allLangs(url)}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.blog }]} />
+    <h1 class="display h-page mt-6">{d.pages.blog}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.blogLead}</p>
+    <nav aria-label={d.pages.categories} class="mt-8 flex flex-wrap gap-2">
+      {groups.map((g) => <a href={blogUrl(lang, g.cat)} class="chip hover:border-ink">{BLOG_CAT_NAME[lang][g.cat]}</a>)}
+    </nav>
+  </section>
+  {groups.map((g) => (
+    <section class="container-x mt-16 md:mt-20">
+      <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h2 class="display h-section">{BLOG_CAT_NAME[lang][g.cat]}</h2>
+          <p class="mt-2 max-w-2xl text-muted">{BLOG_CAT_LEAD[lang][g.cat]}</p>
+        </div>
+        <a href={blogUrl(lang, g.cat)} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{d.pages.allPosts}<Icon name="arrowRight" class="size-4" /></a>
+      </div>
+      <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{g.posts.map((p) => <li><PostCard p={p} /></li>)}</ul>
+    </section>
+  ))}
+</Base>

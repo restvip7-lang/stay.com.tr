@@ -1,0 +1,52 @@
+---
+/** Контакты (ТЗ 3.5): адрес, телефоны, почта, часы, соцсети, карта, заявка. */
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import LeadSection from '../../components/LeadSection.astro';
+import { isLang } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { site } from '../../lib/site';
+import { allLangs } from '../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const p = d.pages;
+const url = `/${lang}/contacts/`;
+const phones = [
+  { label: d.footer.phoneTR, value: site.phones[0].label, href: 'tel:+905301782916' },
+  { label: d.footer.phoneRU, value: site.phones[1].label, href: site.phones[1].href },
+];
+// Офис в районе Оба (Алания): точка района, а не здания — точный адрес указан текстом.
+const office = { lat: 36.5530, lng: 32.0280 };
+---
+<Base title={`${p.contacts} Stay Property — ${d.footer.company}`} description={`${p.contactsLead} ${site.address}. ${site.phones[0].label}, ${site.email}.`} alternates={allLangs(url)}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: p.contacts }]} />
+    <h1 class="display h-page mt-6">{p.contacts}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{p.contactsLead}</p>
+    <div class="mt-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+      <address class="card space-y-6 p-6 not-italic">
+        <div><p class="text-sm text-muted">{p.office}</p><p class="mt-1 text-lg">{site.address}</p></div>
+        <div><p class="text-sm text-muted">{p.phones}</p><ul class="mt-1 space-y-1">{phones.map((x) => <li><a href={x.href} class="text-lg hover:text-accent">{x.value}</a> <span class="text-sm text-muted">({x.label})</span></li>)}</ul></div>
+        <div><p class="text-sm text-muted">{p.email}</p><a href={`mailto:${site.email}`} class="mt-1 block text-lg hover:text-accent">{site.email}</a></div>
+        <div><p class="text-sm text-muted">{p.hours}</p><p class="mt-1 text-lg">{p.hoursValue}</p></div>
+        <div class="flex flex-wrap gap-2">
+          <a href="https://wa.me/905301782916" target="_blank" rel="noopener" class="btn btn-accent"><Icon name="whatsapp" class="size-4" />WhatsApp</a>
+          {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" class="btn btn-ghost capitalize">{s.name}</a>)}
+        </div>
+      </address>
+      <div data-map data-zoom="13" data-points={JSON.stringify([{ t: 'Stay Property', u: '', lat: office.lat, lng: office.lng, a: site.address }])} class="min-h-[380px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
+    </div>
+  </section>
+  <LeadSection context="contacts" />
+</Base>
+<script>
+  import { mountMap } from '../../scripts/map';
+  const el = document.querySelector<HTMLElement>('[data-map]');
+  if (el) {
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(el); } }, { rootMargin: '200px' });
+    io.observe(el);
+  }
+</script>

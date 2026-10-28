@@ -1,44 +1,47 @@
 ---
-import NewsCard from './NewsCard.astro';
-import { getNews } from '../lib/api';
-const news = await getNews(3).catch(() => []);
+/** Медиа на главной: свежие новости на языке страницы + подписка (заявки никуда не уходят). */
+import PostCard from './PostCard.astro';
+import { postsOf, blogUrl } from '../lib/blog';
+import { t } from '../i18n/ui';
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const m = d.media;
+const news = (await postsOf(lang, 'news').catch(() => [])).slice(0, 3);
+const guides = news.length < 3 ? (await postsOf(lang, 'laws')).slice(0, 3 - news.length) : [];
+const posts = [...news, ...guides];
 ---
 <section class="container-x mt-24 md:mt-32">
   <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-    <h2 class="display h-section">Медиа</h2>
-  </div>
-  <div class="mb-6 flex gap-2" role="tablist">
-    <span class="chip chip-accent !bg-ink-2 px-4 py-2" role="tab" aria-selected="true">Новости</span>
-    <a href="/ru/news/?tab=actions" class="chip px-4 py-2" role="tab" aria-selected="false">Акции</a>
+    <h2 class="display h-section">{m.title}</h2>
   </div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-    {news.map((n) => <NewsCard n={n} />)}
+    {posts.map((n) => <PostCard p={n} />)}
     <div class="card relative flex min-h-[240px] flex-col justify-between overflow-hidden p-5">
       <svg class="absolute inset-0 size-full text-line" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"><path d="M0 0L100 100M100 0L0 100" stroke="currentColor" stroke-width=".3" /></svg>
       <div class="relative">
-        <button type="button" data-subscribe-open class="text-sm text-accent underline-offset-4 hover:underline">Подписаться на новости</button>
-        <p class="mt-3 text-lg font-medium">Больше новостей</p>
+        <button type="button" data-subscribe-open class="text-sm text-accent underline-offset-4 hover:underline">{m.subscribe}</button>
+        <p class="mt-3 text-lg font-medium">{m.more}</p>
       </div>
-      <a href="/ru/news/" class="btn btn-ghost relative self-start">Все новости</a>
+      <a href={blogUrl(lang, news.length ? 'news' : undefined)} class="btn btn-ghost relative self-start">{news.length ? m.all : d.hp.allArticles}</a>
     </div>
   </div>
 </section>
 
 <!-- Подписка: боковое окно «Будьте в курсе» (заявки пока никуда не отправляются). -->
-<dialog data-subscribe class="subscribe-dialog m-0 ml-auto h-dvh max-h-none w-[min(440px,100vw)] p-0 backdrop:bg-ink/50">
+<dialog data-subscribe data-err-email={m.errEmail} data-err-agree={m.errAgree} class="subscribe-dialog m-0 ml-auto h-dvh max-h-none w-[min(440px,100vw)] p-0 backdrop:bg-ink/50">
   <form data-subscribe-form class="flex h-full flex-col gap-4 p-6 md:p-10" novalidate>
     <div class="flex items-start justify-between gap-4">
-      <h2 class="display text-[32px]">Будьте в курсе</h2>
-      <button type="button" data-subscribe-close class="grid size-10 place-items-center rounded-full hover:bg-page" aria-label="Закрыть">×</button>
+      <p class="display text-[32px]">{m.stay}</p>
+      <button type="button" data-subscribe-close class="grid size-10 place-items-center rounded-full hover:bg-page" aria-label={d.close}>×</button>
     </div>
-    <p class="text-muted">Новости проектов, старты продаж и акции — раз в неделю на почту.</p>
+    <p class="text-muted">{m.stayText}</p>
     <label class="sr-only" for="sub-email">E-mail</label>
-    <input id="sub-email" name="email" type="email" required autocomplete="email" class="field" placeholder="Ваш e-mail" />
-    <label class="flex items-start gap-2 text-sm text-muted"><input type="checkbox" name="agree" required class="mt-1 accent-[#754be9]" />Согласен на обработку персональных данных</label>
-    <label class="flex items-start gap-2 text-sm text-muted"><input type="checkbox" name="ads" class="mt-1 accent-[#754be9]" />Согласен получать рекламные материалы</label>
+    <input id="sub-email" name="email" type="email" required autocomplete="email" class="field" placeholder={m.email} />
+    <label class="flex items-start gap-2 text-sm text-muted"><input type="checkbox" name="agree" required class="mt-1 accent-[#754be9]" />{m.agree}</label>
+    <label class="flex items-start gap-2 text-sm text-muted"><input type="checkbox" name="ads" class="mt-1 accent-[#754be9]" />{m.ads}</label>
     <p data-sub-error class="hidden text-sm text-red-600" role="alert"></p>
-    <button class="btn btn-accent mt-2">Отправить</button>
-    <p data-sub-done class="hidden rounded-2xl bg-lavender-2 p-4">Спасибо! Вы подписаны.</p>
+    <button class="btn btn-accent mt-2">{m.send}</button>
+    <p data-sub-done class="hidden rounded-2xl bg-lavender-2 p-4">{m.done}</p>
   </form>
 </dialog>
 <style is:global>
@@ -57,7 +60,7 @@ const news = await getNews(3).catch(() => []);
       const err = f.querySelector<HTMLElement>('[data-sub-error]')!;
       const email = (f.elements.namedItem('email') as HTMLInputElement).value.trim();
       const agree = (f.elements.namedItem('agree') as HTMLInputElement).checked;
-      const msg = !/^\S+@\S+\.\S+$/.test(email) ? 'Укажите e-mail.' : !agree ? 'Нужно согласие на обработку данных.' : '';
+      const msg = !/^\S+@\S+\.\S+$/.test(email) ? d.dataset.errEmail! : !agree ? d.dataset.errAgree! : '';
       err.textContent = msg;
       err.classList.toggle('hidden', !msg);
       if (!msg) f.querySelector('[data-sub-done]')?.classList.remove('hidden');

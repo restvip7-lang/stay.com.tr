@@ -1,0 +1,34 @@
+---
+/** Честные 404 и 410 (ТЗ 2.3, 3.3): статус выставляет страница, здесь — содержимое на языке адреса. */
+import Base from '../layouts/Base.astro';
+import { t } from '../i18n/ui';
+import { catUrl } from '../lib/catalog';
+interface Props { gone?: boolean }
+const { gone = false } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+Astro.response.status = gone ? 410 : 404;
+const links = [
+  { href: catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale' }), text: d.nav.sale },
+  { href: catUrl(lang, { country: 'turkey', deal: 'rent' }), text: d.nav.rent },
+  { href: catUrl(lang, { country: 'turkey' }, { complexes: true }), text: d.nav.complexes },
+  { href: `/${lang}/services/`, text: d.nav.services },
+  { href: `/${lang}/blog/`, text: d.nav.blog },
+];
+---
+<Base title={gone ? d.pages.gone : d.pages.notFound} robots="noindex,follow" canonical={Astro.url.pathname}>
+  <section class="container-x pt-16 text-center md:pt-24">
+    <p class="display text-[120px] leading-none text-accent">{gone ? 410 : 404}</p>
+    <h1 class="display mt-4 text-3xl">{gone ? d.pages.gone : d.pages.notFound}</h1>
+    <p class="mx-auto mt-3 max-w-xl text-muted">{gone ? d.pages.goneText : d.pages.notFoundText}</p>
+    <form action={`/${lang}/search/`} class="mx-auto mt-8 flex max-w-lg gap-2" role="search">
+      <label for="nf-q" class="sr-only">{d.search}</label>
+      <input id="nf-q" name="q" class="field" placeholder={d.pages.searchPh} />
+      <button class="btn btn-dark">{d.filter.find}</button>
+    </form>
+    <nav class="mt-10" aria-label={d.pages.popular}>
+      <p class="mb-3 text-sm text-muted">{d.pages.popular}</p>
+      <ul class="flex flex-wrap justify-center gap-2">{links.map((l) => <li><a href={l.href} class="chip px-4 py-2 hover:border-ink">{l.text}</a></li>)}</ul>
+    </nav>
+  </section>
+</Base>

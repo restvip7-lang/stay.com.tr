@@ -1,0 +1,43 @@
+---
+/** Избранное (noindex, ТЗ 11.1): список хранится в браузере. */
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { isLang } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { catUrl } from '../../lib/catalog';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+---
+<Base title={`${d.pages.favorites} — Stay Property`} description={d.pages.favEmpty} robots="noindex,follow">
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.favorites }]} />
+    <h1 class="display h-page mt-6">{d.pages.favorites}</h1>
+    <div data-fav-list class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3"></div>
+    <div data-fav-empty class="card mt-10 hidden p-10 text-center">
+      <p class="text-muted">{d.pages.favEmpty}</p>
+      <a href={catUrl(lang, { country: 'turkey', deal: 'sale' })} class="btn btn-accent mt-6">{d.hp.allObjects}</a>
+    </div>
+  </section>
+  <div hidden data-fav-remove={d.close}></div>
+</Base>
+<script>
+  import { readFavs } from '../../scripts/client';
+  const list = document.querySelector<HTMLElement>('[data-fav-list]')!;
+  const empty = document.querySelector<HTMLElement>('[data-fav-empty]')!;
+  const rm = document.querySelector<HTMLElement>('[data-fav-remove]')?.dataset.favRemove ?? '×';
+  const esc = (s: string) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+  const render = () => {
+    const favs = readFavs();
+    empty.classList.toggle('hidden', favs.length > 0);
+    list.innerHTML = favs.map((f) => `
+      <article class="card relative flex flex-col p-2 shadow-[var(--shadow-card)]">
+        <a href="${esc(f.url)}" class="block aspect-[4/3] overflow-hidden rounded-[16px] img-fallback">${f.image ? `<img src="${esc(f.image)}" alt="" class="size-full object-cover" loading="lazy">` : ''}</a>
+        <button type="button" data-fav="${esc(f.id)}" data-fav-item='${esc(JSON.stringify(f))}' class="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-white/90 text-accent shadow" aria-label="${esc(rm)}"><svg class="size-5" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1.7"><path d="M19.5 12.6 12 20l-7.5-7.4A5 5 0 1 1 12 6a5 5 0 1 1 7.5 6.6"/></svg></button>
+        <div class="p-3"><a href="${esc(f.url)}" class="line-clamp-2 hover:text-accent">${esc(f.title)}</a><p class="mt-1 text-sm text-muted">${esc(f.meta)}</p><p class="mt-3 text-xl font-medium">${esc(f.price)}</p></div>
+      </article>`).join('');
+  };
+  render();
+  document.addEventListener('favorites:change', render);
+</script>

@@ -1,0 +1,21 @@
+---
+/** FAQ на <details> (ТЗ 10) + FAQPage. */
+import { faqLd } from '../lib/ld';
+import { t } from '../i18n/ui';
+interface Props { items: { q: string; a: string }[]; title?: string; ld?: boolean }
+const { items, title = t(Astro.locals.lang ?? 'ru').catalog.faq, ld = true } = Astro.props;
+---
+{items.length > 0 && (
+  <section class="container-x mt-20 md:mt-28">
+    <h2 class="display h-section mb-8">{title}</h2>
+    <div class="card divide-y divide-line">
+      {items.map((x) => (
+        <details class="group p-5 md:p-6">
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-medium"><span>{x.q}</span><span class="text-2xl text-muted transition-transform group-open:rotate-45" aria-hidden="true">+</span></summary>
+          <div class="prose-stay mt-3 max-w-3xl text-[15px]" set:html={x.a} />
+        </details>
+      ))}
+    </div>
+    {ld && <script type="application/ld+json" set:html={JSON.stringify(faqLd(items))} />}
+  </section>
+)}

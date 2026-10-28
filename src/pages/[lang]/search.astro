@@ -1,0 +1,51 @@
+---
+/** Поиск по сайту (noindex, ТЗ 11.1): объекты по ID/району, комплексы, статьи. */
+import Base from '../../layouts/Base.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import SaleCard from '../../components/SaleCard.astro';
+import ProjectCard from '../../components/ProjectCard.astro';
+import PostCard from '../../components/PostCard.astro';
+import { isLang, LANGS } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { getItems, getComplexes } from '../../lib/catalog';
+import { cityBySlug, districtBySlug } from '../../lib/geo';
+import { BLOG_CATS, postsOf } from '../../lib/blog';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const q = (Astro.url.searchParams.get('q') || '').trim().slice(0, 100);
+const norm = (s: string) => s.toLocaleLowerCase('ru').replace(/ё/g, 'е').normalize('NFD').replace(/[̀-ͯ]/g, '');
+const geoText = (city: string, district: string | null) => {
+  const c = cityBySlug(city);
+  const dd = district ? districtBySlug(city, district) : null;
+  return LANGS.map((l) => `${c?.name[l] ?? ''} ${dd?.name[l] ?? ''}`).join(' ');
+};
+let items: Awaited<ReturnType<typeof getItems>> = [];
+let complexes: Awaited<ReturnType<typeof getComplexes>> = [];
+let posts: Awaited<ReturnType<typeof postsOf>> = [];
+if (q) {
+  const n = norm(q);
+  const words = n.split(/\s+/).filter(Boolean);
+  const hit = (s: string) => { const h = norm(s); return words.every((w) => h.includes(w)); };
+  items = (await getItems()).filter((x) => norm(x.id) === n || norm(x.ref ?? '') === n || hit(`${x.id} ${x.ref ?? ''} ${x.titleRu} ${geoText(x.city, x.district)}`)).slice(0, 12);
+  complexes = (await getComplexes()).filter((c) => hit(`${c.title} ${geoText(c.city, c.district)}`)).slice(0, 6);
+  posts = (await Promise.all(BLOG_CATS.map((c) => postsOf(lang, c)))).flat().filter((p) => hit(`${p.title} ${p.description}`)).slice(0, 8);
+}
+const found = items.length + complexes.length + posts.length;
+---
+<Base title={q ? `${d.pages.search}: ${q}` : d.pages.search} description={d.pages.searchPh} robots="noindex,follow" canonical={`/${lang}/search/`}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.search }]} />
+    <h1 class="display h-page mt-6">{d.pages.search}</h1>
+    <form action={`/${lang}/search/`} class="mt-8 flex max-w-2xl gap-2" role="search">
+      <label for="q" class="sr-only">{d.pages.search}</label>
+      <input id="q" name="q" type="search" value={q} class="field" placeholder={d.pages.searchPh} />
+      <button class="btn btn-dark">{d.filter.find}</button>
+    </form>
+    {q && <p class="mt-6 text-muted">{found ? `${d.filter.found}: ${found}` : d.pages.searchEmpty}</p>}
+  </section>
+  {complexes.length > 0 && <section class="container-x mt-12"><h2 class="display mb-6 text-2xl">{d.nav.complexes}</h2><div class="grid gap-4 md:grid-cols-3">{complexes.map((p) => <ProjectCard p={p} />)}</div></section>}
+  {items.length > 0 && <section class="container-x mt-12"><h2 class="display mb-6 text-2xl">{d.catalog.objects}</h2><ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{items.map((x) => <li><SaleCard x={x} /></li>)}</ul></section>}
+  {posts.length > 0 && <section class="container-x mt-12"><h2 class="display mb-6 text-2xl">{d.pages.blog}</h2><ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{posts.map((p) => <li><PostCard p={p} /></li>)}</ul></section>}
+</Base>
