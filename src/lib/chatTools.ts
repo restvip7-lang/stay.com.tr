@@ -21,7 +21,7 @@ export const TOOLS: ToolDef[] = [
       additionalProperties: false,
       properties: {
         operation: { type: 'string', enum: ['sale', 'rental'], description: 'sale — продажа (по умолчанию), rental — аренда' },
-        type: { type: 'string', enum: ['apartments', 'villas', 'duplexes', 'all'], description: 'Тип недвижимости' },
+        type: { type: 'string', enum: ['apartments', 'villas', 'duplexes', 'other', 'all'], description: 'Тип: apartments — квартиры, villas — виллы и таунхаусы, duplexes — дуплексы и пентхаусы, other — земля и коммерческая недвижимость' },
         city: { type: 'string', description: 'Город по-русски, например «Аланья», «Стамбул (Европа)», «Анталья»' },
         area: { type: 'string', description: 'Район по-русски, например «Махмутлар», «Оба», «Кестель»' },
         price_from: { type: 'number' },
@@ -155,7 +155,7 @@ export async function runTool(name: string, input: any, seen: Seen): Promise<unk
       const operation = a.operation === 'rental' ? 'rental' : 'sale';
       const r = await searchListings({
         operation,
-        group: ['apartments', 'villas', 'duplexes', 'all'].includes(a.type) ? a.type : 'all',
+        group: ['apartments', 'villas', 'duplexes', 'other', 'all'].includes(a.type) ? a.type : 'all',
         city: s(a.city),
         area: s(a.area),
         priceFrom: num(a.price_from),

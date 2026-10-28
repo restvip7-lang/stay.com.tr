@@ -33,7 +33,8 @@ export const ANTHROPIC_MODELS = [
 ];
 
 const DEFAULTS: ChatSettings = {
-  enabled: false,
+  // Включён сразу: без ключа работает демо-режим (см. chatDemo.ts).
+  enabled: true,
   provider: 'anthropic',
   model: DEFAULT_MODELS.anthropic,
   name: 'Каретта',
@@ -79,7 +80,7 @@ function normalize(x: any): ChatSettings {
   const provider: ChatProvider = o.provider === 'openai' ? 'openai' : 'anthropic';
   const str = (v: unknown, max: number, def: string) => (typeof v === 'string' ? v.slice(0, max) : def);
   return {
-    enabled: !!o.enabled,
+    enabled: o.enabled !== false,
     provider,
     model: str(o.model, 80, DEFAULT_MODELS[provider]).trim() || DEFAULT_MODELS[provider],
     name: str(o.name, 40, DEFAULTS.name).trim() || DEFAULTS.name,

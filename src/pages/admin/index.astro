@@ -256,7 +256,7 @@ if (authed) {
           syncModel(c.model);
           q('[data-key]').value = '';
           q('[data-key]').placeholder = c.apiKeyHint ? `сохранён ${c.apiKeyHint} — введите новый, чтобы заменить` : c.keyFromEnv ? 'задан в настройках Vercel' : 'вставьте ключ';
-          q('[data-key-state]').textContent = c.hasKey ? 'Ключ есть. Хранится в зашифрованном виде, в браузер не отдаётся.' : 'Ключа нет — чат на сайте не появится.';
+          q('[data-key-state]').textContent = c.hasKey ? 'Ключ есть. Хранится в зашифрованном виде, в браузер не отдаётся.' : 'Ключа нет — Каретта работает в демо-режиме: простой поиск по базе без ИИ.';
         }
         function syncModel(model?: string) {
           const o = prov.value === 'openai';

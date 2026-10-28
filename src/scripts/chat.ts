@@ -11,6 +11,7 @@ const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&
 function inline(s: string) {
   return esc(s)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|\s)_(.+?)_(?=\s|$|[.,!?])/g, '$1<em class="chat-note">$2</em>')
     .replace(/\[([^\]]+)\]\(((?:\/|https:\/\/)[^\s)]+)\)/g, (_, t, u) => `<a href="${u}"${u.startsWith('/') ? '' : ' target="_blank" rel="noopener"'}>${t}</a>`)
     .replace(/(^|\s)(\/(?:sale|rental|complex|prive|about|uslugi|ru\/news)\/[\w\-/]*)/g, '$1<a href="$2">$2</a>');
 }
@@ -68,14 +69,14 @@ function render(m: Msg) {
 export async function initChat() {
   const root = document.querySelector<HTMLElement>('[data-chat]');
   if (!root) return;
-  let state: { ready: boolean; name: string; greeting: string };
+  let state: { visible: boolean; ready: boolean; name: string; greeting: string };
   try {
     const r = await fetch('/api/chat', { headers: { accept: 'application/json' } });
     state = await r.json();
   } catch {
     return;
   }
-  if (!state?.ready) return;
+  if (!state?.visible) return;
 
   const $ = <T extends HTMLElement>(s: string) => root.querySelector(s) as T;
   const panel = $('[data-chat-panel]');

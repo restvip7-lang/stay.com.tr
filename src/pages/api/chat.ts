@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { chatReady, getChatSettings, publicChat } from '../../lib/chatConfig';
 import { askAssistant, type ChatMsg } from '../../lib/chatAgent';
+import { demoReply } from '../../lib/chatDemo';
 
 export const prerender = false;
 
@@ -25,7 +26,7 @@ const noStore = { 'cache-control': 'no-store' };
 /** Состояние чата для виджета: включён ли и как зовут талисман. */
 export const GET: APIRoute = async () => {
   const s = await getChatSettings();
-  return Response.json({ ready: chatReady(s), ...publicChat(s) }, { headers: noStore });
+  return Response.json({ visible: s.enabled, ready: chatReady(s), ...publicChat(s) }, { headers: noStore });
 };
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
@@ -34,7 +35,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (o && o !== origin) return new Response('Bad origin', { status: 403 });
 
   const s = await getChatSettings();
-  if (!chatReady(s)) return Response.json({ error: 'Чат выключен' }, { status: 503, headers: noStore });
+  if (!s.enabled) return Response.json({ error: 'Чат выключен' }, { status: 503, headers: noStore });
 
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || clientAddress || 'x';
   if (limited(ip)) return Response.json({ error: 'Слишком много сообщений. Попробуйте через несколько минут.' }, { status: 429, headers: noStore });
@@ -54,7 +55,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   if (!history.length || history[history.length - 1].role !== 'user') return Response.json({ error: 'Пустой вопрос' }, { status: 400 });
 
   try {
-    const reply = await askAssistant(s, history);
+    // Пока ключа нет — демо-режим без нейросети.
+    const reply = chatReady(s) ? await askAssistant(s, history) : await demoReply(history[history.length - 1].content);
     return Response.json(reply, { headers: noStore });
   } catch (e) {
     console.error('chat error', e);
