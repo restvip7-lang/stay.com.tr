@@ -23,7 +23,7 @@ const list = [...ordered, ...projects.filter((p) => p.isPrivate && !ordered.incl
     <section class="container-x mt-16 md:mt-24">
       <h1 class="display h-section mb-6 hidden md:block">Выбрать недвижимость</h1>
       <h1 class="display h-section mb-6 md:hidden">Выбрать недвижимость</h1>
-      <FilterForm action="/sale/" />
+      <FilterForm action="/sale/" prive />
     </section>
     <ProjectsBlock projects={list} visible={cfg.projectsVisible} prive />
     <CompanySpotlight company={sections.company} />

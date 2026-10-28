@@ -71,6 +71,9 @@ const ld = {
             {facts.map(([k, v]) => (
               <div class="flex justify-between gap-4 py-3"><dt class="text-muted">{k}</dt><dd class="text-right">{v}</dd></div>
             ))}
+            {x.project && (
+              <div class="flex justify-between gap-4 py-3"><dt class="text-muted">Проект</dt><dd class="text-right"><a href={x.project.url} class="text-accent underline-offset-4 hover:underline">{x.project.name}</a>{x.isPrivate && <span class="chip ml-2 align-middle" style="background:#bc906e;color:#fff;border-color:transparent">PRIVE</span>}</dd></div>
+            )}
           </dl>
         </div>
         {operation === 'sale' && (

@@ -12,6 +12,8 @@ export function parseQuery(sp: URLSearchParams, operation: 'sale' | 'rental'): L
   const type = sp.get('type') || (operation === 'sale' ? 'apartments' : 'all');
   return {
     operation,
+    prive: sp.get('prive') === '1' || undefined,
+    citizenship: sp.get('citizenship') === '1' || undefined,
     group: (GROUPS.includes(type) ? type : 'all') as TypeGroup | 'all',
     country: sp.get('country') || undefined,
     city: sp.get('city') || undefined,

@@ -10,16 +10,18 @@ import fxNews from '../content/fixtures/news.json';
 import fxProjects from '../content/fixtures/projects.json';
 import fxSale from '../content/fixtures/sale.json';
 import fxRental from '../content/fixtures/rental.json';
+import fxUnits from '../content/fixtures/units.json';
+import fxUnitsCitizenship from '../content/fixtures/units-citizenship.json';
 
 const BASE = (import.meta.env.STAY_API_BASE as string | undefined) || 'https://dev.stayproperty.com';
 const TTL = 10 * 60 * 1000;
 const cache = new Map<string, { at: number; value: unknown }>();
 
-async function getJson<T>(path: string, tries = 3): Promise<T> {
+async function getJson<T>(path: string, tries = 3, timeout = 15_000): Promise<T> {
   let last: unknown;
   for (let i = 0; i < tries; i++) {
     try {
-      const r = await fetch(BASE + path, { signal: AbortSignal.timeout(15_000) });
+      const r = await fetch(BASE + path, { signal: AbortSignal.timeout(timeout) });
       if (r.status === 404) throw Object.assign(new Error('not found'), { notFound: true });
       if (!r.ok) throw new Error(`API ${r.status} ${path}`);
       const j = (await r.json()) as { success?: boolean; data: T };
@@ -70,6 +72,7 @@ export interface Listing {
   discount: number | null;
   image: string | null;
   url: string;
+  project?: ListingProject | null;
 }
 
 export interface ListingDetail extends Listing {
@@ -80,6 +83,9 @@ export interface ListingDetail extends Listing {
   infrastructure: string[];
   pricePerSquare: number | null;
 }
+
+/** Проект, к которому относится квартира (только для квартир в проектах Stay). */
+export interface ListingProject { code: string; name: string; url: string }
 
 export interface ProjectUnit {
   type: string;
@@ -260,6 +266,10 @@ async function allListings(operation: 'sale' | 'rental'): Promise<Listing[]> {
 
 export interface ListingQuery {
   operation: 'sale' | 'rental';
+  /** «Лоты PRIVE»: только квартиры в закрытых проектах. */
+  prive?: boolean;
+  /** «Гражданство ТР»: квартиры, дающие право на гражданство Турции. */
+  citizenship?: boolean;
   group?: TypeGroup | 'all';
   country?: string;
   city?: string;
@@ -293,8 +303,81 @@ function roomsBucket(r: string | null): string | null {
   return n >= 4 ? '4+' : `${n}+1`;
 }
 
+/*
+ * Квартиры в проектах Stay (Битрикс). Признаки PRIVE и «Гражданство ТР» есть
+ * только у них, поэтому переключатели фильтра работают по этому списку — как на прод.
+ * Постраничная выдача у этого источника на dev не работает, поэтому забираем
+ * всё окнами по цене (в каждом окне меньше 500 квартир).
+ */
+const UNIT_WINDOWS: [number, number][] = [[0, 120000], [120001, 180000], [180001, 260000], [260001, 400000], [400001, 0]];
+
+function toUnit(x: RawListing): Listing {
+  const duplex = /дуплекс/i.test(x.objectType || '');
+  const city = cityRu(x.city);
+  const projectSlug = x.projectCode ? String(x.projectCode).replace(/_/g, '-').replace(/-+$/, '').toLowerCase() : null;
+  return {
+    id: `u${x.id}`,
+    code: x.code ?? null,
+    title: (x.title || '').trim() || `${duplex ? 'Дуплекс' : 'Квартира'} ${x.roomLabel ?? ''}`.trim(),
+    operation: 'sale',
+    rooms: x.roomLabel ?? null,
+    typeLabel: duplex ? 'Дуплекс' : 'Квартира',
+    typeGroup: duplex ? 'duplexes' : 'apartments',
+    rawType: x.objectType ?? null,
+    country: city ? COUNTRY_BY_CITY[city] ?? null : null,
+    city,
+    area: areaRu(x.area),
+    price: typeof x.price === 'number' ? x.price : x.price ? Number(x.price) : null,
+    totalArea: x.totalArea ?? null,
+    distanceToSea: x.distanceToSea ?? null,
+    floor: x.floor != null && x.floor !== '' ? Math.round(Number(x.floor)) || null : null,
+    ref: x.objectCode ?? null,
+    isPrivate: !!x.isPrivate,
+    discount: x.discount ?? null,
+    image: fixImage(x.imageUrl),
+    url: `/sale/u${x.id}/`,
+    project: projectSlug ? { code: x.projectCode, name: String(x.projectName || '').trim(), url: `/complex/project/${projectSlug}/` } : null,
+  };
+}
+
+async function allUnits(): Promise<Listing[]> {
+  const raw = await cached(
+    'units',
+    async () => {
+      const seen = new Map<string, RawListing>();
+      for (const [from, to] of UNIT_WINDOWS) {
+        const q = (from ? `&cs_price_from=${from}` : '') + (to ? `&cs_price_to=${to}` : '');
+        const d = await getJson<{ items: RawListing[]; total: number }>(`/api/sale?source=bitrix&language=ru&operation=sale&limit=500${q}`, 3, 60_000);
+        if (d.total > d.items.length) throw new Error('units window too big');
+        d.items.forEach((x) => seen.set(String(x.id), x));
+      }
+      return [...seen.values()];
+    },
+    () => fxUnits as RawListing[],
+  );
+  return raw.map(toUnit);
+}
+
+async function citizenshipIds(): Promise<Set<string>> {
+  const ids = await cached(
+    'units-citizenship',
+    async () => {
+      const d = await getJson<{ items: RawListing[]; total: number }>(`/api/sale?source=bitrix&language=ru&operation=sale&limit=500&citizenship=1`, 3, 60_000);
+      return d.items.map((x) => String(x.id));
+    },
+    () => fxUnitsCitizenship as string[],
+  );
+  return new Set(ids.map((id) => `u${id}`));
+}
+
 export async function searchListings(q: ListingQuery) {
-  const all = await allListings(q.operation);
+  const useUnits = q.operation === 'sale' && (q.prive || q.citizenship);
+  let all = useUnits ? await allUnits() : await allListings(q.operation);
+  if (useUnits && q.prive) all = all.filter((x) => x.isPrivate);
+  if (useUnits && q.citizenship) {
+    const ids = await citizenshipIds();
+    all = all.filter((x) => ids.has(x.id));
+  }
   const per = q.perPage ?? 24;
   const ref = q.ref?.trim().toLowerCase();
   let items = all.filter((x) => {
@@ -344,6 +427,13 @@ export async function getFacets(operation: 'sale' | 'rental'): Promise<Facets> {
 }
 
 export async function getListing(id: string, operation: 'sale' | 'rental'): Promise<ListingDetail | null> {
+  if (/^u\d+$/.test(id)) {
+    if (operation !== 'sale') return null;
+    const x = (await allUnits()).find((u) => u.id === id);
+    if (!x) return null;
+    const p = x.project ? await getProject(x.project.code.replace(/_/g, '-').replace(/-+$/, '').toLowerCase()) : null;
+    return { ...x, images: x.image ? [x.image] : p?.image ? [p.image] : [], html: '', yearBuilt: null, region: null, infrastructure: [], pricePerSquare: x.price && x.totalArea ? Math.round(x.price / x.totalArea) : null };
+  }
   const key = `listing-${operation}-${id}`;
   try {
     const d = await cached(key, () =>
@@ -368,7 +458,7 @@ export async function getListing(id: string, operation: 'sale' | 'rental'): Prom
 }
 
 export async function getSimilar(item: Listing, limit = 3): Promise<Listing[]> {
-  const all = await allListings(item.operation);
+  const all = item.id.startsWith('u') ? await allUnits() : await allListings(item.operation);
   return all
     .filter((x) => x.id !== item.id && x.typeGroup === item.typeGroup && x.city === item.city)
     .sort((a, b) => Math.abs((a.price ?? 0) - (item.price ?? 0)) - Math.abs((b.price ?? 0) - (item.price ?? 0)))

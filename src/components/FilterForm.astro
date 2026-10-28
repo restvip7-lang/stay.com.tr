@@ -4,10 +4,10 @@ import { getFacets, searchListings, type ListingQuery } from '../lib/api';
 import { TYPE_TABS } from '../lib/dict';
 import { num } from '../lib/format';
 
-interface Props { action?: string; operation?: 'sale' | 'rental'; query?: ListingQuery; tabs?: boolean; showAll?: boolean }
-const { action = '/sale/', operation = 'sale', query, tabs = true } = Astro.props;
+interface Props { action?: string; operation?: 'sale' | 'rental'; query?: ListingQuery; tabs?: boolean; showAll?: boolean; prive?: boolean }
+const { action = '/sale/', operation = 'sale', query, tabs = true, prive = false } = Astro.props;
 const f = await getFacets(operation);
-const q: ListingQuery = query ?? { operation, group: operation === 'sale' ? 'apartments' : 'all' };
+const q: ListingQuery = query ?? { operation, group: operation === 'sale' ? 'apartments' : 'all', prive: prive || undefined };
 const { total } = await searchListings({ ...q, perPage: 1 });
 const group = q.group ?? 'all';
 const tab = TYPE_TABS.find((t) => t.key === group);
@@ -68,8 +68,16 @@ const selRooms = new Set(q.rooms ?? []);
       <input id="f-ref" name="ref" class="field" placeholder="Например: STY009" value={q.ref ?? ''} />
     </div>
 
-    <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step="1000">
-      <legend class="label">Стоимость, €</legend>
+    <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step="1000" aria-labelledby="f-price-l">
+      <div class="mb-2 flex items-center justify-between gap-2">
+        <span class="label mb-0 whitespace-nowrap" id="f-price-l">Стоимость, €</span>
+        {operation === 'sale' && (
+          <span class="flex items-center gap-2">
+            <label class="switch switch-prive"><input type="checkbox" name="prive" value="1" checked={!!q.prive} /><span>Лоты PRIVE</span></label>
+            <label class="switch"><input type="checkbox" name="citizenship" value="1" checked={!!q.citizenship} /><span>Гражданство ТР</span></label>
+          </span>
+        )}
+      </div>
       <div class="flex overflow-hidden rounded-full border border-line bg-white">
         <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="price_from" inputmode="numeric" placeholder={`от ${num(priceMin)}`} value={q.priceFrom ?? ''} data-lo aria-label="Цена от" />
         <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="price_to" inputmode="numeric" placeholder={`до ${num(priceMax)}`} value={q.priceTo ?? ''} data-hi aria-label="Цена до" />
@@ -113,6 +121,14 @@ const selRooms = new Set(q.rooms ?? []);
 </form>
 
 <style>
+  .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px; color: var(--color-muted); white-space: nowrap; }
+  .switch input { appearance: none; position: relative; width: 26px; height: 16px; border-radius: 999px; background: #d9dbe1; transition: background-color .2s; cursor: pointer; flex: none; }
+  .switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px #0003; }
+  .switch input:checked { background: var(--color-ink); }
+  .switch input:checked::after { transform: translateX(10px); }
+  .switch input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .switch-prive span { color: #bc906e; }
+  .switch-prive input:checked { background: #bc906e; }
   .dual { position: relative; height: 18px; }
   .dual::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--color-ink); border-radius: 2px; }
   .dual input { position: absolute; inset: 0; width: 100%; appearance: none; background: none; pointer-events: none; margin: 0; }

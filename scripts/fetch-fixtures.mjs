@@ -36,4 +36,14 @@ await save('news.json', (await get('/api/news?language=ru&limit=200')).data);
 await save('projects.json', (await get('/api/projects')).data);
 await save('sale.json', await allSale('sale'));
 await save('rental.json', await allSale('rental'));
+// Квартиры в проектах Stay (Битрикс): окнами по цене, т.к. постраничность у источника не работает.
+const units = new Map();
+for (const [from, to] of [[0, 120000], [120001, 180000], [180001, 260000], [260001, 400000], [400001, 0]]) {
+  const q = (from ? `&cs_price_from=${from}` : '') + (to ? `&cs_price_to=${to}` : '');
+  const d = await get(`/api/sale?source=bitrix&language=ru&operation=sale&limit=500${q}`);
+  d.data.items.forEach((x) => units.set(String(x.id), x));
+}
+await save('units.json', [...units.values()]);
+const cit = await get('/api/sale?source=bitrix&language=ru&operation=sale&limit=500&citizenship=1');
+await save('units-citizenship.json', cit.data.items.map((x) => String(x.id)).sort());
 console.log('fixtures saved');
