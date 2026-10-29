@@ -3,7 +3,7 @@
 // после нажатия посетитель видит «Спасибо», данные остаются только в браузере.
 // booking — форма бронирования аренды: даты заезда и выезда в календаре + комментарий.
 import { t } from '../i18n/ui';
-interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean; headingLevel?: 'h2' | 'h3' | 'p' }
+interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean; headingLevel?: 'h2' | 'h3' | 'p'; dark?: boolean }
 const lang = Astro.locals.lang ?? 'ru';
 const f = t(lang).form;
 const {
@@ -14,23 +14,25 @@ const {
   submitLabel = f.send,
   booking = false,
   headingLevel = 'h2',
+  dark = false,
 } = Astro.props;
+const fc = dark ? 'field field-dark' : 'field';
 const H = headingLevel;
 ---
 <form data-lead-form class="lead-form" novalidate>
-  {!compact && <H class="display mb-2 text-[clamp(26px,2.4vw,32px)]">{title}</H>}
-  {!compact && <p class="mb-6 max-w-md text-muted">{subtitle}</p>}
+  {!compact && <H class:list={['display mb-2', dark ? 'text-[20px] leading-[26px] lg:text-[22px] lg:leading-[28px]' : 'text-[clamp(26px,2.4vw,32px)]']}>{title}</H>}
+  {!compact && <p class:list={['mb-6 max-w-md', dark ? 'text-[16px] leading-[22px] text-white/60 lg:text-[14px] lg:leading-[19px]' : 'text-muted']}>{subtitle}</p>}
   <input type="hidden" name="context" value={context} />
   <div class="grid gap-3">
     <label class="sr-only" for={`n-${context}`}>{f.name}</label>
-    <input id={`n-${context}`} class="field" name="name" autocomplete="name" placeholder={f.name} required />
+    <input id={`n-${context}`} class={fc} name="name" autocomplete="name" placeholder={f.name} required />
     <label class="sr-only" for={`p-${context}`}>{f.phone}</label>
-    <input id={`p-${context}`} class="field" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder={f.phone} required />
+    <input id={`p-${context}`} class={fc} name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder={f.phone} required />
     {booking && (
       <div data-range-picker class="relative">
         <div class="grid grid-cols-2 gap-3">
-          <button type="button" data-rp-open="in" class="field flex items-center text-left text-muted"><span data-rp-label="in">{f.checkIn}</span></button>
-          <button type="button" data-rp-open="out" class="field flex items-center text-left text-muted"><span data-rp-label="out">{f.checkOut}</span></button>
+          <button type="button" data-rp-open="in" class:list={[fc, 'flex items-center text-left', dark ? 'text-white/60' : 'text-muted']}><span data-rp-label="in">{f.checkIn}</span></button>
+          <button type="button" data-rp-open="out" class:list={[fc, 'flex items-center text-left', dark ? 'text-white/60' : 'text-muted']}><span data-rp-label="out">{f.checkOut}</span></button>
         </div>
         <input type="hidden" name="check_in" data-rp-value="in" />
         <input type="hidden" name="check_out" data-rp-value="out" />
@@ -40,15 +42,15 @@ const H = headingLevel;
     {booking && (
       <>
         <label class="sr-only" for={`c-${context}`}>{f.comment}</label>
-        <textarea id={`c-${context}`} name="comment" rows="3" class="field h-auto rounded-[24px] py-3" placeholder={f.comment}></textarea>
+        <textarea id={`c-${context}`} name="comment" rows="3" class={`${fc} h-auto py-3`} placeholder={f.comment}></textarea>
       </>
     )}
-    <p data-error class="hidden text-sm text-red-600" role="alert"></p>
-    <button class="btn btn-accent mt-2 w-full" type="submit">{submitLabel}</button>
-    <p class="text-xs text-muted">{f.consent} <a href={`/${lang}/privacy-policy/`} class="underline underline-offset-2">{f.consentLink}</a></p>
+    <p data-error class:list={['hidden text-sm', dark ? 'text-[#ff8a8d]' : 'text-red-600']} role="alert"></p>
+    <button class:list={[dark ? 'btn-n btn-n-white' : 'btn btn-accent', 'mt-2 w-full']} type="submit">{submitLabel}</button>
+    <p class:list={['text-xs', dark ? 'text-white/60' : 'text-muted']}>{f.consent} <a href={`/${lang}/privacy-policy/`} class:list={['underline underline-offset-2', dark && 'text-white']}>{f.consentLink}</a></p>
   </div>
   <div data-done class="hidden py-6 text-center" role="status">
     <p class="display text-2xl">{f.thanks}</p>
-    <p class="mt-2 text-muted">{f.accepted}</p>
+    <p class:list={['mt-2', dark ? 'text-white/60' : 'text-muted']}>{f.accepted}</p>
   </div>
 </form>

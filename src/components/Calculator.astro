@@ -21,7 +21,7 @@ const min = Math.min(cost, 50000);
     </div>
   )}
   <div class:list={['grid gap-4', !compact && 'lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]']}>
-    <div class="card space-y-5 p-5 md:p-6">
+    <div class:list={['space-y-5', !compact && 'card p-5 md:p-6']}>
       <div>
         <label class="label" for="c-cost">{c.cost}</label>
         <input id="c-cost" class="field max-w-[260px]" inputmode="numeric" data-cost value={cost.toLocaleString(loc)} />
@@ -48,9 +48,9 @@ const min = Math.min(cost, 50000);
         <input id="c-rate" class="field max-w-[120px]" inputmode="decimal" placeholder={c.ratePh} data-rate />
         <p class="mt-2 text-xs text-muted">{c.rateNote}</p>
       </div>
-      <a href="#lead" data-lead-open class="btn btn-ghost">{c.discuss}</a>
+      <a href="#lead" data-lead-open class:list={[compact ? 'btn-n btn-n-white w-full' : 'btn btn-ghost']}>{c.discuss}</a>
     </div>
-    <div class="self-start rounded-[var(--radius-card)] bg-lavender-2 p-2">
+    <div class:list={['self-start rounded-[var(--radius-card)] p-2', compact ? 'bg-page-n' : 'bg-lavender-2']}>
       <dl class="grid grid-cols-3 gap-2 rounded-[16px] bg-white p-4 text-sm">
         <div><dt class="text-xs text-muted">{c.term}</dt><dd class="mt-1 font-medium" data-out-months>{months} {c.mo}</dd></div>
         <div><dt class="text-xs text-muted">{c.payment}</dt><dd class="mt-1 font-medium">{c.monthly}</dd></div>

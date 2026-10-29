@@ -107,121 +107,150 @@ const ytId = video?.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1]
 const mapPoint = complex?.lat && complex?.lng ? { lat: complex.lat, lng: complex.lng } : city.lat && city.lng ? { lat: city.lat, lng: city.lng } : null;
 const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
 ---
-<Base title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} ogType="product" jsonLd={ld}>
-  <div class="container-x pt-6 md:pt-10">
+<Base system="new" title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} ogType="product" jsonLd={ld}>
+  <div class="container-n pt-5 lg:pt-6">
     <Breadcrumbs items={crumbs} />
     {sold && (
-      <div class="mt-6 rounded-[var(--radius-card)] bg-ink p-5 text-white md:p-6" role="status">
+      <div class="mt-5 rounded-[var(--radius-big)] bg-ink p-5 text-white md:p-6" role="status">
         <p class="text-xl font-medium">{d.sold}</p>
         {soldAt && <p class="mt-1 text-white/70">{d.pages.goneText} · {dateL(lang, soldAt)}</p>}
-        <a href="#similar" class="btn btn-outline-light mt-4">{ti.similar}</a>
+        <a href="#similar" class="btn-n btn-n-white mt-4">{ti.similar}</a>
       </div>
     )}
-    <div class="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
-      <div class="card p-3 md:p-4">
-        <Gallery images={images} alt={altBase} />
-        <div class="mt-6 border-t border-line px-2 pt-6">
-          <h2 class="display mb-4 text-2xl">{ti.description}</h2>
-          {descHtml ? <div class="prose-stay" set:html={descHtml} /> : (
-            <>
-              <p class="mb-4 rounded-2xl bg-lavender-2 p-4 text-sm">{ti.noText}</p>
-              {fallbackHtml && <div class="prose-stay text-ink/80" lang={details.en && (lang === 'tr' || lang === 'de') ? 'en' : 'ru'} set:html={fallbackHtml} />}
-            </>
-          )}
+    <div class="mt-5 grid gap-5 lg:grid-cols-[minmax(0,868fr)_minmax(0,424fr)] lg:grid-rows-[auto_1fr]">
+      <div class="min-w-0 lg:col-start-1 lg:row-start-1">
+        <div class="card-n p-3">
+          <div class="flex items-start justify-between gap-4 px-2 pb-5 pt-2 lg:px-5 lg:pt-5">
+            <div class="min-w-0">
+              <h1 class="text-[21px] font-medium leading-[26px] tracking-[.2px] text-ink lg:text-[20px] lg:leading-[24px] lg:tracking-[.1px]">{meta.h1}</h1>
+              <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] leading-[20px] text-soft">
+                {complex ? <a href={complexUrl(lang, complex)} class="font-medium text-ink hover:text-accent">{complex.title}</a> : <span class="font-medium text-ink">{tw.one}{x.rooms ? ` ${x.rooms}` : ''}</span>}
+                <span aria-hidden="true">·</span><span>{place}</span>
+                {x.sea ? <><span aria-hidden="true">·</span><span>{ti.toSea} {numL(lang, x.sea)} {d.m}</span></> : null}
+                <span aria-hidden="true">·</span><span>ID {x.ref ?? x.id}</span>
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <button type="button" data-share class="btn-n btn-n-white btn-n-icon" aria-label={d.share}><Icon name="share" class="size-4" /></button>
+              <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" class="btn-n btn-n-white btn-n-icon" aria-label={d.addFav}><Icon name="heart" class="size-5" /></button>
+            </div>
+          </div>
+          <Gallery images={images} alt={altBase} />
         </div>
-        {chipLinks.length > 0 && (
-          <div class="mt-6 border-t border-line px-2 pt-6">
-            <h2 class="mb-3 text-lg font-medium">{ti.features}</h2>
-            <ul class="flex flex-wrap gap-2">{chipLinks.map((c) => <li>{c.href ? <a href={c.href} class="chip px-4 py-2 hover:border-ink">{c.text}</a> : <span class="chip px-4 py-2">{c.text}</span>}</li>)}</ul>
-          </div>
-        )}
-        {(own ?? fallback)?.infrastructure?.length ? (
-          <div class="mt-6 border-t border-line px-2 pt-6">
-            <h2 class="mb-3 text-lg font-medium">{ti.infra}</h2>
-            <ul class="flex flex-wrap gap-2">{(own ?? fallback)!.infrastructure.map((s) => <li class="chip px-4 py-2">{s}</li>)}</ul>
-          </div>
-        ) : null}
       </div>
-      <div class="space-y-4">
-        <div class="card p-5 md:p-6 lg:sticky lg:top-28">
-          <div class="flex items-start justify-between gap-3">
-            <h1 class="font-display text-xl font-medium leading-tight tracking-[-0.01em]">{meta.h1}</h1>
-            <div class="flex gap-2">
-              <button type="button" data-share class="grid size-11 place-items-center rounded-full border border-line hover:border-ink" aria-label={d.share}><Icon name="share" class="size-4" /></button>
-              <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" class="grid size-11 place-items-center rounded-full border border-line hover:border-ink" aria-label={d.addFav}><Icon name="heart" class="size-5" /></button>
-            </div>
-          </div>
-          <p class="mt-1 text-muted">{place}</p>
-          {x.label && x.label !== 'sold' && <p class="mt-3"><span class="chip" style={`${LABEL_STYLE[x.label]};border-color:transparent`}>{LABEL_TEXT[lang][x.label]}</span></p>}
-          <p class:list={['display mt-6 text-[clamp(32px,3.4vw,44px)]', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''}>{price}</p>
+
+      <div class="space-y-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
+        <div class="card-n p-5">
+          {x.label && x.label !== 'sold' && <p class="mb-3"><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></p>}
+          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[.6px] text-ink-n', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''}>{price}</p>
+          {perM2 && <p class="mt-1 text-[14px] leading-[20px] text-soft">{moneyL(lang, perM2)} {ti.perM2}</p>}
           {x.price && (
-            <div class="mt-2 flex flex-wrap items-center gap-2 text-sm" data-currency>
+            <div class="mt-3 flex flex-wrap items-center gap-1.5 text-sm" data-currency>
               <span class="sr-only">{ti.currency}</span>
-              {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['chip px-3 py-1', c === 'EUR' && '!border-ink']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}
-              <span data-cur-out class="text-muted"></span>
+              {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['cur-chip', c === 'EUR' && 'is-on']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}
+              <span data-cur-out class="text-soft"></span>
             </div>
           )}
-          {perM2 && <p class="mt-2 text-sm text-muted">{moneyL(lang, perM2)} {ti.perM2}</p>}
-          <div class="mt-4 flex flex-wrap gap-2">
-            <span class="chip chip-accent">{x.deal === 'rent' ? d.rent : d.sale}</span>
-            {x.isPrivate && <span class="chip" style="background:#bc906e;color:#fff;border-color:transparent">PRIVE</span>}
+          <div class="mt-4 flex flex-wrap gap-1.5">
+            <span class="badge">{x.deal === 'rent' ? d.rent : d.sale}</span>
+            {x.isPrivate && <span class="badge badge-solid" style="background:#bc906e;color:#fff">PRIVE</span>}
           </div>
-          {!sold && <a href="#lead" class="btn btn-accent mt-6 w-full"><Icon name="phone" class="size-4" />{ti.book}</a>}
-          <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn btn-ghost mt-2 w-full"><Icon name="whatsapp" class="size-4" />{d.whatsapp}</a>
-          <dl class="mt-6 divide-y divide-line text-[15px]">
+          {!sold && <a href="#lead" class="btn-n btn-n-dark mt-5 w-full"><Icon name="phone" class="size-4" />{ti.book}</a>}
+          <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn-n btn-n-white mt-2 w-full"><Icon name="whatsapp" class="size-4" />{d.whatsapp}</a>
+        </div>
+        <div class="card-n p-5">
+          <h2 class="text-[19px] font-medium leading-[24px] lg:text-[18px] lg:leading-[22px]">{ti.specs}</h2>
+          <dl class="mt-4 space-y-3 text-[14px] font-medium leading-[20px] tracking-[.2px]">
             {facts.filter(([, v]) => v).map(([k, v, href]) => (
-              <div class="flex justify-between gap-4 py-3"><dt class="text-muted">{k}</dt><dd class="text-right">{href ? <a href={href} class="text-accent underline-offset-4 hover:underline">{v}</a> : v}</dd></div>
+              <div class="flex justify-between gap-4"><dt class="text-soft">{k}</dt><dd class="text-right text-ink">{href ? <a href={href} class="underline underline-offset-4 hover:text-accent">{v}</a> : v}</dd></div>
             ))}
           </dl>
-          {updated && <p class="mt-4 text-xs text-muted">{ti.updated(dateL(lang, updated))}</p>}
+          {updated && <p class="mt-5 text-xs text-muted">{ti.updated(dateL(lang, updated))}</p>}
         </div>
+        <a href={`/${lang}/services/due-diligence/`} aria-label={SERVICE_TITLES[lang]['due-diligence']} class="group flex items-center justify-between gap-4 rounded-[20px] bg-[#e8e9ee] p-5 transition hover:bg-white">
+          <span>
+            <span class="block text-[14px] font-medium leading-[20px]">{ti.safeBuy}</span>
+            <span class="mt-0.5 block text-[14px] leading-[20px] text-soft">{ti.safeBuyText}</span>
+          </span>
+          <span class="grid size-11 shrink-0 place-items-center rounded-[12px] bg-white text-ink-2 shadow-[var(--shadow-btn)]"><Icon name="arrowRight" class="size-4" /></span>
+        </a>
         {x.deal === 'sale' && !sold && (
-          <div class="card p-5 md:p-6">
-            <h2 class="display mb-5 text-2xl">{ti.calc}</h2>
+          <div class="card-n p-5">
+            <h2 class="mb-4 text-[18px] font-medium leading-[22px]">{ti.calc}</h2>
             <Calculator price={x.price} compact />
           </div>
         )}
-        <div class="card bg-lavender-2 p-5 md:p-6">
-          <h2 class="text-xl font-medium">{ti.safeBuy}</h2>
-          <p class="mt-2 text-[15px] text-ink/80">{ti.safeBuyText}</p>
-          <a href={`/${lang}/services/due-diligence/`} class="mt-3 inline-flex items-center gap-1 font-medium text-accent hover:underline">{SERVICE_TITLES[lang]['due-diligence']}<Icon name="arrowRight" class="size-4" /></a>
-        </div>
       </div>
+      {(chipLinks.length > 0 || (own ?? fallback)?.infrastructure?.length) && (
+        <div class="card-n grid gap-6 self-start p-5 lg:col-start-1 lg:row-start-2 lg:p-6">
+          {chipLinks.length > 0 && (
+            <div>
+              <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.features}</h2>
+              <ul class="flex flex-wrap gap-2">{chipLinks.map((c) => <li>{c.href ? <a href={c.href} class="chip-n">{c.text}</a> : <span class="chip-n">{c.text}</span>}</li>)}</ul>
+            </div>
+          )}
+          {(own ?? fallback)?.infrastructure?.length ? (
+            <div>
+              <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.infra}</h2>
+              <ul class="flex flex-wrap gap-2">{(own ?? fallback)!.infrastructure.map((s) => <li class="chip-n">{s}</li>)}</ul>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   </div>
 
+  <section class="mx-auto mt-20 max-w-[858px] px-5 lg:mt-28 lg:px-10">
+    <h2 class="display h-section-n mb-5 lg:text-center">{ti.description}</h2>
+    {descHtml ? <div class="prose-stay about-text" data-clamp set:html={descHtml} /> : (
+      <>
+        <p class="mb-4 rounded-[16px] bg-white p-4 text-sm">{ti.noText}</p>
+        {fallbackHtml && <div class="prose-stay about-text text-ink/80" data-clamp lang={details.en && (lang === 'tr' || lang === 'de') ? 'en' : 'ru'} set:html={fallbackHtml} />}
+      </>
+    )}
+    <p class="mt-5 text-center lg:mt-6"><button type="button" data-clamp-btn hidden class="btn-n btn-n-white">{d.showMore}<Icon name="chevronDown" class="size-4" /></button></p>
+  </section>
+
   {ytId && (
-    <section class="container-x mt-16">
-      <h2 class="display h-section mb-6">{d.complex.video}</h2>
-      <div class="relative aspect-video overflow-hidden rounded-[var(--radius-card)] bg-ink" data-yt={ytId}>
+    <section class="container-n mt-20 lg:mt-28">
+      <h2 class="display h-section-n mb-6">{d.complex.video}</h2>
+      <div class="relative aspect-video overflow-hidden rounded-[20px] bg-ink" data-yt={ytId}>
         <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={d.complex.video}>
           <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
-          <span class="relative grid size-20 place-items-center rounded-full bg-white text-ink shadow-lg"><Icon name="play" class="size-7" /></span>
+          <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
         </button>
       </div>
     </section>
   )}
 
   {mapPoint && (
-    <section class="container-x mt-16">
-      <h2 class="display h-section mb-2">{ti.map}</h2>
-      <p class="mb-6 text-muted">{ti.mapNote}</p>
-      <div data-map data-zoom="12" data-points={JSON.stringify([{ t: place, u: '', lat: mapPoint.lat, lng: mapPoint.lng, a: place }])} class="h-[380px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
+    <section class="container-n mt-20 lg:mt-28">
+      <div class="panel p-5 lg:p-10">
+        <h2 class="display h-section-n mb-2">{ti.map}</h2>
+        <p class="mb-6 text-[14px] text-soft">{ti.mapNote}</p>
+        <div data-map data-zoom="12" data-points={JSON.stringify([{ t: place, u: '', lat: mapPoint.lat, lng: mapPoint.lng, a: place }])} class="h-[380px] overflow-hidden rounded-[20px] bg-page-n lg:h-[480px]"></div>
+      </div>
     </section>
   )}
 
   {x.deal === 'rent'
-    ? <LeadSection context={`rental-${x.id}`} booking title={ti.book} submitLabel={ti.book} />
-    : <LeadSection context={`listing-${x.id}`} />}
+    ? <LeadSection n context={`rental-${x.id}`} booking title={ti.book} submitLabel={ti.book} />
+    : <LeadSection n context={`listing-${x.id}`} />}
 
   {similar.length > 0 && (
-    <section id="similar" class="container-x mt-20 scroll-mt-28">
-      <h2 class="display h-section mb-8">{ti.similar}</h2>
-      <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{similar.map((s) => <li><SaleCard x={s} /></li>)}</ul>
-      <a href={catUrl(lang, { country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type })} class="btn btn-ghost mt-8">{d.catalog.allIn(district?.in[lang] ?? city.in[lang])}<Icon name="arrowRight" class="size-4" /></a>
+    <section id="similar" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+      <h2 class="display h-section-n mb-6 lg:mb-8">{ti.similar}</h2>
+      <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{similar.map((s) => <li><SaleCard x={s} /></li>)}</ul>
+      <a href={catUrl(lang, { country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type })} class="btn-n btn-n-white mt-8">{d.catalog.allIn(district?.in[lang] ?? city.in[lang])}<Icon name="arrowRight" class="size-4" /></a>
     </section>
   )}
 </Base>
+<style>
+  .cur-chip { height: 28px; padding: 0 10px; border-radius: 1000px; border: .67px solid #d0d1d7; font-size: 12px; font-weight: 500; color: var(--color-soft); transition: color .2s, border-color .2s; }
+  .cur-chip:hover, .cur-chip.is-on { color: var(--color-ink); border-color: var(--color-ink); }
+  .about-text { font-size: 16px; line-height: 22px; letter-spacing: .2px; color: var(--color-ink-n); }
+  .about-text[data-clamped] { max-height: 264px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+</style>
 <script>
   import { T, pageLocale } from '../scripts/client';
   import { mountMap } from '../scripts/map';
@@ -239,7 +268,7 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
   box?.addEventListener('click', async (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cur]');
     if (!b || !eur) return;
-    box.querySelectorAll('[data-cur]').forEach((x) => { x.setAttribute('aria-pressed', String(x === b)); x.classList.toggle('!border-ink', x === b); });
+    box.querySelectorAll('[data-cur]').forEach((x) => { x.setAttribute('aria-pressed', String(x === b)); x.classList.toggle('is-on', x === b); });
     const out = box.querySelector<HTMLElement>('[data-cur-out]')!;
     if (b.dataset.cur === 'EUR') { out.textContent = ''; return; }
     try {
@@ -251,6 +280,14 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
   document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
     v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }));
+  // «Показать ещё» у длинного описания
+  const txt = document.querySelector<HTMLElement>('[data-clamp]');
+  const more = document.querySelector<HTMLButtonElement>('[data-clamp-btn]');
+  if (txt && more && txt.scrollHeight > 340) {
+    txt.dataset.clamped = '';
+    more.hidden = false;
+    more.addEventListener('click', () => { delete txt.dataset.clamped; more.hidden = true; });
+  }
   const mapEl = document.querySelector<HTMLElement>('[data-map]');
   if (mapEl) {
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });

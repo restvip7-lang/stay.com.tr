@@ -8,14 +8,14 @@ const d = t(Astro.locals.lang ?? 'ru');
 const list = images.length ? images : [null];
 ---
 <div data-gallery>
-  <div class="relative aspect-[4/3] overflow-hidden rounded-[16px]">
+  <div class="relative aspect-[4/3] overflow-hidden rounded-[16px] lg:aspect-[3/2]">
     <Img src={list[0]} alt={`${alt} — ${d.photo} 1`} class="size-full" loading="eager" priority width={960} height={720} />
-    <span class="chip absolute bottom-3 right-3" data-counter>{list.length > 1 ? `1 / ${list.length}` : ''}</span>
+    <span class="absolute bottom-3 right-3 rounded-full bg-[#1c1e2680] px-3 py-1.5 text-[11px] font-medium tracking-[1px] text-white backdrop-blur empty:hidden" data-counter>{list.length > 1 ? `1 / ${list.length}` : ''}</span>
   </div>
   {list.length > 1 && (
     <div class="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-7">
       {list.map((src, i) => (
-        <button type="button" data-thumb={src} data-i={i} data-alt={`${alt} — ${d.photo} ${i + 1}`} class:list={['aspect-square overflow-hidden rounded-[10px] ring-ink ring-offset-2', i === 0 && 'ring-2']} aria-label={`${d.photo} ${i + 1}`}>
+        <button type="button" data-thumb={src} data-i={i} data-alt={`${alt} — ${d.photo} ${i + 1}`} class:list={['aspect-square overflow-hidden rounded-[10px] ring-accent ring-offset-2', i === 0 && 'ring-2']} aria-label={`${d.photo} ${i + 1}`}>
           <Img src={src} alt="" class="size-full" width={120} height={120} />
         </button>
       ))}

@@ -1,12 +1,13 @@
 ---
+/** Тёмная форма «Хотите узнать больше?» как в образце: слева форма, справа шаги работы. n — новая сетка (1312). */
 import LeadForm from './LeadForm.astro';
 import HowItWorks from './HowItWorks.astro';
-interface Props { context?: string; steps?: string[]; submitLabel?: string; booking?: boolean; title?: string; subtitle?: string }
-const { context = 'page', steps, submitLabel, booking = false, title, subtitle } = Astro.props;
+interface Props { context?: string; steps?: string[]; submitLabel?: string; booking?: boolean; title?: string; subtitle?: string; n?: boolean }
+const { context = 'page', steps, submitLabel, booking = false, title, subtitle, n = false } = Astro.props;
 ---
-<section id="lead" class="container-x mt-20 scroll-mt-24 md:mt-28">
-  <div class="card grid gap-12 p-6 md:grid-cols-2 md:p-12">
-    <LeadForm context={context} submitLabel={submitLabel} booking={booking} title={title} subtitle={subtitle} />
-    <HowItWorks steps={steps} />
+<section id="lead" class:list={[n ? 'container-n mt-20 lg:mt-28' : 'container-x mt-15 lg:mt-20', 'scroll-mt-24']}>
+  <div class="grid gap-10 rounded-[20px] bg-ink-n p-5 text-white md:grid-cols-2 md:gap-12 md:p-10">
+    <LeadForm context={context} submitLabel={submitLabel} booking={booking} title={title} subtitle={subtitle} dark />
+    <HowItWorks steps={steps} dark />
   </div>
 </section>
