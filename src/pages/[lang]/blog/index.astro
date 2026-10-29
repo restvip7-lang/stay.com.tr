@@ -18,7 +18,7 @@ const url = blogUrl(lang);
 <Base title={`${d.pages.blog} Stay Property — ${BLOG_CAT_NAME[lang].laws.toLocaleLowerCase(lang)}, ${BLOG_CAT_NAME[lang]['area-guides'].toLocaleLowerCase(lang)}`} description={d.pages.blogLead} alternates={allLangs(url)}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.blog }]} />
-    <h1 class="display h-page mt-6">{d.pages.blog}</h1>
+    <h1 class="display h-page-lg mt-6">{d.pages.blog}</h1>
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.blogLead}</p>
     <nav aria-label={d.pages.categories} class="mt-8 flex flex-wrap gap-2">
       {groups.map((g) => <a href={blogUrl(lang, g.cat)} class="chip hover:border-ink">{BLOG_CAT_NAME[lang][g.cat]}</a>)}

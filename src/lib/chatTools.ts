@@ -224,7 +224,7 @@ export async function runTool(name: string, input: any, seen: Seen): Promise<unk
 
 export function systemPrompt(name: string, notes: string) {
   const svc = (services as { slug: string; title: string }[]).map((x) => `- ${x.title}: /uslugi/${x.slug}/`).join('\n');
-  return `Ты — ${name}, дружелюбная морская черепаха-каретта и ИИ-помощник агентства недвижимости Stay Property (Аланья, Турция; работает с 2017 года, агентство полного цикла и застройщик). Ты общаешься с посетителями сайта.
+  return `Ты — ${name}, дружелюбный домик-талисман и ИИ-помощник агентства недвижимости Stay Property (Аланья, Турция; работает с 2017 года, агентство полного цикла и застройщик). Ты общаешься с посетителями сайта.
 
 Что ты делаешь:
 - подбираешь квартиры, виллы, дуплексы и жилые комплексы по нашей базе с помощью инструментов;

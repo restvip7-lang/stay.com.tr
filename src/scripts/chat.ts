@@ -1,4 +1,4 @@
-/** Клиентская часть чата с Кареттой. История хранится в браузере посетителя. */
+/** Клиентская часть чата с Доми. История хранится в браузере посетителя. */
 
 interface Card { kind: string; id: string; title: string; subtitle: string; price: string; image: string | null; url: string; prive: boolean }
 interface Msg { role: 'user' | 'assistant'; content: string; cards?: Card[] }
@@ -145,6 +145,7 @@ export async function initChat() {
   const open = () => {
     root.classList.add('is-open');
     panel.hidden = false;
+    $('[data-chat-open]').setAttribute('aria-expanded', 'true');
     hint.hidden = true;
     try { localStorage.setItem(HINT, '1'); } catch { /* */ }
     draw();
@@ -153,6 +154,7 @@ export async function initChat() {
   const close = () => {
     root.classList.remove('is-open');
     panel.hidden = true;
+    $('[data-chat-open]').setAttribute('aria-expanded', 'false');
     $('[data-chat-open]').focus();
   };
 

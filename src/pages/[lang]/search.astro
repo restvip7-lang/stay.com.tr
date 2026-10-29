@@ -37,7 +37,7 @@ const found = items.length + complexes.length + posts.length;
 <Base title={q ? `${d.pages.search}: ${q}` : d.pages.search} description={d.pages.searchPh} robots="noindex,follow" canonical={`/${lang}/search/`}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.search }]} />
-    <h1 class="display h-page mt-6">{d.pages.search}</h1>
+    <h1 class="display h-page-lg mt-6">{d.pages.search}</h1>
     <form action={`/${lang}/search/`} class="mt-8 flex max-w-2xl gap-2" role="search">
       <label for="q" class="sr-only">{d.pages.search}</label>
       <input id="q" name="q" type="search" value={q} class="field" placeholder={d.pages.searchPh} />

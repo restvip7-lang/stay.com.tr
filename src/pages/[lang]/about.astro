@@ -21,7 +21,7 @@ const url = `/${lang}/about/`;
 <Base title={`${a.title} — ${d.footer.company}`} description={a.description} alternates={allLangs(url)} image={ABOUT_IMAGE}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.about }]} />
-    <h1 class="display h-page mt-6 max-w-5xl">{a.title}</h1>
+    <h1 class="display h-page-lg mt-6 max-w-5xl">{a.title}</h1>
     <p class="mt-4 font-display text-xl tracking-[-0.01em] text-ink/70 md:text-2xl">{a.subtitle}</p>
     <div class="mt-12 grid gap-10 md:grid-cols-2">
       {lang === 'ru'

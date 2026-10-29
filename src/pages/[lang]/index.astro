@@ -64,7 +64,7 @@ const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale
         { label: h.villas, href: catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale', type: 'villas' }) },
         { label: h.duplexes, href: catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale', type: 'duplexes' }) },
       ].map((x) => (
-        <a href={x.href} class="card flex min-h-24 items-end justify-between p-4 text-lg font-medium transition-colors hover:border-ink">{x.label}<Icon name="arrowRight" class="size-5" /></a>
+        <a href={x.href} class="card flex min-h-24 items-end justify-between p-4 text-lg font-medium transition-shadow hover:shadow-[var(--shadow-card)]">{x.label}<Icon name="arrowRight" class="size-5" /></a>
       ))}
     </div>
     <div class="hidden lg:block"><CatalogFilter cat={turkeySale} f={noFilters()} total={saleAll.length} mode="home" /></div>
@@ -92,7 +92,7 @@ const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale
       </div>
       <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
         {alanya.districts.map((x) => (
-          <li><a href={x.href} class="card flex min-h-24 flex-col justify-between p-4 transition-colors hover:border-ink"><span class="text-lg font-medium">{x.name}</span><span class="text-sm text-muted">{d.catalog.colCount}: {x.n}</span></a></li>
+          <li><a href={x.href} class="card flex min-h-24 flex-col justify-between p-4 transition-shadow hover:shadow-[var(--shadow-card)]"><span class="text-lg font-medium">{x.name}</span><span class="text-sm text-muted">{d.catalog.colCount}: {x.n}</span></a></li>
         ))}
       </ul>
     </section>
@@ -105,7 +105,7 @@ const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale
     </div>
     <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {SERVICES.slice(0, 6).map((x) => (
-        <li><a href={serviceUrl(lang, x.slug)} class="card flex h-full flex-col p-5 transition-colors hover:border-ink"><span class="text-lg font-medium">{x.tr[lang].title}</span><span class="mt-2 text-sm text-muted">{x.tr[lang].lead}</span></a></li>
+        <li><a href={serviceUrl(lang, x.slug)} class="card flex h-full flex-col p-5 transition-shadow hover:shadow-[var(--shadow-card)]"><span class="text-lg font-medium">{x.tr[lang].title}</span><span class="mt-2 text-sm text-muted">{x.tr[lang].lead}</span></a></li>
       ))}
     </ul>
   </section>

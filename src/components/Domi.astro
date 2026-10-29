@@ -1,0 +1,58 @@
+---
+/**
+ * Доми — ИИ-помощник Stay Property, домик с фиолетовой крышей.
+ * Спрайт 2×2 (public/mascot/domi-sprites.webp): 0 — исходный, 1 — моргает, 2 и 3 — машет ладонью.
+ * animated — дыхание, моргание и приветствие (скрипт ниже); без него — статичный кадр.
+ */
+interface Props { size?: number; class?: string; animated?: boolean }
+const { size = 96, class: cls, animated = false } = Astro.props;
+---
+<span class:list={['domi', animated && 'domi-live', cls]} style={`--domi:${size}px`} data-domi={animated ? '' : undefined} data-frame="0" aria-hidden="true"></span>
+
+<style is:global>
+  .domi { display: block; width: var(--domi); height: var(--domi); background: url('/mascot/domi-sprites.webp') 0 0 / 200% 200% no-repeat; pointer-events: none; }
+  .domi[data-frame="1"] { background-position: 100% 0; }
+  .domi[data-frame="2"] { background-position: 0 100%; }
+  .domi[data-frame="3"] { background-position: 100% 100%; }
+  .domi-live { transform-origin: 50% 95%; animation: domi-breathe 4s ease-in-out infinite; }
+  @keyframes domi-breathe { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-3px) scale(1.012, 1.018); } }
+  @media (prefers-reduced-motion: reduce) { .domi-live { animation: none; } }
+</style>
+
+<script>
+  // Моргание раз в 4,3 с, приветствие после загрузки, при наведении/фокусе на кнопку и раз в 18 с.
+  // Жест не прерывается другим; в скрытой вкладке и при reduced-motion таймеры не работают.
+  const els = [...document.querySelectorAll<HTMLElement>('[data-domi]')];
+  if (els.length) {
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+    let timers: number[] = [];
+    let busy = false;
+    let loops: number[] = [];
+    const frame = (n: number) => els.forEach((e) => (e.dataset.frame = String(n)));
+    const reset = () => { timers.forEach(clearTimeout); timers = []; busy = false; frame(0); };
+    const play = (seq: [number, number][]) => {
+      if (busy || reduced.matches || document.hidden) return;
+      busy = true;
+      seq.forEach(([ms, n]) => timers.push(window.setTimeout(() => frame(n), ms)));
+      timers.push(window.setTimeout(() => { busy = false; timers = []; }, seq[seq.length - 1][0] + 20));
+    };
+    const blink = () => play([[0, 1], [140, 0]]);
+    const wave = () => play([[0, 2], [220, 3], [440, 2], [660, 3], [880, 2], [1100, 0]]);
+    const start = () => {
+      stop();
+      if (reduced.matches || document.hidden) return;
+      loops = [window.setInterval(blink, 4300), window.setInterval(wave, 18000)];
+    };
+    const stop = () => { loops.forEach(clearInterval); loops = []; reset(); };
+    document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+    reduced.addEventListener('change', start);
+    els.forEach((e) => {
+      const btn = e.closest('button');
+      btn?.addEventListener('pointerenter', wave);
+      btn?.addEventListener('focus', wave);
+    });
+    const img = new Image();
+    img.onload = () => { start(); window.setTimeout(wave, 700); };
+    img.src = '/mascot/domi-sprites.webp';
+  }
+</script>

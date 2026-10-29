@@ -31,7 +31,7 @@ const crumbs = [{ label: d.home, href: `/${lang}/` }, { label: d.pages.services,
 <Base title={`${tx.title} | Stay Property`} description={tx.description} alternates={allLangs(url)} image={img} jsonLd={serviceLd({ url, name: tx.title, description: tx.description, lang })}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={crumbs} />
-    <h1 class="display h-page mt-6 max-w-5xl">{tx.title}</h1>
+    <h1 class="display h-page-lg mt-6 max-w-5xl">{tx.title}</h1>
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{tx.lead}</p>
   </section>
   {img && <div class="container-x mt-10"><div class="overflow-hidden rounded-[var(--radius-big)]"><Img src={img} alt={tx.title} class="aspect-[21/8] w-full" loading="eager" priority /></div></div>}

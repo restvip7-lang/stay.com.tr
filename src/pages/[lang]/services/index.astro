@@ -20,7 +20,7 @@ const title = `${d.pages.services} Stay Property`;
 <Base title={title} description={d.pages.servicesLead} alternates={allLangs(url)} jsonLd={itemListLd(SERVICES.map((s) => ({ url: SITE + serviceUrl(lang, s.slug), name: s.tr[lang].title })))}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.services }]} />
-    <h1 class="display h-page mt-6">{d.pages.services}</h1>
+    <h1 class="display h-page-lg mt-6">{d.pages.services}</h1>
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.servicesLead}</p>
     <div class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {SERVICES.map((s) => {

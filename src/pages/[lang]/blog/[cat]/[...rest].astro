@@ -119,7 +119,7 @@ const upd = monthYearL(lang);
         jsonLd={list.posts.length ? itemListLd(list.posts.map((p) => ({ url: SITE + p.href, name: p.title }))) : undefined}>
     <section class="container-x pt-6 md:pt-10">
       <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.blog, href: blogUrl(lang) }, { label: BLOG_CAT_NAME[lang][cat], href: list.page > 1 ? listUrl : undefined }, ...(list.page > 1 ? [{ label: d.page(list.page) }] : [])]} />
-      <h1 class="display h-page mt-6">{BLOG_CAT_NAME[lang][cat]}</h1>
+      <h1 class="display h-page-lg mt-6">{BLOG_CAT_NAME[lang][cat]}</h1>
       <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{BLOG_CAT_LEAD[lang][cat]}</p>
       {list.posts.length
         ? <ul class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{list.posts.map((p) => <li><PostCard p={p} headingLevel="h2" /></li>)}</ul>

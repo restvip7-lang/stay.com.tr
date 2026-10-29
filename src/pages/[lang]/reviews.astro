@@ -18,7 +18,7 @@ const ld = reviewsLd(REVIEWS.map((r) => ({ author: r.name, date: r.year || undef
 <Base title={`${d.pages.reviews} — Stay Property`} description={d.pages.reviewsLead} alternates={allLangs(url)} jsonLd={ld ?? undefined}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.reviews }]} />
-    <h1 class="display h-page mt-6">{d.pages.reviews}</h1>
+    <h1 class="display h-page-lg mt-6">{d.pages.reviews}</h1>
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.reviewsLead}</p>
     <div class="mt-10 columns-1 gap-3 md:columns-2 lg:columns-3">
       {REVIEWS.map((r) => (

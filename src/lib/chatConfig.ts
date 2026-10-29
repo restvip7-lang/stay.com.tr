@@ -37,8 +37,8 @@ const DEFAULTS: ChatSettings = {
   enabled: true,
   provider: 'anthropic',
   model: DEFAULT_MODELS.anthropic,
-  name: 'Каретта',
-  greeting: 'Привет! Я Каретта, морская черепаха и помощник Stay Property. Подберу квартиру или виллу в Турции, расскажу про районы, рассрочку и ВНЖ. С чего начнём?',
+  name: 'Доми',
+  greeting: 'Привет! Я Доми, домик-помощник Stay Property. Подберу квартиру или виллу в Турции, расскажу про районы, рассрочку и ВНЖ. С чего начнём?',
   notes: '',
   apiKeyEnc: null,
   apiKeyHint: null,
@@ -75,8 +75,13 @@ function decrypt(enc: string): string | null {
   }
 }
 
+// Старое имя помощника (Каретта) заменено на Доми: сохранённые в админке имя и приветствие с ним сбрасываем на новые.
+const OLD_NAME = /Каретт/;
+
 function normalize(x: any): ChatSettings {
   const o = { ...DEFAULTS, ...(x && typeof x === 'object' ? x : {}) };
+  if (typeof o.name === 'string' && OLD_NAME.test(o.name)) o.name = DEFAULTS.name;
+  if (typeof o.greeting === 'string' && OLD_NAME.test(o.greeting)) o.greeting = DEFAULTS.greeting;
   const provider: ChatProvider = o.provider === 'openai' ? 'openai' : 'anthropic';
   const str = (v: unknown, max: number, def: string) => (typeof v === 'string' ? v.slice(0, max) : def);
   return {
