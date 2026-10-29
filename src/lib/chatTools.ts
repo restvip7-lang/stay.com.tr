@@ -5,6 +5,7 @@
 import { getComplex, getFacets, getListing, getProjects, searchListings, type Listing, type Project } from './api';
 import services from '../content/data/services.json';
 import { site } from './site';
+import { getMarks, LABEL_TEXT, type Marks } from './objectsConfig';
 
 type Schema = Record<string, unknown>;
 export interface ToolDef { name: string; description: string; schema: Schema }
@@ -74,9 +75,11 @@ export interface ChatCard { kind: 'listing' | 'project'; id: string; title: stri
 
 const eur = (n: number | null | undefined) => (n ? `${Math.round(n).toLocaleString('ru-RU')} €` : 'цена по запросу');
 
-function listingBrief(x: Listing) {
+function listingBrief(x: Listing, marks: Marks = {}) {
+  const label = marks[String(x.id)]?.label;
   return {
     id: x.id,
+    status: label ? LABEL_TEXT.ru[label] : undefined,
     title: x.title,
     type: x.typeLabel,
     rooms: x.rooms,
@@ -167,15 +170,19 @@ export async function runTool(name: string, input: any, seen: Seen): Promise<unk
         sort: ['price-asc', 'price-desc', 'new'].includes(a.sort) ? a.sort : undefined,
         perPage: clampN(a.limit, 1, 8, 5),
       });
-      r.items.forEach((x) => seen.listings.set(x.id, x));
-      return { total_found: r.total, items: r.items.map(listingBrief) };
+      // Скрытые в админке объекты помощник не предлагает.
+      const marks = await getMarks();
+      const items = r.items.filter((x) => !marks[String(x.id)]?.hidden);
+      items.forEach((x) => seen.listings.set(x.id, x));
+      return { total_found: r.total, items: items.map((x) => listingBrief(x, marks)) };
     }
     case 'get_listing': {
       const id = String(a.id ?? '').slice(0, 40);
       const x = await getListing(id, a.operation === 'rental' ? 'rental' : 'sale').catch(() => null);
-      if (!x) return { error: 'Объект не найден' };
+      const marks = await getMarks();
+      if (!x || marks[String(x.id)]?.hidden) return { error: 'Объект не найден' };
       seen.listings.set(x.id, x);
-      return { ...listingBrief(x), floor: x.floor, year_built: x.yearBuilt, price_per_m2: x.pricePerSquare, description: strip(x.html, 1500), photos: x.images.length };
+      return { ...listingBrief(x, marks), floor: x.floor, year_built: x.yearBuilt, price_per_m2: x.pricePerSquare, description: strip(x.html, 1500), photos: x.images.length };
     }
     case 'list_projects': {
       const q = s(a.query)?.toLowerCase();

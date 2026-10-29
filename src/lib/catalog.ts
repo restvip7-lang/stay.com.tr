@@ -6,6 +6,7 @@
 import type { Lang } from '../i18n/config';
 import { rawListings, rawUnits, citizenshipIds, getProjects, fixImage, type Project, type RawListing } from './api';
 import { resolveGeo, countryBySlug, cityBySlug, districtBySlug, slugify, CITIES, COUNTRIES, NEIGHBOURS } from './geo';
+import { getMarks, type Label, type Marks } from './objectsConfig';
 import { featuresOf, featureDef, featureAllowed, FEATURES, TYPES, DEALS, type Deal, type FeatureSlug, type TypeSlug } from './segments';
 
 export interface Item {
@@ -32,6 +33,10 @@ export interface Item {
   /** Квартира из проектов Stay (Битрикс) — описаний и переводов нет. */
   unit: boolean;
   citizenship: boolean;
+  /** Ярлык из админки («Продано», «Срочно»…). */
+  label?: Label | null;
+  /** Закреплён в админке — первым в выдаче. */
+  pinned?: boolean;
 }
 
 const TYPE_MAP: Record<string, TypeSlug> = {
@@ -85,14 +90,40 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false): I
 
 let memo: { at: number; items: Item[]; units: Item[] } | null = null;
 
-/** Все объекты каталога (продажа + аренда из Portfolio). */
-export async function getItems(): Promise<Item[]> {
-  return (await load()).items;
+/** Отметки админки поверх базы: скрытые убираем, ярлык и закрепление проставляем. */
+const marked = new WeakMap<Item[], { marks: Marks; all: Item[]; visible: Item[] }>();
+async function withMarks(list: Item[]) {
+  const marks = await getMarks();
+  const hit = marked.get(list);
+  if (hit && hit.marks === marks) return hit;
+  const all = list.map((x) => {
+    const m = marks[x.id];
+    return m ? { ...x, label: m.label ?? null, pinned: !!m.pinned } : x;
+  });
+  const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
+  marked.set(list, v);
+  return v;
 }
 
-/** Квартиры в проектах Stay (для режима PRIVE, «Гражданство ТР» и страниц ЖК). */
+/** Все объекты каталога (продажа + аренда из Portfolio), без скрытых в админке. */
+export async function getItems(): Promise<Item[]> {
+  return (await withMarks((await load()).items)).visible;
+}
+
+/** Квартиры в проектах Stay (для режима PRIVE, «Гражданство ТР» и страниц ЖК), без скрытых. */
 export async function getUnits(): Promise<Item[]> {
-  return (await load()).units;
+  return (await withMarks((await load()).units)).visible;
+}
+
+/** Для админки: все объекты вместе со скрытыми. */
+export async function getAllForAdmin(): Promise<Item[]> {
+  const m = await load();
+  return [...(await withMarks(m.items)).all, ...(await withMarks(m.units)).all];
+}
+
+/** Объект скрыт в админке — его страница отдаёт 410. */
+export async function isHidden(id: string): Promise<boolean> {
+  return !!(await getMarks())[id]?.hidden;
 }
 
 async function load() {
@@ -417,6 +448,9 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   if (f.sort === 'area-desc') out = out.toSorted(by((x) => -(x.area ?? 0)));
   if (f.sort === 'sea-asc') out = out.toSorted(by((x) => x.sea ?? Infinity));
   if (f.sort === 'new') out = out.toSorted(by((x) => -Number(String(x.id).replace(/\D/g, ''))));
+  // Закреплённые в админке — первыми в выдаче по умолчанию, проданные — в конце при любой сортировке.
+  if (f.sort === 'new') out = out.toSorted(by((x) => (x.pinned ? 0 : 1)));
+  out = out.toSorted(by((x) => (x.label === 'sold' ? 1 : 0)));
   return out;
 }
 

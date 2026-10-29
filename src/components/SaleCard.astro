@@ -11,6 +11,7 @@ import { cityBySlug, districtBySlug } from '../lib/geo';
 import { FEATURE_LABEL, TYPE_WORDS } from '../lib/segments';
 import { moneyL, numL } from '../lib/format';
 import { t } from '../i18n/ui';
+import { LABEL_TEXT, LABEL_STYLE } from '../lib/objectsConfig';
 
 interface Props { x: Item; headingLevel?: 'h2' | 'h3' }
 const { x, headingLevel = 'h3' } = Astro.props;
@@ -30,9 +31,10 @@ const H = headingLevel;
 ---
 <article class="sale-card card group relative flex h-full flex-col p-2 shadow-[var(--shadow-card)]">
   <div class="sc-img relative aspect-[4/3] overflow-hidden rounded-[16px]">
-    <Img src={x.image} alt={alt} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" width={640} height={480} />
+    <Img src={x.image} alt={alt} class={`size-full transition-transform duration-700 group-hover:scale-[1.03]${x.label === 'sold' ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
     <span class="absolute left-3 top-3 flex flex-wrap gap-1.5">
       <span class="chip chip-accent !text-[11px]">{x.deal === 'rent' ? d.rent : d.sale}</span>
+      {x.label && <span class="chip !text-[11px]" style={`${LABEL_STYLE[x.label]};border-color:transparent`}>{LABEL_TEXT[lang][x.label]}</span>}
       {x.isPrivate && <span class="chip !text-[11px]" style="background:#bc906e;color:#fff;border-color:transparent">PRIVE</span>}
     </span>
   </div>

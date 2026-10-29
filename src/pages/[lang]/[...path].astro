@@ -9,7 +9,7 @@ import ComplexesPage from '../../components/ComplexesPage.astro';
 import ComplexPage from '../../components/ComplexPage.astro';
 import NotFound from '../../components/NotFound.astro';
 import { isLang } from '../../i18n/config';
-import { parseRoute, whitelistFeature, catUrl, findItem, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
+import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
 import { findSeen, daysSince, SOLD_DAYS } from '../../lib/seen';
 
 const lang = Astro.params.lang;
@@ -47,6 +47,9 @@ if (route && isLang(lang)) {
       const canon = itemUrl(lang, item);
       if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
       view = 'item';
+    } else if (await isHidden(route.id)) {
+      // Снят с сайта в админке.
+      view = '410';
     } else {
       // Пропал из API: «Продано» с похожими SOLD_DAYS дней, потом 410.
       const s = await findSeen(route.cat.deal, route.id);
@@ -68,6 +71,6 @@ if (route && isLang(lang)) {
 {view === 'cat' && route && (route.kind === 'hub' || route.kind === 'listing') && <CategoryPage cat={route.cat} page={route.kind === 'listing' ? route.page : 1} hub={route.kind === 'hub'} />}
 {view === 'complexes' && route?.kind === 'complexes' && <ComplexesPage cat={route.cat} page={route.page} />}
 {view === 'complex' && complex && <ComplexPage c={complex} />}
-{view === 'item' && item && <ItemPage x={item} sold={sold} soldAt={soldAt} />}
+{view === 'item' && item && <ItemPage x={item} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
 {view === '404' && <NotFound />}
 {view === '410' && <NotFound gone />}

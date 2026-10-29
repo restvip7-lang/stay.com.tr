@@ -43,7 +43,7 @@ const priveList = [...priveCfg, ...complexes.filter((p) => p.isPrivate && !prive
 
 const turkeySale = { country: 'turkey', deal: 'sale' as const };
 const saleAll = await itemsOf(turkeySale);
-const newest = saleAll.filter((x) => x.image).slice(0, 8);
+const newest = saleAll.filter((x) => x.image && x.label !== 'sold').toSorted((a, b) => Number(!!b.pinned) - Number(!!a.pinned)).slice(0, 8);
 // «Цены от» — по жилью дороже 10 000 €: парковки и ошибки ввода не попадают в текст.
 const s = stats(saleAll.filter((x) => (x.price ?? 0) >= 10_000 && x.type !== 'land' && x.type !== 'commercial'));
 const alanya = cities.find((c) => c.slug === 'alanya');

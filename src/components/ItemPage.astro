@@ -12,6 +12,7 @@ import LeadSection from './LeadSection.astro';
 import SaleCard from './SaleCard.astro';
 import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
+import { LABEL_TEXT, LABEL_STYLE } from '../lib/objectsConfig';
 import { LANGS, SITE, type Lang } from '../i18n/config';
 import { getDetailL, type DetailL } from '../lib/api';
 import { getItems, getUnits, itemUrl, catUrl, countOf, getComplexes, complexUrl, INDEX_MIN, type Item } from '../lib/catalog';
@@ -86,7 +87,7 @@ const chipLinks = (await Promise.all(x.features.filter((f) => !/price-to/.test(f
 // Похожие: та же сделка, город и тип, цена ±20%; сначала тот же район.
 const pool = x.unit ? await getUnits() : await getItems();
 const similar = pool
-  .filter((y) => y.id !== x.id && y.deal === x.deal && y.city === x.city && y.type === x.type && (!x.price || (y.price && Math.abs(y.price - x.price) <= x.price * 0.2)))
+  .filter((y) => y.id !== x.id && y.label !== 'sold' && y.deal === x.deal && y.city === x.city && y.type === x.type && (!x.price || (y.price && Math.abs(y.price - x.price) <= x.price * 0.2)))
   .sort((a, b) => Number(b.district === x.district) - Number(a.district === x.district) || Math.abs((a.price ?? 0) - (x.price ?? 0)) - Math.abs((b.price ?? 0) - (x.price ?? 0)))
   .slice(0, 6);
 
@@ -112,7 +113,7 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
     {sold && (
       <div class="mt-6 rounded-[var(--radius-card)] bg-ink p-5 text-white md:p-6" role="status">
         <p class="text-xl font-medium">{d.sold}</p>
-        <p class="mt-1 text-white/70">{d.pages.goneText}{soldAt ? ` · ${dateL(lang, soldAt)}` : ''}</p>
+        {soldAt && <p class="mt-1 text-white/70">{d.pages.goneText} · {dateL(lang, soldAt)}</p>}
         <a href="#similar" class="btn btn-outline-light mt-4">{ti.similar}</a>
       </div>
     )}
@@ -151,6 +152,7 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
             </div>
           </div>
           <p class="mt-1 text-muted">{place}</p>
+          {x.label && x.label !== 'sold' && <p class="mt-3"><span class="chip" style={`${LABEL_STYLE[x.label]};border-color:transparent`}>{LABEL_TEXT[lang][x.label]}</span></p>}
           <p class:list={['display mt-6 text-[clamp(32px,3.4vw,44px)]', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''}>{price}</p>
           {x.price && (
             <div class="mt-2 flex flex-wrap items-center gap-2 text-sm" data-currency>

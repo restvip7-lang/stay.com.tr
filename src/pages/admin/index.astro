@@ -118,6 +118,18 @@ if (authed) {
           </div>
         </section>
 
+        <section class="card mt-6 p-6" id="objects">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-medium">Объекты</h2>
+              <p class="mt-1 max-w-3xl text-sm text-muted">Отметки поверх базы, сама база не меняется. Ярлык видно на карточке и странице объекта; «Продано» — плашка, объект остаётся на сайте и уходит в конец выдачи. «Закрепить» — первым в каталоге и в блоке новинок на главной. «Скрыть» — объект пропадает с сайта, его страница отдаёт 410. Сохраняется сразу, на сайте — в течение минуты.</p>
+            </div>
+            <span data-o-count class="text-sm text-muted"></span>
+          </div>
+          <input data-o-search class="field mt-5" placeholder="Поиск: код объекта, id, название, район. Пусто — объекты с отметками" />
+          <ul data-o-list class="mt-3 grid max-h-[75vh] gap-2 overflow-auto pr-1"></ul>
+        </section>
+
         <section class="card mt-6 p-6" id="chat">
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -350,6 +362,76 @@ if (authed) {
           if (r.ok) { out.textContent = r.text; out.classList.remove('hidden'); }
         });
         fill(chat);
+      }
+    </script>
+    <script>
+      const list = document.querySelector<HTMLElement>('[data-o-list]');
+      if (list) {
+        const LABELS: [string, string][] = [['', 'Без ярлыка'], ['sold', 'Продано'], ['reserved', 'Забронировано'], ['urgent', 'Срочно'], ['discount', 'Скидка'], ['new', 'Новинка']];
+        const input = document.querySelector<HTMLInputElement>('[data-o-search]')!;
+        const count = document.querySelector<HTMLElement>('[data-o-count]')!;
+        const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+        const money = (n: number | null, deal: string) => (n ? '€' + n.toLocaleString('ru-RU') + (deal === 'rent' ? '/мес' : '') : 'по запросу');
+        const btn = 'h-9 rounded-full border border-line px-3 text-sm hover:border-ink';
+        const rows = new Map<string, any>();
+        function rowHtml(x: any) {
+          const m = x.mark || {};
+          return `<li data-o-row="${esc(x.id)}" class="flex flex-wrap items-center gap-3 rounded-2xl border border-line p-2 ${m.hidden ? 'opacity-50' : ''}">
+            ${x.image ? `<img src="${esc(x.image)}" alt="" class="size-12 shrink-0 rounded-xl object-cover bg-lavender-2" loading="lazy">` : '<span class="size-12 shrink-0 rounded-xl bg-lavender-2"></span>'}
+            <span class="min-w-0 flex-1 basis-60"><a href="${esc(x.url)}" target="_blank" class="block truncate font-medium hover:text-accent">${esc(x.title)}</a>
+              <span class="block truncate text-sm text-muted">${x.ref ? esc(x.ref) + ' · ' : ''}id ${esc(x.id)} · ${x.deal === 'rent' ? 'аренда' : 'продажа'} · ${esc(x.place)} · ${money(x.price, x.deal)}</span></span>
+            <select data-o-label class="field h-9 w-auto py-0 text-sm">${LABELS.map(([v, t]) => `<option value="${v}" ${(m.label || '') === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
+            <button data-o-pin class="${btn} ${m.pinned ? 'bg-accent text-white border-accent' : ''}">${m.pinned ? 'Закреплён' : 'Закрепить'}</button>
+            <button data-o-hide class="${btn} ${m.hidden ? 'bg-ink text-white border-ink' : ''}">${m.hidden ? 'Скрыт — показать' : 'Скрыть'}</button>
+            <span data-o-st class="w-24 text-xs text-muted"></span></li>`;
+        }
+        let seq = 0;
+        async function load() {
+          const my = ++seq;
+          const q = input.value.trim();
+          count.textContent = 'Ищу…';
+          const r = await fetch('/api/admin/objects?q=' + encodeURIComponent(q)).then((res) => res.json()).catch(() => null);
+          if (my !== seq) return;
+          if (!r) { count.textContent = 'Ошибка загрузки'; return; }
+          rows.clear();
+          r.items.forEach((x: any) => rows.set(String(x.id), x));
+          count.textContent = q ? `Найдено: ${r.total}${r.total > r.items.length ? `, показаны первые ${r.items.length}` : ''}` : `С отметками: ${r.marked}`;
+          list!.innerHTML = r.items.map(rowHtml).join('') || `<li class="text-muted">${q ? 'Ничего не нашлось.' : 'Отметок пока нет — найдите объект поиском.'}</li>`;
+        }
+        async function save(li: HTMLElement, mark: any) {
+          const id = li.dataset.oRow!;
+          const st = li.querySelector<HTMLElement>('[data-o-st]')!;
+          st.textContent = 'Сохраняю…';
+          const res = await fetch('/api/admin/objects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, mark }) });
+          const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+          if (!r.ok) { st.textContent = 'Ошибка: ' + (r.error || res.status); return; }
+          const x = { ...rows.get(id), mark: r.mark };
+          rows.set(id, x);
+          const tmp = document.createElement('ul');
+          tmp.innerHTML = rowHtml(x);
+          const fresh = tmp.firstElementChild as HTMLElement;
+          li.replaceWith(fresh);
+          fresh.querySelector<HTMLElement>('[data-o-st]')!.textContent = 'Сохранено';
+        }
+        list.addEventListener('change', (e) => {
+          const sel = (e.target as HTMLElement).closest<HTMLSelectElement>('[data-o-label]');
+          if (!sel) return;
+          const li = sel.closest<HTMLElement>('[data-o-row]')!;
+          save(li, { ...rows.get(li.dataset.oRow!)?.mark, label: sel.value || undefined });
+        });
+        list.addEventListener('click', (e) => {
+          const b = (e.target as HTMLElement).closest('button');
+          if (!b) return;
+          const li = b.closest<HTMLElement>('[data-o-row]')!;
+          const m = { ...rows.get(li.dataset.oRow!)?.mark };
+          if (b.hasAttribute('data-o-pin')) m.pinned = !m.pinned;
+          else if (b.hasAttribute('data-o-hide')) m.hidden = !m.hidden;
+          else return;
+          save(li, m);
+        });
+        let timer: number | undefined;
+        input.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(load, 300); });
+        load();
       }
     </script>
   </body>
