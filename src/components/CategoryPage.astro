@@ -152,30 +152,31 @@ const lead = hub
 const updated = dateL(lang, new Date());
 const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(async (dl) => ({ dl, k: (await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal: dl })).length })))).filter((x) => x.k > 0) : [];
 ---
-<Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={ld}>
-  <section class="container-x pt-6 md:pt-10">
+<Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={ld} system="new">
+  <!-- Шапка страницы и фильтры — белая панель с нижними углами 52 (каталог mr-group). -->
+  <section class="panel-b pb-4 pt-6 lg:pb-10 lg:pt-8"><div class="container-n">
     <Breadcrumbs items={crumbs} />
-    <h1 class="display h-page mt-6" data-prive-title={meta.h1}>{meta.h1}</h1>
-    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{lead}</p>
+    <h1 class="display h-page mt-6 lg:mt-8" data-prive-title={meta.h1}>{meta.h1}</h1>
+    <p class="mt-3 max-w-3xl text-[16px] leading-[22px] tracking-[0.2px] text-soft">{lead}</p>
 
     {hub && (
       <ul class="mt-8 grid gap-3 sm:grid-cols-3">
         {dealTiles.map(({ dl, k }) => (
-          <li><a href={catUrl(lang, { country: cat.country, city: cat.city, district: cat.district, deal: dl })} class="card flex min-h-28 items-end justify-between p-5 text-xl font-medium hover:border-ink">{DEAL_WORDS[lang][dl].name}<span class="text-muted">{numL(lang, k)}</span></a></li>
+          <li><a href={catUrl(lang, { country: cat.country, city: cat.city, district: cat.district, deal: dl })} class="tile-n flex min-h-28 items-end justify-between p-5 text-[16px] font-medium leading-[22px] transition-colors hover:bg-line">{DEAL_WORDS[lang][dl].name}<span class="text-muted">{numL(lang, k)}</span></a></li>
         ))}
-        {complexes.length > 0 && <li><a href={catUrl(lang, cat, { complexes: true })} class="card flex min-h-28 items-end justify-between p-5 text-xl font-medium hover:border-ink">{d.nav.complexes}<span class="text-muted">{numL(lang, complexes.length)}</span></a></li>}
+        {complexes.length > 0 && <li><a href={catUrl(lang, cat, { complexes: true })} class="tile-n flex min-h-28 items-end justify-between p-5 text-[16px] font-medium leading-[22px] transition-colors hover:bg-line">{d.nav.complexes}<span class="text-muted">{numL(lang, complexes.length)}</span></a></li>}
       </ul>
     )}
 
     {hub && children.length > 0 && (
       <section class="mt-14">
-        <h2 class="display mb-6 text-[clamp(26px,2.6vw,36px)]">{cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))}</h2>
+        <h2 class="display h-section-n mb-6">{cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))}</h2>
         <ul class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {children.map((ch) => (
             <li>
-              <a href={catUrl(lang, childCat(ch.slug))} class="group card relative block overflow-hidden p-1">
+              <a href={catUrl(lang, childCat(ch.slug))} class="group tile-n relative block overflow-hidden p-1">
                 <span class="block aspect-[4/3] overflow-hidden rounded-[16px]"><Img src={ch.image} alt={childName(ch.slug)} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" width={400} height={300} /></span>
-                <span class="flex items-center justify-between gap-2 px-3 py-3"><span class="font-medium">{childName(ch.slug)}</span><span class="text-sm text-muted">{numL(lang, ch.n)}</span></span>
+                <span class="flex items-center justify-between gap-2 px-3 py-3"><span class="text-[16px] font-medium leading-[22px]">{childName(ch.slug)}</span><span class="text-[14px] text-soft">{numL(lang, ch.n)}</span></span>
               </a>
             </li>
           ))}
@@ -184,66 +185,71 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
     )}
 
     {!hub && (
-      <div class="mt-10 md:mt-12"><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
+      <div class="mt-6 lg:mt-8"><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
     )}
-  </section>
+  </div></section>
 
-  <section class="mt-12 bg-white/60 py-10 md:mt-16 md:py-14">
-    <div class="container-x transition-opacity" data-swap="results">
+  <section class="mt-12 lg:mt-16">
+    <div class="container-n transition-opacity" data-swap="results">
       {hub ? (
         <div class="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <h2 class="display text-[clamp(26px,2.6vw,36px)]">{c.top}</h2>
-          <a href={catUrl(lang, { ...cat, deal: 'sale' })} class="btn btn-ghost">{c.allIn(geoIn(lang, g))}<Icon name="arrowRight" class="size-4" /></a>
+          <h2 class="display h-section-n">{c.top}</h2>
+          <a href={catUrl(lang, { ...cat, deal: 'sale' })} class="btn-n btn-n-white">{c.allIn(geoIn(lang, g))}<Icon name="arrowRight" class="size-4" /></a>
         </div>
       ) : (
-        <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <nav class="flex flex-wrap gap-2 text-sm" aria-label={d.filter.sort}>
-            {SORTS.map((k) => <a href={sortHref(k)} rel="nofollow" class:list={['chip px-4 py-2', f.sort === k && '!border-ink !bg-ink text-white']}>{d.sorts[k]}</a>)}
-          </nav>
-          <div class="flex gap-1 rounded-full border border-line bg-white p-1" role="group" aria-label={c.view}>
+        <div class="mb-6 flex flex-wrap items-center gap-4">
+          <!-- «Сортировать»: белая кнопка 50 со скруглением 12, список — ссылки nofollow -->
+          <details class="sort-dd relative">
+            <summary class="btn-n btn-n-white !px-3 !font-normal list-none"><Icon name="sort" class="size-4" />{d.sorts[f.sort]}<Icon name="chevronDown" class="size-4" /></summary>
+            <ul class="absolute left-0 top-full z-20 mt-2 min-w-56 rounded-[12px] bg-white p-1.5 shadow-[var(--shadow-btn)]" aria-label={d.filter.sort}>
+              {SORTS.map((k) => <li><a href={sortHref(k)} rel="nofollow" class:list={['block rounded-[8px] px-3 py-2 text-[14px] transition-colors hover:bg-page-n', f.sort === k && 'font-medium']} aria-current={f.sort === k ? 'true' : undefined}>{d.sorts[k]}</a></li>)}
+            </ul>
+          </details>
+          <p class="text-[14px] text-soft" data-swap="count">{d.filter.found} <b class="font-normal text-ink">{numL(lang, n)}</b></p>
+          <div class="ml-auto hidden gap-1 rounded-[12px] bg-white p-1 shadow-[var(--shadow-btn)] sm:flex" role="group" aria-label={c.view}>
             <button type="button" data-layout="grid" class="view-btn" aria-label={c.grid} title={c.grid}><Icon name="grid" /></button>
             <button type="button" data-layout="list" class="view-btn" aria-label={c.list} title={c.list}><Icon name="list" /></button>
           </div>
         </div>
       )}
       {shown.length ? (
-        <ul data-grid class="results-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{shown.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+        <ul data-grid class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{shown.map((x) => <li><SaleCard x={x} /></li>)}</ul>
       ) : (
         <>
-          <div class="card p-10 text-center">
-            <p class="display text-2xl">{n === 0 ? c.empty : c.nothing}</p>
-            <p class="mt-2 text-muted">{c.nothingText}</p>
-            <div class="mt-6 flex justify-center gap-3"><a href={base} class="btn btn-ghost">{c.resetFilter}</a><a href="#lead" class="btn btn-accent">{d.leaveRequest}</a></div>
+          <div class="card-n p-10 text-center">
+            <p class="display h-section-n">{n === 0 ? c.empty : c.nothing}</p>
+            <p class="mt-2 text-soft">{c.nothingText}</p>
+            <div class="mt-6 flex justify-center gap-3"><a href={base} class="btn-n btn-n-white">{c.resetFilter}</a><a href="#lead" class="btn-n btn-n-dark">{d.leaveRequest}</a></div>
           </div>
           {alternatives.length > 0 && (
             <>
-              <h2 class="display mb-6 mt-12 text-[clamp(24px,2.4vw,32px)]">{c.alternatives}</h2>
-              <ul class="results-grid grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{alternatives.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+              <h2 class="display h-section-n mb-6 mt-12">{c.alternatives}</h2>
+              <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{alternatives.map((x) => <li><SaleCard x={x} /></li>)}</ul>
             </>
           )}
         </>
       )}
       {!hub && page < pages && (
-        <div class="mt-10 flex justify-center"><a href={`${base}page-${page + 1}/${query ? `?${query}` : ''}`} data-more class="btn btn-ghost min-w-[240px]">{d.showMore}</a></div>
+        <div class="mt-10 flex justify-center"><a href={`${base}page-${page + 1}/${query ? `?${query}` : ''}`} data-more class="btn-n btn-n-white min-w-[240px]">{d.showMore}</a></div>
       )}
       {!hub && <div data-pager><Pagination page={page} pages={pages} base={base} query={query} /></div>}
     </div>
   </section>
 
-  <section class="container-x mt-6">
+  <section class="container-n mt-6">
     {refine.length > 0 && <LinkCloud title={c.refine} links={refine} />}
     {!cat.type && typeLinks.length > 1 && <LinkCloud title={c.refine} links={typeLinks} />}
     {childLinks.length > 0 && <LinkCloud title={cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))} links={childLinks} />}
   </section>
 
   {text && (
-    <section class="container-x mt-20 md:mt-24">
+    <section class="container-n mt-20 lg:mt-28">
       <div class="grid gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div class="prose-stay text-[17px]" set:html={text} />
         {priceRows.length > 0 && (
           <div>
             <h2 class="mb-4 text-xl font-medium tracking-[-0.01em]">{c.priceStats}</h2>
-            <div class="card overflow-x-auto">
+            <div class="card-n overflow-x-auto">
               <table class="w-full text-left text-[14px]">
                 <caption class="sr-only">{c.priceStats}: {meta.h1}</caption>
                 <thead class="text-muted"><tr><th scope="col" class="p-3 font-normal">{c.colType}</th><th scope="col" class="p-3 font-normal">{c.colCount}</th><th scope="col" class="p-3 font-normal">{c.colRange}</th>{deal === 'sale' && <th scope="col" class="p-3 font-normal">{c.colAvg}</th>}</tr></thead>
@@ -268,7 +274,7 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
 
   <Faq items={faq} />
 
-  <section class="container-x mt-16">
+  <section class="container-n mt-16">
     {!cat.type && typeLinks.length > 0 && hub && <LinkCloud title={c.otherTypes} links={typeLinks} />}
     {cat.type && <LinkCloud title={c.otherTypes} links={typeLinks.filter((l) => !l.current)} />}
     {nearLinks.length > 0 && <LinkCloud title={c.neighbours} links={nearLinks} />}
@@ -278,10 +284,10 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
     {cxMeta && !hub && <LinkCloud title={d.nav.complexes} links={[{ href: catUrl(lang, cat, { complexes: true }), text: cxMeta.h1, n: complexes.length }]} />}
     {(guide || laws.length > 0) && (
       <div class="mt-10 grid gap-3 md:grid-cols-2">
-        {guide && <a href={guide.href} class="card flex items-center justify-between gap-4 p-6 hover:border-ink"><span><span class="block text-sm text-muted">{c.guide(guide.name)}</span><span class="mt-1 block text-lg font-medium">{guide.title}</span></span><Icon name="arrowRight" class="size-5 shrink-0" /></a>}
+        {guide && <a href={guide.href} class="card-n flex items-center justify-between gap-4 p-5 transition-shadow hover:shadow-[var(--shadow-card)]"><span><span class="block text-sm text-muted">{c.guide(guide.name)}</span><span class="mt-1 block text-lg font-medium">{guide.title}</span></span><Icon name="arrowRight" class="size-5 shrink-0" /></a>}
         {laws.length > 0 && (
-          <div class="card p-6">
-            <p class="text-sm text-muted">{c.laws}</p>
+          <div class="card-n p-5">
+            <p class="text-sm text-soft">{c.laws}</p>
             <ul class="mt-2 space-y-1.5">{laws.map((l) => <li><a href={l.href} class="font-medium hover:text-accent">{l.title}</a></li>)}</ul>
           </div>
         )}
@@ -293,14 +299,16 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
 </Base>
 
 <style is:global>
-  .view-btn { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 999px; color: var(--color-muted); }
-  .view-btn[aria-pressed="true"] { background: var(--color-ink); color: #fff; }
+  .view-btn { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 8px; color: var(--color-muted); transition: background-color .2s, color .2s; }
+  .view-btn[aria-pressed="true"] { background: var(--color-page-n); color: var(--color-ink); }
+  .sort-dd > summary::-webkit-details-marker { display: none; }
+  .sort-dd:not([open]) > ul { display: none; }
   .view-list .results-grid { grid-template-columns: minmax(0, 1fr); }
   @media (min-width: 640px) {
-    .view-list .sale-card { display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 8px; }
-    .view-list .sc-img { grid-row: 1 / 3; grid-column: 1; }
+    .view-list .sale-card { display: grid; grid-template-columns: 300px minmax(0, 1fr); column-gap: 24px; }
+    .view-list .sc-img { grid-row: 1 / 3; grid-column: 1; margin-top: 0; }
+    .view-list .sc-head { grid-column: 2; }
     .view-list .sc-body { grid-column: 2; }
-    .view-list .sc-fav { top: 20px; left: 252px; right: auto; }
   }
 </style>
 <script>

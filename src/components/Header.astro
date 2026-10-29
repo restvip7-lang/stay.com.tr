@@ -1,22 +1,30 @@
 ---
 /**
- * Шапка: строка направлений (как на dev) + главное меню по ТЗ 6.3:
- * Продажа (выпадающее: города → популярные районы), Аренда, Новостройки, Услуги, Блог,
- * О компании, Контакты и переключатель языка — обычные ссылки на эту же страницу на другом языке.
+ * Шапка по эталону mr-group (замеры 29.10.2026):
+ * 1440 — две строки 78 + 44: логотип и направления, справа поиск, телефон, язык, избранное, бургер;
+ * ниже главное меню Suisse 14/400 цветом #bebbc9 (по наведению #5b5d67). 390 — одна строка 51.
+ * Поверх первого экрана шапка прозрачная с белым текстом, при прокрутке — белая.
+ * Бургер — белая панель со скруглением 15 на размытой подложке; на телефоне — аккордеон.
  */
 import Logo from './Logo.astro';
 import Icon from './Icon.astro';
+import Img from './Img.astro';
 import { site } from '../lib/site';
 import { LANGS, LANG_NAME, type Lang } from '../i18n/config';
 import { t } from '../i18n/ui';
 import { menuCities } from '../lib/nav';
-import { catUrl } from '../lib/catalog';
+import { catUrl, complexUrl, getComplexes } from '../lib/catalog';
+import { getHomeConfig } from '../lib/homeConfig';
 
 interface Props { overlay?: boolean; alternates?: Partial<Record<Lang, string>> | null }
 const { overlay = false, alternates } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
-const cities = await menuCities(lang).catch(() => []);
+const [cities, complexes, homeCfg] = await Promise.all([menuCities(lang).catch(() => []), getComplexes().catch(() => []), getHomeConfig().catch(() => null)]);
+// Проекты в меню — те же, что на главной (порядок из админки), иначе первые по списку.
+const byCode = new Map(complexes.map((c) => [c.code, c]));
+const picked = (homeCfg?.projects ?? []).map((c) => byCode.get(c)).filter(Boolean) as typeof complexes;
+const menuProjects = (picked.length ? picked : complexes.filter((c) => !c.isPrivate)).slice(0, 12);
 const path = Astro.url.pathname;
 const home = `/${lang}/`;
 const brands = [
@@ -37,60 +45,59 @@ const nav = [
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 const langHref = (l: Lang) => alternates?.[l] ?? `/${l}/`;
 const saleHref = catUrl(lang, { country: 'turkey', deal: 'sale' });
+const realty = [{ label: d.nav.sale, href: saleHref }, ...nav.slice(0, 2), { label: 'PRIVE', href: `/${lang}/prive/` }, { label: d.favorites, href: `/${lang}/favorites/` }];
+const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }];
+const groups = [
+  { title: d.nav.realty, links: realty },
+  { title: d.nav.cities, links: cities.map((c) => ({ label: c.name, href: c.href })) },
+  { title: d.nav.company, links: company },
+];
 ---
-<header
-  data-header
-  data-overlay={overlay ? 'true' : 'false'}
-  class:list={[
-    'fixed inset-x-0 top-0 z-40 transition-colors duration-300',
-    overlay ? 'text-white' : 'bg-page/90 text-ink backdrop-blur-md',
-  ]}
->
+<header data-header data-overlay={overlay ? 'true' : 'false'} class:list={['site-header fixed inset-x-0 top-0 z-40', overlay ? 'is-overlay' : 'is-solid']}>
   <div class="container-x">
-    <div class="flex h-14 items-center gap-4 md:h-16">
-      <a href={home} class="shrink-0 lg:hidden" aria-label={d.toHome}><Logo class="h-6 w-auto" /></a>
+    <div class="flex h-[51px] items-center gap-4 lg:h-[78px]">
+      <a href={home} class="icon-hover shrink-0" aria-label={d.toHome}><Logo class="h-[22px] w-auto lg:h-[26px]" /></a>
       <nav class="hidden items-center lg:flex" aria-label={d.nav.brands}>
-        <a href={home} class="mr-5 shrink-0" aria-label={d.toHome}><Logo class="h-6 w-auto" /></a>
-        {brands.map((b, i) => (
+        {brands.map((b) => (
           <a
             href={b.href}
             data-brand={b.label}
             target={b.external ? '_blank' : undefined}
             rel={b.external ? 'noopener' : undefined}
-            class:list={['px-3 text-[12px] font-medium tracking-[0.04em] opacity-80 transition-opacity hover:opacity-100', i > 0 && 'border-l border-current/25', path.startsWith(b.href) && 'opacity-100']}
-          >{b.label}</a>
+            class:list={['brand-link flex items-center font-display text-[13px] font-normal leading-none', path.startsWith(b.href) && 'is-current']}
+          ><span class="brand-sep mx-4 h-[18px] w-px" aria-hidden="true"></span>{b.label}</a>
         ))}
       </nav>
-      <div class="ml-auto flex items-center gap-1 sm:gap-2">
-        <a href={`/${lang}/search/`} class="grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label={d.search}><Icon name="search" /></a>
-        <a href={site.phone.href} class="grid size-10 place-items-center rounded-full hover:bg-current/10 xl:hidden" aria-label={`${d.call} ${site.phone.label}`}><Icon name="phone" /></a>
-        <a href={site.phone.href} class="hidden items-center gap-2 px-2 text-[14px] xl:inline-flex"><Icon name="phone" />{site.phone.label}</a>
-        <div class="lang group relative">
-          <button type="button" class="inline-flex h-10 items-center gap-1 rounded-full px-2 text-[13px] font-medium uppercase hover:bg-current/10" aria-haspopup="true" aria-label={d.language}>{lang}<Icon name="chevronDown" class="size-3.5" /></button>
-          <ul class="invisible absolute right-0 top-full z-10 min-w-40 rounded-2xl bg-white p-2 text-ink opacity-0 shadow-[var(--shadow-card)] transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+      <div class="ml-auto flex items-center gap-5 lg:gap-6">
+        <a href={`/${lang}/search/`} class="icon-hover hidden lg:block" aria-label={d.search}><Icon name="search" class="size-5" /></a>
+        <a href={site.phone.href} class="icon-hover xl:hidden" aria-label={`${d.call} ${site.phone.label}`}><Icon name="phone" class="size-5" /></a>
+        <a href={site.phone.href} class="icon-hover hidden text-[14px] leading-[14px] xl:inline">{site.phone.label}</a>
+        <div class="lang group relative hidden sm:block">
+          <button type="button" class="icon-hover inline-flex items-center gap-1 text-[14px] uppercase" aria-haspopup="true" aria-label={d.language}>{lang}<Icon name="chevronDown" class="size-3.5" /></button>
+          <ul class="invisible absolute right-0 top-full z-10 mt-3 min-w-40 rounded-[15px] bg-white p-2 text-ink opacity-0 shadow-[var(--shadow-btn)] transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
             {LANGS.map((l) => (
-              <li><a href={langHref(l)} hreflang={l} lang={l} class:list={['flex items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm hover:bg-page', l === lang && 'font-medium']} aria-current={l === lang ? 'true' : undefined}>{LANG_NAME[l]}<span class="text-xs uppercase text-muted">{l}</span></a></li>
+              <li><a href={langHref(l)} hreflang={l} lang={l} class:list={['flex items-center justify-between gap-3 rounded-[8px] px-3 py-2 text-sm transition-colors hover:text-accent', l === lang && 'font-medium']} aria-current={l === lang ? 'true' : undefined}>{LANG_NAME[l]}<span class="text-xs uppercase text-muted">{l}</span></a></li>
             ))}
           </ul>
         </div>
-        <a href={`/${lang}/favorites/`} class="relative grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label={d.favorites}>
-          <Icon name="heart" />
-          <span data-fav-count class="absolute right-1 top-1 hidden min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 text-white"></span>
+        <a href={`/${lang}/favorites/`} class="icon-hover relative" aria-label={d.favorites}>
+          <Icon name="heart" class="size-5" />
+          <span data-fav-count class="absolute -right-2 -top-2 hidden min-w-4 rounded-full bg-accent px-1 text-center text-[10px] leading-4 text-white"></span>
         </a>
-        <button type="button" data-menu-open class="grid size-10 place-items-center rounded-full hover:bg-current/10" aria-label={d.menu}><Icon name="menu" /></button>
+        <button type="button" data-menu-open class="icon-hover" aria-label={d.menu}><Icon name="menu" class="size-5" /></button>
       </div>
     </div>
     <!-- Главное меню — с 1280px. Ниже всё уходит в бургер. -->
-    <nav class="-mt-1 hidden items-center gap-6 pb-3 text-[14px] xl:flex" aria-label={d.nav.main}>
+    <nav class="main-nav hidden h-11 items-start gap-6 text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
       <div class="group relative">
-        <a href={saleHref} class="inline-flex items-center gap-1 opacity-75 hover:opacity-100" aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-4" /></a>
-        <div class="invisible absolute left-0 top-full z-10 pt-2 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
-          <div class="grid w-[min(860px,90vw)] grid-cols-3 gap-6 rounded-2xl bg-white p-6 text-ink shadow-[var(--shadow-card)]">
+        <a href={saleHref} class="nav-item inline-flex items-center gap-1" aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-3.5" /></a>
+        <div class="invisible absolute left-0 top-full z-10 pt-3 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+          <div class="grid w-[min(860px,90vw)] grid-cols-3 gap-6 rounded-[15px] bg-white p-5 text-ink shadow-[var(--shadow-btn)]">
             {cities.map((c) => (
               <div>
-                <a href={c.href} class="font-medium hover:text-accent">{c.name} <span class="text-muted">{c.n}</span></a>
-                <ul class="mt-2 space-y-1 text-[13px]">
-                  {c.districts.map((x) => <li><a href={x.href} class="text-ink/70 hover:text-accent">{x.name}</a></li>)}
+                <a href={c.href} class="text-[14px] transition-colors hover:text-accent">{c.name} <span class="text-muted">{c.n}</span></a>
+                <ul class="mt-2 space-y-1 text-[14px] leading-[18px]">
+                  {c.districts.map((x) => <li><a href={x.href} class="text-muted transition-colors hover:text-accent">{x.name}</a></li>)}
                 </ul>
               </div>
             ))}
@@ -98,69 +105,102 @@ const saleHref = catUrl(lang, { country: 'turkey', deal: 'sale' });
         </div>
       </div>
       {nav.map((x) => (
-        <a href={x.href} class:list={['whitespace-nowrap opacity-75 transition-opacity hover:opacity-100', path.startsWith(x.href) && 'opacity-100']}>{x.label}</a>
+        <a href={x.href} class:list={['nav-item whitespace-nowrap', path.startsWith(x.href) && 'is-current']}>{x.label}</a>
       ))}
-      <a href={`/${lang}/prive/`} class="whitespace-nowrap opacity-75 hover:opacity-100">PRIVE</a>
+      <a href={`/${lang}/prive/`} class="nav-item whitespace-nowrap">PRIVE</a>
     </nav>
   </div>
 </header>
 
-<div data-menu class="fixed inset-0 z-50 hidden bg-ink text-white" role="dialog" aria-modal="true" aria-label={d.menu}>
-  <div class="container-x flex h-full flex-col overflow-y-auto pb-10">
-    <div class="flex h-14 items-center md:h-16">
-      <a href={home} aria-label={d.toHome}><Logo class="h-6 w-auto" withText /></a>
-      <button type="button" data-menu-close class="ml-auto grid size-10 place-items-center rounded-full hover:bg-white/10" aria-label={d.closeMenu}><Icon name="close" /></button>
+<!-- Бургер-меню: 1440 — белая панель 1360, скругление 15, отступ сверху 10; 390 — на весь экран, аккордеон. -->
+<div data-menu class="fixed inset-0 z-50 hidden" role="dialog" aria-modal="true" aria-label={d.menu}>
+  <div data-menu-close class="absolute inset-0 bg-[#78828b99] backdrop-blur-[5px]" aria-hidden="true"></div>
+  <div class="relative mx-auto flex h-full max-w-[1360px] flex-col overflow-y-auto bg-white px-5 pb-10 pt-[50px] text-ink lg:mt-2.5 lg:h-auto lg:max-h-[calc(100dvh-20px)] lg:w-[calc(100%-80px)] lg:rounded-[15px] lg:pb-10 lg:pt-[78px]">
+    <div class="absolute inset-x-5 top-0 flex h-[51px] items-center lg:h-[78px]">
+      <a href={home} aria-label={d.toHome}><Logo class="h-[22px] w-auto lg:h-[26px]" withText /></a>
+      <button type="button" data-menu-close class="icon-hover ml-auto" aria-label={d.closeMenu}><Icon name="close" class="size-5" /></button>
     </div>
-    <div class="mt-8 grid gap-10 md:grid-cols-3">
-      <div>
-        <p class="mb-4 text-sm text-white/50">{d.nav.realty}</p>
-        <ul class="space-y-3 font-display text-2xl tracking-[-0.01em]">
-          <li><a href={saleHref} class="hover:text-lavender">{d.nav.sale}</a></li>
-          {nav.slice(0, 2).map((x) => <li><a href={x.href} class="hover:text-lavender">{x.label}</a></li>)}
-          <li><a href={`/${lang}/prive/`} class="hover:text-lavender">PRIVE</a></li>
-          <li><a href={`/${lang}/favorites/`} class="hover:text-lavender">{d.favorites}</a></li>
+
+    <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_326px]">
+      <!-- Проекты Stay: миниатюры 44×44 со скруглением 8, название широким шрифтом 10/400 -->
+      {menuProjects.length > 0 && (
+        <section class="order-1 lg:order-none lg:rounded-[15px] lg:bg-page lg:p-5">
+          <p class="text-[14px] leading-[18px] tracking-[0.1px] lg:text-[16px] lg:leading-5">{d.nav.complexes}</p>
+          <ul class="scroll-x mt-4 flex gap-4 lg:grid lg:grid-cols-4 lg:gap-x-5 lg:gap-y-3">
+            {menuProjects.map((c) => (
+              <li class="w-[120px] shrink-0 lg:w-auto">
+                <a href={complexUrl(lang, c)} class="group flex items-center gap-3">
+                  <span class="block size-11 shrink-0 overflow-hidden rounded-[8px]"><Img src={c.image} alt="" class="size-full" width={88} height={88} sizes="44px" /></span>
+                  <span class="font-display text-[10px] font-normal leading-3 tracking-[-0.3px] transition-colors group-hover:text-accent">{c.title}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <!-- Справа: тёмная карточка телефона (hover — серый) -->
+      <div class="order-3 flex flex-col gap-3 lg:order-none lg:row-span-2">
+        {site.phones.map((p, i) => (
+          <a href={p.href} class="block rounded-[15px] bg-ink px-[21px] py-4 text-[14px] lg:py-[25px] leading-5 text-white transition-colors hover:bg-[color-mix(in_srgb,#090714_70%,white)]">
+            <span class="block text-white/60">{i === 0 ? d.footer.phoneTR : d.footer.phoneRU}</span>{p.label}
+          </a>
+        ))}
+        <a href={`mailto:${site.email}`} class="block rounded-[15px] bg-page px-[21px] py-4 text-[14px] lg:py-[25px] leading-5 transition-colors hover:bg-line">{site.email}</a>
+        <ul class="mt-2 flex flex-wrap gap-2" aria-label={d.language}>
+          {LANGS.map((l) => <li><a href={langHref(l)} hreflang={l} class:list={['chip uppercase', l === lang && '!border-tab !bg-tab !text-white']}>{l}</a></li>)}
         </ul>
       </div>
-      <div>
-        <p class="mb-4 text-sm text-white/50">{d.nav.cities}</p>
-        <ul class="space-y-2.5 text-lg">
-          {cities.map((c) => <li><a href={c.href} class="hover:text-lavender">{c.name}</a></li>)}
-        </ul>
-      </div>
-      <div>
-        <p class="mb-4 text-sm text-white/50">{d.nav.company}</p>
-        <ul class="space-y-2.5 text-lg">
-          {nav.slice(2).map((x) => <li><a href={x.href} class="hover:text-lavender">{x.label}</a></li>)}
-          <li><a href={`/${lang}/reviews/`} class="hover:text-lavender">{d.nav.reviews}</a></li>
-          <li><a href="https://stayinvestment.com/" target="_blank" rel="noopener" class="hover:text-lavender">INVESTMENT</a></li>
-        </ul>
-        <ul class="mt-8 flex flex-wrap gap-2" aria-label={d.language}>
-          {LANGS.map((l) => <li><a href={langHref(l)} hreflang={l} class:list={['chip chip-dark uppercase', l === lang && '!bg-white !text-ink']}>{l}</a></li>)}
-        </ul>
-        <div class="mt-8 space-y-2 text-white/80">
-          {site.phones.map((p, i) => <a class="block" href={p.href}>{i === 0 ? d.footer.phoneTR : d.footer.phoneRU}: {p.label}</a>)}
-          <a class="block" href={`mailto:${site.email}`}>{site.email}</a>
-        </div>
+      <!-- Колонки ссылок (на телефоне — аккордеон) -->
+      <div class="order-2 grid gap-0 lg:order-none lg:grid-cols-3 lg:gap-5 lg:px-5">
+        {groups.map((g) => (
+          <details class="menu-group border-b border-line lg:border-0" open>
+            <summary class="flex h-9 cursor-pointer list-none items-center justify-between text-[16px] leading-5 lg:pointer-events-none lg:h-auto lg:text-[14px] lg:leading-[18px]">{g.title}<Icon name="chevronDown" class="size-4 text-muted lg:hidden" /></summary>
+            <ul class="space-y-2 pb-4 pt-2 lg:pt-3">
+              {g.links.map((x) => <li><a href={x.href} class="text-[16px] leading-5 text-muted transition-colors hover:text-accent lg:text-[14px] lg:leading-[18px]">{x.label}</a></li>)}
+            </ul>
+          </details>
+        ))}
       </div>
     </div>
   </div>
 </div>
 
+<style is:global>
+  .site-header { transition: background-color .3s, color .3s; }
+  .site-header.is-solid { background: #fff; color: var(--color-ink); }
+  .site-header.is-overlay { background: transparent; color: #fff; }
+  .site-header .brand-sep { background: currentColor; opacity: .3; }
+  .site-header .brand-link { transition: color .3s; }
+  .site-header.is-solid .brand-link:hover, .site-header.is-solid .brand-link.is-current { color: var(--color-accent); }
+  .site-header.is-overlay .brand-link:hover { opacity: .7; }
+  .site-header .nav-item { transition: color .3s; }
+  .site-header.is-solid .nav-item { color: var(--color-menu); }
+  .site-header.is-solid .nav-item:hover, .site-header.is-solid .nav-item.is-current { color: var(--color-ink-2); }
+  .site-header.is-overlay .nav-item { color: #fff; }
+  .site-header.is-overlay .nav-item:hover { color: #ffffffb3; }
+  .menu-group > summary::-webkit-details-marker { display: none; }
+  .menu-group[open] > summary svg { transform: rotate(180deg); }
+  @media (min-width: 1024px) { .menu-group > summary { pointer-events: none; } }
+</style>
+
 <script>
   const header = document.querySelector<HTMLElement>('[data-header]');
   const menu = document.querySelector<HTMLElement>('[data-menu]');
   if (header?.dataset.overlay === 'true') {
+    // Поверх первого экрана — прозрачная, после прокрутки — белая.
     const onScroll = () => {
       const solid = window.scrollY > 40;
-      header.classList.toggle('bg-ink/85', solid);
-      header.classList.toggle('backdrop-blur-md', solid);
+      header.classList.toggle('is-solid', solid);
+      header.classList.toggle('is-overlay', !solid);
     };
     onScroll();
     addEventListener('scroll', onScroll, { passive: true });
   }
+  // На телефоне группы меню свёрнуты, на десктопе раскрыты.
+  if (matchMedia('(max-width: 1023px)').matches) document.querySelectorAll<HTMLDetailsElement>('.menu-group').forEach((x, i) => { if (i > 0) x.open = false; });
   const open = () => { menu?.classList.remove('hidden'); document.body.style.overflow = 'hidden'; };
   const close = () => { menu?.classList.add('hidden'); document.body.style.overflow = ''; };
   document.querySelector('[data-menu-open]')?.addEventListener('click', open);
-  document.querySelector('[data-menu-close]')?.addEventListener('click', close);
+  document.querySelectorAll('[data-menu-close]').forEach((x) => x.addEventListener('click', close));
   addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
 </script>

@@ -20,7 +20,7 @@ export const LABEL_STYLE: Record<Label, string> = {
   sold: 'background:#090714;color:#fff',
   reserved: 'background:#6b6880;color:#fff',
   urgent: 'background:#e5484d;color:#fff',
-  discount: 'background:#ff9f6e;color:#090714',
+  discount: 'background:#abf960;color:#1c1e26',
   new: 'background:#754be9;color:#fff',
 };
 

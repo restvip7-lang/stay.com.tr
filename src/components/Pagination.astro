@@ -9,14 +9,14 @@ const href = (p: number) => (p <= 1 ? base : `${base}page-${p}/`) + q;
 const around = [...new Set([1, page - 2, page - 1, page, page + 1, page + 2, pages])].filter((p) => p >= 1 && p <= pages).sort((a, b) => a - b);
 ---
 {pages > 1 && (
-  <nav class="mt-12 flex flex-wrap items-center justify-center gap-2" aria-label={d.pagesLabel}>
-    {page > 1 && <a href={href(page - 1)} class="btn btn-ghost !px-4" rel="prev" aria-label={d.page(page - 1)}>←</a>}
+  <nav class="mt-12 flex flex-wrap items-center justify-center gap-1.5" aria-label={d.pagesLabel}>
+    {page > 1 && <a href={href(page - 1)} class="btn-n btn-n-white mr-2 !px-4" rel="prev" aria-label={d.page(page - 1)}>←</a>}
     {around.map((p, i) => (
       <>
         {i > 0 && p - around[i - 1] > 1 && <span class="px-1 text-muted">…</span>}
-        <a href={href(p)} class:list={['grid size-12 place-items-center rounded-full border text-[15px]', p === page ? 'border-ink bg-ink text-white' : 'border-line bg-white hover:border-ink']} aria-current={p === page ? 'page' : undefined}>{p}</a>
+        <a href={href(p)} class:list={['grid size-8 place-items-center rounded-full text-[14px] font-medium transition', p === page ? 'bg-white text-ink-n shadow-card' : 'text-muted hover:text-ink-n']} aria-current={p === page ? 'page' : undefined}>{p}</a>
       </>
     ))}
-    {page < pages && <a href={href(page + 1)} class="btn btn-ghost !px-4" rel="next" aria-label={d.page(page + 1)}>→</a>}
+    {page < pages && <a href={href(page + 1)} class="btn-n btn-n-white ml-2 !px-4" rel="next" aria-label={d.page(page + 1)}>→</a>}
   </nav>
 )}

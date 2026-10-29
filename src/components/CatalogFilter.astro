@@ -25,7 +25,6 @@ const step = cat.deal === 'rent' ? 50 : 1000;
 const seaMin = 1;
 const seaMax = 1000;
 const catalog = mode === 'catalog';
-const advancedOpen = !catalog || !!(f.priceFrom || f.priceTo || cat.feature?.startsWith('price-to') || f.seaFrom || f.seaTo || f.prive || f.citizenship || f.ref);
 const rooms = [{ v: 'studio', l: tf.studio }, { v: '1+1', l: '1+1' }, { v: '2+1', l: '2+1' }, { v: '3+1', l: '3+1' }, { v: '4+', l: '4+' }];
 const selRooms = new Set(f.rooms);
 const allowed = allowedFeatureMap(cat.country);
@@ -38,128 +37,187 @@ const hiddenFeature = pf && !/bedroom|price-to|citizenship/.test(pf) ? pf : null
 const priceTo = f.priceTo ?? pathPriceTo;
 const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), prive: tf.onlyPrive, citizenship: tf.citizenship };
 ---
-<form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class="filter">
-  <div class="mb-6 flex flex-wrap items-center gap-x-8 gap-y-3">
-    <div class="flex gap-1 rounded-full bg-white p-1" role="radiogroup" aria-label={tf.deal}>
-      {(['sale', 'rent'] as Deal[]).map((x) => (
-        <label class="cursor-pointer">
-          <input type="radio" name="deal" value={x} checked={cat.deal === x} class="peer sr-only" />
-          <span class="inline-flex h-10 items-center rounded-full px-5 text-[15px] transition-colors peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{DEAL_WORDS[lang][x].name}</span>
+<form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
+  {catalog ? (
+    <>
+      <!-- Каталог (новая система образца): 6 полей 50 в ряд с подписью сверху + кнопка «Фильтры», ниже чипы. -->
+      <div class="scroll-x -mx-5 flex gap-2 px-5 lg:mx-0 lg:grid lg:grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,1fr)_auto] lg:overflow-visible lg:px-0">
+        <label class="fsel" for="f-deal">
+          <span>{tf.deal}</span>
+          <select id="f-deal" name="deal">{(['sale', 'rent'] as Deal[]).map((x) => <option value={x} selected={cat.deal === x}>{DEAL_WORDS[lang][x].name}</option>)}</select>
+          <Icon name="chevronDown" class="fsel-i" />
         </label>
-      ))}
-    </div>
-    <div class="scroll-x flex gap-5 text-lg md:text-xl" role="radiogroup" aria-label={tf.type}>
-      <label class="shrink-0 cursor-pointer">
-        <input type="radio" name="type" value="" checked={!cat.type} class="peer sr-only" />
-        <span class="border-b-2 border-transparent pb-1 text-muted transition-colors peer-checked:border-ink peer-checked:text-ink hover:text-ink">{tf.anyType}</span>
-      </label>
-      {types.map((x) => (
-        <label class="shrink-0 cursor-pointer">
-          <input type="radio" name="type" value={x} checked={cat.type === x} class="peer sr-only" />
-          <span class="border-b-2 border-transparent pb-1 text-muted transition-colors peer-checked:border-ink peer-checked:text-ink hover:text-ink">{TYPE_WORDS[lang][x as keyof typeof TYPE_WORDS.ru].pl}</span>
+        <label class="fsel" for="f-type">
+          <span>{tf.type}</span>
+          <select id="f-type" name="type">
+            <option value="">{tf.anyType}</option>
+            {types.map((x) => <option value={x} selected={cat.type === x}>{TYPE_WORDS[lang][x as keyof typeof TYPE_WORDS.ru].pl}</option>)}
+          </select>
+          <Icon name="chevronDown" class="fsel-i" />
         </label>
-      ))}
-    </div>
-  </div>
-  <div class="grid gap-x-4 gap-y-5 md:grid-cols-2 lg:grid-cols-4">
-    <div>
-      <label class="label" for="f-country">{tf.country}</label>
-      <div class="relative">
-        <select id="f-country" name="country" class="field appearance-none pr-10" data-country>
-          {opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}
-        </select>
-        <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
+        <label class="fsel" for="f-country">
+          <span>{tf.country}</span>
+          <select id="f-country" name="country" data-country>{opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}</select>
+          <Icon name="chevronDown" class="fsel-i" />
+        </label>
+        <label class="fsel" for="f-city">
+          <span>{tf.city}</span>
+          <select id="f-city" name="city" data-city>
+            <option value="">{tf.allCities}</option>
+            {opts.cities.map((c) => <option value={c.slug} data-country={c.country} selected={cat.city === c.slug}>{c.name[lang]}</option>)}
+          </select>
+          <Icon name="chevronDown" class="fsel-i" />
+        </label>
+        <label class="fsel" for="f-district">
+          <span>{tf.district}</span>
+          <select id="f-district" name="district" data-district>
+            <option value="">{tf.allDistricts}</option>
+            {opts.districts.map((x) => <option value={x.d.slug} data-city={x.city} selected={cat.city === x.city && cat.district === x.d.slug}>{x.d.name[lang]}</option>)}
+          </select>
+          <Icon name="chevronDown" class="fsel-i" />
+        </label>
+        <label class="fsel" for="f-ref">
+          <span>{tf.id}</span>
+          <input id="f-ref" name="ref" placeholder={tf.idPh} maxlength="20" autocomplete="off" value={f.ref ?? ''} />
+        </label>
+        <button type="button" data-adv-open class="btn-n btn-n-white hidden shrink-0 lg:inline-flex"><Icon name="filter" class="size-5" />{tf.all}</button>
       </div>
-    </div>
-    <div>
-      <label class="label" for="f-city">{tf.city}</label>
-      <div class="relative">
-        <select id="f-city" name="city" class="field appearance-none pr-10" data-city>
-          <option value="">{tf.allCities}</option>
-          {opts.cities.map((c) => <option value={c.slug} data-country={c.country} selected={cat.city === c.slug}>{c.name[lang]}</option>)}
-        </select>
-        <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-      </div>
-    </div>
-    <div>
-      <label class="label" for="f-district">{tf.district}</label>
-      <div class="relative">
-        <select id="f-district" name="district" class="field appearance-none pr-10" data-district>
-          <option value="">{tf.allDistricts}</option>
-          {opts.districts.map((x) => <option value={x.d.slug} data-city={x.city} selected={cat.city === x.city && cat.district === x.d.slug}>{x.d.name[lang]}</option>)}
-        </select>
-        <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
-      </div>
-    </div>
-    <div>
-      <label class="label" for="f-ref">{tf.id}</label>
-      <input id="f-ref" name="ref" class="field" placeholder={tf.idPh} maxlength="20" autocomplete="off" value={f.ref ?? ''} />
-    </div>
-
-    <fieldset class:list={['range', !advancedOpen && 'hidden']} data-adv data-range data-min={priceMin} data-max={priceMax} data-step={step} aria-labelledby="f-price-l">
-      <div class="mb-2 flex items-center justify-between gap-2">
-        <span class="label mb-0 whitespace-nowrap" id="f-price-l">{tf.price}</span>
-        <span class="flex items-center gap-2" data-sale-only hidden={cat.deal !== 'sale'}>
-          <label class="switch switch-prive"><input type="checkbox" name="prive" value="1" checked={f.prive} /><span>{tf.prive}</span></label>
-          <label class="switch"><input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} /><span>{tf.citizenship}</span></label>
-        </span>
-      </div>
-      <div class="flex overflow-hidden rounded-full border border-line bg-white">
-        <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
-        <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} />
-      </div>
-      <div class="dual mt-3" aria-hidden="true">
-        <input type="range" min={priceMin} max={priceMax} step={step} value={f.priceFrom ?? priceMin} data-slo tabindex="-1" />
-        <input type="range" min={priceMin} max={priceMax} step={step} value={priceTo ?? priceMax} data-shi tabindex="-1" />
-      </div>
-    </fieldset>
-
-    <fieldset class="lg:col-span-2">
-      <legend class="label">{tf.rooms}</legend>
-      <div class="flex flex-wrap gap-2">
+      <button type="button" data-adv-open class="btn-n btn-n-white mt-3 w-full lg:hidden"><Icon name="filter" class="size-5" />{tf.all}</button>
+      <!-- Чипы: комнатность, PRIVE, гражданство, фичи из адреса -->
+      <div class="scroll-x -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
         {rooms.map((r) => (
-          <label class="cursor-pointer">
+          <label class="shrink-0 cursor-pointer">
             <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} class="peer sr-only" />
-            <span class="inline-flex h-12 min-w-12 items-center justify-center rounded-full border border-line bg-white px-4 text-[15px] transition-colors peer-checked:border-ink peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
+            <span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
+          </label>
+        ))}
+        <span data-sale-only hidden={cat.deal !== 'sale'} class="contents">
+          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="prive" value="1" checked={f.prive} class="peer sr-only" /><span class="chip-n peer-checked:!bg-prive peer-checked:text-white">PRIVE</span></label>
+          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} class="peer sr-only" /><span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white">{tf.citizenship}</span></label>
+        </span>
+        {hiddenFeature && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="feature" aria-label={tf.remove(FEATURE_LABEL[lang][hiddenFeature])}>{FEATURE_LABEL[lang][hiddenFeature]} <span aria-hidden="true">×</span></button>}
+        {f.extra && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="f" aria-label={tf.remove(FEATURE_LABEL[lang][f.extra])}>{FEATURE_LABEL[lang][f.extra]} <span aria-hidden="true">×</span></button>}
+      </div>
+
+      <!-- «Фильтры»: панель на весь экран поверх страницы. Выдача обновляется сразу, кнопка внизу закрывает панель. -->
+      <div data-adv-panel class="fixed inset-0 z-[60] hidden overflow-y-auto bg-white" role="dialog" aria-modal="true" aria-label={tf.all}>
+        <div class="mx-auto max-w-[1392px] px-3 pb-32 pt-3 lg:px-[42px] lg:pt-5">
+          <div class="relative flex h-12 items-center justify-center rounded-[16px] bg-page-n/70 text-[16px] font-medium shadow-[var(--shadow-btn)] lg:h-[50px] lg:text-[14px]">
+            {tf.all}
+            <button type="button" data-adv-close class="icon-hover absolute right-4" aria-label={d.closeMenu}><Icon name="close" class="size-5" /></button>
+          </div>
+          <div class="mt-8 grid gap-8 px-2 lg:grid-cols-2 lg:gap-0 lg:divide-x lg:divide-line lg:px-0">
+            <fieldset class="range lg:pr-8" data-range data-min={priceMin} data-max={priceMax} data-step={step} aria-labelledby="f-price-l">
+              <legend id="f-price-l" class="mb-3 text-[16px] font-medium leading-[19px] tracking-[0.1px] lg:text-[14px]">{tf.price}</legend>
+              <div class="grid grid-cols-2 gap-2">
+                <input class="field" name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
+                <input class="field" name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} />
+              </div>
+              <div class="dual mt-4" aria-hidden="true">
+                <input type="range" min={priceMin} max={priceMax} step={step} value={f.priceFrom ?? priceMin} data-slo tabindex="-1" />
+                <input type="range" min={priceMin} max={priceMax} step={step} value={priceTo ?? priceMax} data-shi tabindex="-1" />
+              </div>
+            </fieldset>
+            <fieldset class="range lg:pl-8" data-range data-min={seaMin} data-max={seaMax} data-step="10">
+              <legend class="mb-3 text-[16px] font-medium leading-[19px] tracking-[0.1px] lg:text-[14px]">{tf.sea}</legend>
+              <div class="grid grid-cols-2 gap-2">
+                <input class="field" name="sea_from" inputmode="numeric" placeholder={`${tf.fromW} ${seaMin}`} value={f.seaFrom ?? ''} data-lo aria-label={tf.seaFrom} />
+                <input class="field" name="sea_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, seaMax)}`} value={f.seaTo ?? ''} data-hi aria-label={tf.seaTo} />
+              </div>
+              <div class="dual mt-4" aria-hidden="true">
+                <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaFrom ?? seaMin} data-slo tabindex="-1" />
+                <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaTo ?? seaMax} data-shi tabindex="-1" />
+              </div>
+            </fieldset>
+          </div>
+        </div>
+        <div class="fixed inset-x-0 bottom-0 border-t border-line bg-white">
+          <div class="mx-auto flex max-w-[1392px] items-center gap-3 px-3 pb-6 pt-5 lg:flex-row-reverse lg:justify-start lg:px-[42px]">
+            <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="btn-n btn-n-soft lg:!h-auto lg:!bg-transparent lg:!px-2">{tf.reset} ✕</a>
+            <button type="button" data-adv-close class="btn-n btn-n-dark flex-1 !bg-ink-n lg:w-[320px] lg:flex-none"><span data-swap="count-btn">{tf.show}: {numL(lang, total)}</span></button>
+          </div>
+        </div>
+      </div>
+    </>
+  ) : (
+    <>
+      <!-- Главная (старая система образца): вкладки-типы Suisse 20, стоимость с ползунком, комнаты кругами 52, кнопка «Показать N». -->
+      <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
+        <div class="tabs-old" role="radiogroup" aria-label={tf.deal}>
+          {(['sale', 'rent'] as Deal[]).map((x) => (
+            <label class="cursor-pointer !p-0">
+              <input type="radio" name="deal" value={x} checked={cat.deal === x} class="peer sr-only" />
+              <span class="inline-flex h-9 items-center rounded-[8px] px-3 text-[14px] text-ink-2 transition-colors peer-checked:bg-tab peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{DEAL_WORDS[lang][x].name}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div class="scroll-x mt-6 flex gap-6 border-b border-line" role="radiogroup" aria-label={tf.type}>
+        <label class="shrink-0 cursor-pointer">
+          <input type="radio" name="type" value="" checked={!cat.type} class="peer sr-only" />
+          <span class="block h-11 pt-2 text-[20px] leading-[26px] tracking-[-0.4px] text-muted transition-colors peer-checked:text-ink hover:text-ink">{tf.anyType}</span>
+        </label>
+        {types.map((x) => (
+          <label class="shrink-0 cursor-pointer">
+            <input type="radio" name="type" value={x} checked={cat.type === x} class="peer sr-only" />
+            <span class="block h-11 pt-2 text-[20px] leading-[26px] tracking-[-0.4px] text-muted transition-colors peer-checked:text-ink hover:text-ink">{TYPE_WORDS[lang][x as keyof typeof TYPE_WORDS.ru].pl}</span>
           </label>
         ))}
       </div>
-    </fieldset>
-
-    <fieldset class:list={['range', !advancedOpen && 'hidden']} data-adv data-range data-min={seaMin} data-max={seaMax} data-step="10">
-      <legend class="label">{tf.sea}</legend>
-      <div class="flex overflow-hidden rounded-full border border-line bg-white">
-        <input class="h-12 w-1/2 bg-transparent px-4 text-[15px] outline-none" name="sea_from" inputmode="numeric" placeholder={`${tf.fromW} ${seaMin}`} value={f.seaFrom ?? ''} data-lo aria-label={tf.seaFrom} />
-        <input class="h-12 w-1/2 border-l border-line bg-transparent px-4 text-[15px] outline-none" name="sea_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, seaMax)}`} value={f.seaTo ?? ''} data-hi aria-label={tf.seaTo} />
+      <div class="mt-8 grid gap-x-10 gap-y-6 lg:grid-cols-[332px_minmax(0,1fr)_332px]">
+        <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step={step} aria-labelledby="h-price-l">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="text-[14px] text-muted" id="h-price-l">{tf.price}</span>
+            <span class="flex items-center gap-2" data-sale-only hidden={cat.deal !== 'sale'}>
+              <label class="switch switch-prive"><input type="checkbox" name="prive" value="1" checked={f.prive} /><span>{tf.prive}</span></label>
+            </span>
+          </div>
+          <div class="flex h-[51px] overflow-hidden rounded-[12px] bg-white">
+            <input class="w-1/2 bg-transparent px-4 text-[14px] outline-none" name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
+            <input class="w-1/2 border-l border-line bg-transparent px-4 text-[14px] outline-none" name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} />
+          </div>
+          <div class="dual -mt-[9px] px-1" aria-hidden="true">
+            <input type="range" min={priceMin} max={priceMax} step={step} value={f.priceFrom ?? priceMin} data-slo tabindex="-1" />
+            <input type="range" min={priceMin} max={priceMax} step={step} value={priceTo ?? priceMax} data-shi tabindex="-1" />
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend class="mb-2 text-[14px] text-muted">{tf.rooms}</legend>
+          <div class="flex flex-wrap gap-2">
+            {rooms.map((r) => (
+              <label class="cursor-pointer">
+                <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} class="peer sr-only" />
+                <span class="inline-flex h-[52px] min-w-[52px] items-center justify-center rounded-full bg-white px-3 text-[14px] transition-colors hover:bg-line peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div>
+          <label class="mb-2 block text-[14px] text-muted" for="h-city">{tf.city}</label>
+          <div class="relative">
+            <select id="h-city" name="city" class="field appearance-none !h-[51px] !rounded-[12px] !border-transparent pr-10" data-city>
+              <option value="">{tf.allCities}</option>
+              {opts.cities.map((c) => <option value={c.slug} data-country={c.country} selected={cat.city === c.slug}>{c.name[lang]}</option>)}
+            </select>
+            <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
+          </div>
+          <select name="country" class="hidden" data-country>{opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}</select>
+          <select name="district" class="hidden" data-district><option value=""></option>{opts.districts.map((x) => <option value={x.d.slug} data-city={x.city}>{x.d.name[lang]}</option>)}</select>
+        </div>
       </div>
-      <div class="dual mt-3" aria-hidden="true">
-        <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaFrom ?? seaMin} data-slo tabindex="-1" />
-        <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaTo ?? seaMax} data-shi tabindex="-1" />
+      {hiddenFeature && <input type="hidden" name="feature" value={hiddenFeature} />}
+      <div class="mt-8">
+        <button type="submit" class="btn btn-accent">
+          <span>{tf.show} <span data-total>{numL(lang, total)}</span></span><Icon name="chevronRight" class="size-3.5" />
+        </button>
       </div>
-    </fieldset>
-  </div>
-  <!-- Фича из адреса (…/sea-view/) и доп. фича (?f=) — чипсы с крестиком. -->
-  {hiddenFeature && <input type="hidden" name="feature" value={hiddenFeature} />}
+    </>
+  )}
+  {catalog && hiddenFeature && <input type="hidden" name="feature" value={hiddenFeature} />}
   {f.extra && <input type="hidden" name="f" value={f.extra} />}
   {f.sort !== 'new' && <input type="hidden" name="sort" value={f.sort} />}
-  <div data-chips class="mt-4 flex flex-wrap gap-2 empty:hidden">
-    {hiddenFeature && <button type="button" class="chip gap-2 bg-page" data-chip-field="feature" aria-label={tf.remove(FEATURE_LABEL[lang][hiddenFeature])}>{FEATURE_LABEL[lang][hiddenFeature]} <span aria-hidden="true">×</span></button>}
-    {f.extra && <button type="button" class="chip gap-2 bg-page" data-chip-field="f" aria-label={tf.remove(FEATURE_LABEL[lang][f.extra])}>{FEATURE_LABEL[lang][f.extra]} <span aria-hidden="true">×</span></button>}
-  </div>
-  {catalog ? (
-    <div class="mt-6 flex flex-wrap items-center gap-3">
-      <p class="mr-auto text-[15px]" data-swap="count">{tf.found}: <b data-total class="font-medium">{numL(lang, total)}</b></p>
-      <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="text-sm text-muted hover:text-ink">{tf.reset}</a>
-      <button type="button" data-adv-toggle class="btn btn-ghost" aria-expanded={advancedOpen ? 'true' : 'false'}><Icon name="filter" class="size-5" />{tf.all}</button>
-      <noscript><button type="submit" class="btn btn-accent">{tf.show}</button></noscript>
-    </div>
-  ) : (
-    <div class="mt-6 flex flex-wrap items-center justify-end gap-3">
-      <button type="submit" class="btn btn-accent min-w-[220px]">
-        <span>{tf.show} <span data-total>{numL(lang, total)}</span></span><Icon name="chevronRight" class="size-4" />
-      </button>
-    </div>
-  )}
+  <div data-chips hidden></div>
+  <noscript><button type="submit" class="btn-n btn-n-dark mt-4">{tf.show}</button></noscript>
 </form>
 
 <style>
@@ -172,9 +230,20 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
   .switch-prive span { color: #bc906e; }
   .switch-prive input:checked { background: #bc906e; }
   .dual { position: relative; height: 18px; }
-  .dual::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--color-ink); border-radius: 2px; }
+  .dual::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--color-line-2); border-radius: 2px; }
+  .dual input:hover::-webkit-slider-thumb { background: var(--color-accent); }
+  /* Поле-выпадашка новой системы: 50, скругление 12, подпись 11 сверху, значение 14/500 */
+  .fsel { position: relative; display: block; flex: none; width: 160px; height: 56px; border-radius: 16px; background: #ffffff99; border: .67px solid #d0d1d7b3; transition: border-color .2s; cursor: pointer; }
+  @media (min-width: 1024px) { .fsel { width: auto; height: 50px; border-radius: 12px; } }
+  .fsel:hover, .fsel:focus-within { border-color: var(--color-ink); }
+  .fsel > span { position: absolute; left: 12px; top: 6px; font-size: 11px; line-height: 15px; letter-spacing: .2px; color: var(--color-muted); pointer-events: none; }
+  .fsel select, .fsel input { appearance: none; width: 100%; height: 100%; padding: 18px 32px 0 12px; background: transparent; border: 0; outline: none; font-size: 16px; font-weight: 500; letter-spacing: .1px; color: var(--color-ink); text-overflow: ellipsis; cursor: pointer; }
+  @media (min-width: 1024px) { .fsel select, .fsel input { font-size: 14px; } }
+  .fsel input { cursor: text; padding-right: 12px; }
+  .fsel input::placeholder { font-weight: 400; color: #1c1e26cc; }
+  :global(.fsel-i) { position: absolute; right: 10px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--color-ink); pointer-events: none; }
   .dual input { position: absolute; inset: 0; width: 100%; appearance: none; background: none; pointer-events: none; margin: 0; }
-  .dual input::-webkit-slider-thumb { appearance: none; pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--color-ink); cursor: pointer; }
+  .dual input::-webkit-slider-thumb { appearance: none; pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--color-line-2); cursor: pointer; transition: background-color .2s; }
   .dual input::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; cursor: pointer; }
 </style>
 

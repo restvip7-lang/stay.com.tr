@@ -123,7 +123,7 @@ export function initFilters() {
     // Тоггл «Лоты PRIVE» и «Гражданство ТР» видны только для продажи; PRIVE красит страницу.
     const saleOnly = form.querySelector<HTMLElement>('[data-sale-only]');
     const syncDeal = () => {
-      const deal = (form.querySelector<HTMLInputElement>('[name=deal]:checked')?.value) || 'sale';
+      const deal = String(new FormData(form).get('deal') || 'sale');
       if (saleOnly) saleOnly.hidden = deal !== 'sale';
       const prive = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=prive]')?.checked;
       document.body.classList.toggle('mode-prive', prive);
@@ -186,13 +186,12 @@ export function initFilters() {
     if (catalog) addEventListener('popstate', () => location.reload());
     addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) { cascade(); syncDeal(); } });
 
-    const adv = form.querySelectorAll<HTMLElement>('[data-adv]');
-    const btn = form.querySelector<HTMLButtonElement>('[data-adv-toggle]');
-    btn?.addEventListener('click', () => {
-      const open = btn.getAttribute('aria-expanded') !== 'true';
-      btn.setAttribute('aria-expanded', String(open));
-      adv.forEach((a) => a.classList.toggle('hidden', !open));
-    });
+    // «Фильтры»: панель на весь экран; выдача под ней обновляется сразу, кнопка внизу закрывает панель.
+    const panel = form.querySelector<HTMLElement>('[data-adv-panel]');
+    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; };
+    form.querySelectorAll('[data-adv-open]').forEach((b) => b.addEventListener('click', () => setPanel(true)));
+    form.querySelectorAll('[data-adv-close]').forEach((b) => b.addEventListener('click', () => setPanel(false)));
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') setPanel(false); });
     void L;
   });
 }

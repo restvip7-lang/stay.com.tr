@@ -26,6 +26,8 @@ interface Props {
   image?: string | null;
   ogType?: string;
   overlayHeader?: boolean;
+  /** Новая дизайн-система образца (каталог, объект, ЖК): фон #f0f1f6. */
+  system?: 'old' | 'new';
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
 }
 const lang = Astro.locals.lang ?? 'ru';
@@ -37,6 +39,7 @@ const {
   image,
   ogType = 'website',
   overlayHeader = false,
+  system = 'old',
   jsonLd,
 } = Astro.props;
 // Переопределения из админки (ТЗ 14) — для страницы без параметров.
@@ -82,13 +85,14 @@ const clientDict = { form: d.form, loading: d.loading, showMore: d.showMore, fil
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
     <meta name="theme-color" content="#090714" />
+    <link rel="preload" href={lang === 'ru' ? '/fonts/unbounded-cyrillic-wght-normal.woff2' : '/fonts/unbounded-latin-wght-normal.woff2'} as="font" type="font/woff2" crossorigin />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <script type="application/ld+json" set:html={JSON.stringify(lds.length === 1 ? lds[0] : lds)} />
     <script type="application/json" id="i18n" set:html={JSON.stringify(clientDict)} />
   </head>
-  <body id="top" class="min-h-dvh">
+  <body id="top" class:list={['min-h-dvh', system === 'new' && 'sys-n']}>
     <Header overlay={overlayHeader} alternates={alts} />
-    <main class:list={[!overlayHeader && 'pt-16 xl:pt-[100px]']}>
+    <main class:list={[!overlayHeader && 'pt-[51px] lg:pt-[78px] xl:pt-[122px]']}>
       <slot />
     </main>
     <Footer />

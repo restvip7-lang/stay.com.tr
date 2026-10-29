@@ -26,30 +26,36 @@ const area = x.area ? `${numL(lang, x.area)} ${d.m2}` : '';
 const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
 const chips = x.features.filter((f) => !/bedroom|price-to/.test(f)).slice(0, 3);
 const alt = `${title}${district ? ` — ${district.name[lang]}` : ''}${area ? `, ${area}` : ''} — ${d.photo} 1`;
+const perM2 = x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };
 const H = headingLevel;
+const sold = x.label === 'sold';
 ---
-<article class="sale-card card group relative flex h-full flex-col p-2 shadow-[var(--shadow-card)]">
-  <div class="sc-img relative aspect-[4/3] overflow-hidden rounded-[16px]">
-    <Img src={x.image} alt={alt} class={`size-full transition-transform duration-700 group-hover:scale-[1.03]${x.label === 'sold' ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
-    <span class="absolute left-3 top-3 flex flex-wrap gap-1.5">
-      <span class="chip chip-accent !text-[11px]">{x.deal === 'rent' ? d.rent : d.sale}</span>
-      {x.label && <span class="chip !text-[11px]" style={`${LABEL_STYLE[x.label]};border-color:transparent`}>{LABEL_TEXT[lang][x.label]}</span>}
-      {x.isPrivate && <span class="chip !text-[11px]" style="background:#bc906e;color:#fff;border-color:transparent">PRIVE</span>}
-    </span>
-  </div>
-  <div class="sc-body flex flex-1 flex-col px-3 pb-3 pt-4">
-    <H class="text-lg font-medium leading-tight tracking-[-0.01em]">
-      <a href={url} class="sc-link after:absolute after:inset-0 after:rounded-[inherit] after:content-[''] hover:text-accent">{title}</a>
+<!-- Карточка объекта по эталону (каталог mr-group): белая, скругление 20, отступы 20; сверху заголовок 16/500 и район,
+     в середине фото, бейджи капсом 11 px, внизу цена 22/500 и цена за м². По наведению — тень и «♡». -->
+<article class="sale-card group relative flex h-full flex-col rounded-[20px] bg-white p-4 transition-shadow duration-100 ease-in-out hover:shadow-[0_2px_12px_#1c1e261a,inset_3px_3px_.5px_-3.5px_#fff] lg:p-5">
+  <div class="sc-head min-h-[44px] pr-14">
+    <H class="text-[16px] font-medium leading-[22px] tracking-[0.2px]">
+      <a href={url} class="sc-link after:absolute after:inset-0 after:rounded-[inherit] after:content-['']">{title}{area ? `, ${area}` : ''}</a>
     </H>
-    <p class="mt-1 text-[15px] text-muted">{place}</p>
-    {chips.length > 0 && <ul class="mt-3 flex flex-wrap gap-1.5">{chips.map((f) => <li class="chip !text-[11px]">{FEATURE_LABEL[lang][f]}</li>)}</ul>}
-    <div class="mt-auto flex items-end justify-between gap-3 pt-4">
-      <p class="text-[15px] text-muted">{area}{x.sea ? <><br />{d.toSea(numL(lang, x.sea))}</> : null}</p>
-      <p class="text-right text-2xl font-medium tracking-[-0.01em]">{price}</p>
-    </div>
+    <p class="mt-0.5 text-[13px] leading-[18px] tracking-[0.1px] text-soft">{place}{x.sea ? ` · ${d.toSea(numL(lang, x.sea))}` : ''}</p>
   </div>
-  <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" aria-label={d.addFav} class="sc-fav absolute right-5 top-5 z-10 grid size-10 place-items-center rounded-full bg-white/90 shadow hover:text-accent">
+  <div class="sc-img relative mt-4 aspect-[4/3] overflow-hidden rounded-[12px]">
+    <Img src={x.image} alt={alt} class={`size-full transition-transform duration-700 group-hover:scale-[1.03]${sold ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
+  </div>
+  <div class="sc-body flex flex-1 flex-col">
+    <ul class="mt-4 flex flex-wrap gap-1.5">
+      {x.label && <li><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></li>}
+      {x.isPrivate && <li><span class="badge badge-solid" style="background:#bc906e">PRIVE</span></li>}
+      <li><span class="badge">{x.deal === 'rent' ? d.rent : d.sale}</span></li>
+      {chips.slice(0, 2).map((f) => <li><span class="badge">{FEATURE_LABEL[lang][f]}</span></li>)}
+    </ul>
+    <div class="mt-auto pt-4"><div class="border-t border-line pt-3">
+      <p class:list={['text-[22px] font-medium leading-[27px] tracking-[0.6px] text-ink-n', sold && 'text-muted line-through']}>{price}</p>
+      {perM2 && <p class="mt-0.5 text-[14px] leading-5 tracking-[0.2px] text-ink-n/50">{perM2}</p>}
+    </div></div>
+  </div>
+  <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" aria-label={d.addFav} class="sc-fav absolute right-4 top-4 z-10 grid size-14 place-items-center rounded-[16px] bg-white shadow-[var(--shadow-btn)] transition-colors hover:bg-page-n lg:right-5 lg:top-5 lg:size-[50px] lg:rounded-[12px] lg:invisible lg:group-hover:visible lg:aria-pressed:visible">
     <Icon name="heart" class="size-5" />
   </button>
 </article>

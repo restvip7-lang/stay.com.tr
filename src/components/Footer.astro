@@ -20,72 +20,72 @@ const projects = home.projects.map((c) => all.find((p) => p.code === c)).filter(
 const cols = await footerColumns(lang).catch(() => null);
 const year = new Date().getFullYear();
 ---
-<footer class="mt-24 md:mt-32">
-  <div class="container-x">
+<footer class="pt-[60px] lg:pt-20">
+  <div class="container-x space-y-3">
     <div class="grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.4fr)]">
-      <div class="card flex flex-col gap-3 p-5 md:p-6">
-        <Logo class="mb-4 h-9 w-auto text-ink/40" />
+      <div class="flex flex-col gap-3 rounded-[16px] bg-white p-5">
+        <Logo class="mb-4 h-9 w-auto" />
         <a href="#lead" data-lead-open class="btn btn-ghost w-full"><Icon name="user" class="size-4" />{d.getOffer}</a>
         <a href={site.streamUrl} target="_blank" rel="noopener" class="btn btn-ghost w-full"><Icon name="play" class="size-4" />{d.footer.stream}</a>
-        <div class="mt-auto rounded-2xl bg-page p-4">
-          <p class="text-sm">{d.footer.app}</p>
-          <div class="mt-3 flex flex-wrap gap-2 text-xs">
+        <div class="mt-auto rounded-[16px] bg-page p-4">
+          <p class="text-[14px] leading-[18px]">{d.footer.app}</p>
+          <div class="mt-3 flex flex-wrap gap-2">
             <a class="chip" href="https://apps.apple.com/" target="_blank" rel="noopener">App Store</a>
             <a class="chip" href="https://play.google.com/store/apps/" target="_blank" rel="noopener">Google Play</a>
             <a class="chip" href="https://appgallery.huawei.ru/app/" target="_blank" rel="noopener">AppGallery</a>
           </div>
         </div>
       </div>
-      <div class="card p-5 md:p-6">
-        <p class="mb-4 text-sm text-muted">{d.footer.projects}</p>
-        <ul class="grid grid-cols-1 gap-x-4 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="hidden rounded-[16px] bg-white p-5 lg:block">
+        <p class="mb-4 text-[14px] leading-[18px]">{d.footer.projects}</p>
+        <ul class="grid grid-cols-2 gap-x-5 gap-y-3 xl:grid-cols-4">
           {projects.map((p) => (
             <li>
               <a href={complexUrl(lang, p)} class="group flex items-center gap-3">
-                <span class="size-11 shrink-0 overflow-hidden rounded-xl"><Img src={p.image} alt="" class="size-full" width={44} height={44} /></span>
-                <span class="text-[13px] leading-tight group-hover:text-accent">{p.title}</span>
+                <span class="size-11 shrink-0 overflow-hidden rounded-[8px]"><Img src={p.image} alt="" class="size-full" width={88} height={88} sizes="44px" /></span>
+                <span class="font-display text-[10px] font-normal leading-3 tracking-[-0.3px] transition-colors group-hover:text-accent">{p.title}</span>
               </a>
             </li>
           ))}
         </ul>
       </div>
     </div>
-  </div>
-  <!-- Мега-футер и нижняя полоса — на всю ширину экрана. -->
-  <div class="mt-3 bg-ink text-white">
     {cols && (
-      <div class="container-x grid gap-8 border-b border-white/10 py-10 sm:grid-cols-2 lg:grid-cols-3 md:py-14">
-        <nav aria-label={cols.title1}>
-          <p class="mb-4 text-base text-white/60">{cols.title1}</p>
-          <ul class="space-y-2 text-sm">{cols.landings.map((l) => <li><a href={l.href} class="hover:text-lavender">{l.text}</a></li>)}</ul>
-        </nav>
-        <nav aria-label={d.footer.districts}>
-          <p class="mb-4 text-base text-white/60">{d.footer.districts}</p>
-          <ul class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">{cols.districts.map((l) => <li><a href={l.href} class="hover:text-lavender">{l.text}</a></li>)}</ul>
-        </nav>
-        <nav aria-label={d.footer.buyer}>
-          <p class="mb-4 text-base text-white/60">{d.footer.buyer}</p>
-          <ul class="space-y-2 text-sm">{cols.buyer.map((l) => <li><a href={l.href} class="hover:text-lavender">{l.text}</a></li>)}</ul>
-        </nav>
+      <div class="grid gap-2 lg:grid-cols-3 lg:gap-3">
+        {[
+          { title: cols.title1, links: cols.landings, wide: false },
+          { title: d.footer.districts, links: cols.districts, wide: true },
+          { title: d.footer.buyer, links: cols.buyer, wide: false },
+        ].map((g) => (
+          <details class="foot-group rounded-[8px] bg-white lg:rounded-[16px]" open>
+            <summary class="flex min-h-16 cursor-pointer list-none items-center justify-between px-5 text-[16px] leading-5 lg:min-h-0 lg:cursor-default lg:pt-5 lg:text-[14px] lg:leading-[18px]">{g.title}<Icon name="chevronDown" class="size-4 text-muted lg:hidden" /></summary>
+            <ul class:list={['px-5 pb-5 pt-1 text-[14px] leading-[18px] lg:pt-4', g.wide ? 'grid grid-cols-2 gap-x-4 gap-y-2' : 'space-y-2']}>
+              {g.links.map((l) => <li><a href={l.href} class="text-muted transition-colors hover:text-accent">{l.text}</a></li>)}
+            </ul>
+          </details>
+        ))}
       </div>
     )}
-    <div class="container-x grid gap-8 py-8 md:grid-cols-[1fr_1fr_auto] md:py-12">
-      <div class="space-y-3 text-sm text-white/70">
-        <p class="text-white">{d.footer.company}</p>
+  </div>
+  <!-- Нижняя тёмная плашка #090714, скругление 16 сверху. -->
+  <div class="container-x mt-3">
+    <div class="grid gap-8 rounded-t-[16px] bg-ink px-5 py-8 text-[12px] leading-[18px] text-white md:grid-cols-[1fr_1fr_auto] lg:px-8 lg:py-10 lg:text-[14px] lg:leading-5">
+      <div class="space-y-3">
+        <p>{d.footer.company}</p>
         <p>{site.address}</p>
-        <p><a href={`/${lang}/privacy-policy/`} class="text-white hover:text-lavender">{d.footer.privacy}</a></p>
-        <p>{d.footer.disclaimer}</p>
-        <p>StayProperty. All rights reserved © {year}</p>
+        <p><a href={`/${lang}/privacy-policy/`} class="link">{d.footer.privacy}</a></p>
+        <p class="text-[12px] leading-[14px] tracking-[0.2px] text-muted">{d.footer.disclaimer}</p>
+        <p class="text-muted">StayProperty. All rights reserved © {year}</p>
       </div>
-      <div class="space-y-3 text-sm">
-        <p class="text-base text-white/70">{d.footer.contacts}</p>
+      <div class="space-y-3">
+        <p class="text-muted">{d.footer.contacts}</p>
         {site.phones.map((p, i) => (
-          <div><p class="text-white/50">{i === 0 ? d.footer.phoneTR : d.footer.phoneRU}</p><a href={p.href} class="hover:text-lavender">{p.label}</a></div>
+          <div><p class="text-muted">{i === 0 ? d.footer.phoneTR : d.footer.phoneRU}</p><a href={p.href} class="link">{p.label}</a></div>
         ))}
-        <a href={`mailto:${site.email}`} class="block hover:text-lavender">{site.email}</a>
-        <div class="flex gap-3 pt-1">
-          {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" aria-label={s.name} class="opacity-80 hover:opacity-100"><Icon name={s.name} class="size-5" /></a>)}
-        </div>
+        <a href={`mailto:${site.email}`} class="link block">{site.email}</a>
+      </div>
+      <div class="flex gap-4">
+        {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" aria-label={s.name} class="icon-hover"><Icon name={s.name} class="size-5" /></a>)}
       </div>
     </div>
   </div>
@@ -95,9 +95,12 @@ const year = new Date().getFullYear();
   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M6 11l6-6 6 6" /></svg>
 </button>
 <style is:global>
-  .to-top { position: fixed; left: 20px; bottom: 24px; z-index: 50; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 999px; background: #fff; color: var(--color-ink); box-shadow: 0 8px 24px #09071426; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .3s, transform .3s, background-color .2s; }
+  .to-top { position: fixed; left: 20px; bottom: 24px; z-index: 50; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; background: #fff; color: var(--color-muted); box-shadow: 0 4px 20px #0000001a; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .3s, transform .3s, background-color .2s; }
   .to-top.is-on { opacity: 1; transform: none; pointer-events: auto; }
-  .to-top:hover { background: var(--color-lavender-2); }
+  .to-top:hover { color: var(--color-ink); }
+  .foot-group > summary::-webkit-details-marker { display: none; }
+  .foot-group[open] > summary svg { transform: rotate(180deg); }
+  @media (min-width: 1024px) { .foot-group > summary { pointer-events: none; } }
 </style>
 <script>
   const b = document.querySelector<HTMLButtonElement>('[data-to-top]');
@@ -107,4 +110,6 @@ const year = new Date().getFullYear();
     sync();
     b.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
   }
+  // Колонки футера на телефоне свёрнуты (аккордеон), на десктопе раскрыты.
+  if (matchMedia('(max-width: 1023px)').matches) document.querySelectorAll<HTMLDetailsElement>('.foot-group').forEach((x) => { x.open = false; });
 </script>
