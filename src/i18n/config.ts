@@ -1,10 +1,10 @@
 /**
  * Языки сайта (ТЗ, раздел 4). Язык страницы определяется только префиксом URL
- * /{lang}/ — не кукой и не браузером. Корень / ведёт на /en/ (x-default).
+ * /{lang}/ — не кукой и не браузером. Корень / ведёт на /ru/ (решение Anuar 30.10.2026; в ТЗ было /en/).
  */
 export const LANGS = ['ru', 'en', 'tr', 'de', 'sr'] as const;
 export type Lang = (typeof LANGS)[number];
-export const DEFAULT_LANG: Lang = 'en';
+export const DEFAULT_LANG: Lang = 'ru';
 
 export const isLang = (s: unknown): s is Lang => typeof s === 'string' && (LANGS as readonly string[]).includes(s);
 
