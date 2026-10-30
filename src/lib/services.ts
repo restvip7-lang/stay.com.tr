@@ -19,7 +19,7 @@ import { contentItem, contentList, type ContentItem } from './content';
 const CURATED_MATCH: Record<string, RegExp> = {
   citizenship: /гражданств/i,
   'residence-permit': /вид на жительство/i,
-  tours: /информационн\w* тур/i,
+  tours: /информационный тур/i,
   'online-purchase': /онлайн-покупк/i,
   'online-viewing': /видеообзор/i,
   'exclusive-sale': /эксклюзивн/i,
