@@ -106,6 +106,7 @@ const fav = { id: x.id, url: self, title: `${tw.one}${x.rooms ? ' ' + x.rooms : 
 const ytId = video?.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1] ?? null;
 const mapPoint = complex?.lat && complex?.lng ? { lat: complex.lat, lng: complex.lng } : city.lat && city.lng ? { lat: city.lat, lng: city.lng } : null;
 const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
+const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster', de: 'Weniger anzeigen', sr: 'Prikaži manje' } as Record<string, string>)[lang] ?? 'Свернуть';
 ---
 <Base system="new" title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} ogType="product" jsonLd={ld}>
   <div class="container-n pt-5 lg:pt-6">
@@ -181,35 +182,37 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
           </div>
         )}
       </div>
-      {(chipLinks.length > 0 || (own ?? fallback)?.infrastructure?.length) && (
-        <div class="card-n grid gap-6 self-start p-5 lg:col-start-1 lg:row-start-2 lg:p-6">
-          {chipLinks.length > 0 && (
-            <div>
-              <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.features}</h2>
-              <ul class="flex flex-wrap gap-2">{chipLinks.map((c) => <li>{c.href ? <a href={c.href} class="chip-n">{c.text}</a> : <span class="chip-n">{c.text}</span>}</li>)}</ul>
-            </div>
+      <!-- Левая колонка под галереей: особенности и описание (свёрнуто, раскрывается по кнопке). -->
+      <div class="space-y-5 self-start lg:col-start-1 lg:row-start-2">
+        {(chipLinks.length > 0 || (own ?? fallback)?.infrastructure?.length) && (
+          <div class="card-n grid gap-6 p-5 lg:p-6">
+            {chipLinks.length > 0 && (
+              <div>
+                <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.features}</h2>
+                <ul class="flex flex-wrap gap-2">{chipLinks.map((c) => <li>{c.href ? <a href={c.href} class="chip-n">{c.text}</a> : <span class="chip-n">{c.text}</span>}</li>)}</ul>
+              </div>
+            )}
+            {(own ?? fallback)?.infrastructure?.length ? (
+              <div>
+                <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.infra}</h2>
+                <ul class="flex flex-wrap gap-2">{(own ?? fallback)!.infrastructure.map((s) => <li class="chip-n">{s}</li>)}</ul>
+              </div>
+            ) : null}
+          </div>
+        )}
+        <section class="card-n p-5 lg:p-6" aria-labelledby="desc-h">
+          <h2 id="desc-h" class="mb-3 text-[18px] font-medium leading-[22px]">{ti.description}</h2>
+          {descHtml ? <div class="prose-stay about-text" data-clamp set:html={descHtml} /> : (
+            <>
+              <p class="mb-4 rounded-[16px] bg-page-n p-4 text-sm">{ti.noText}</p>
+              {fallbackHtml && <div class="prose-stay about-text text-ink/80" data-clamp lang={details.en && (lang === 'tr' || lang === 'de') ? 'en' : 'ru'} set:html={fallbackHtml} />}
+            </>
           )}
-          {(own ?? fallback)?.infrastructure?.length ? (
-            <div>
-              <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.infra}</h2>
-              <ul class="flex flex-wrap gap-2">{(own ?? fallback)!.infrastructure.map((s) => <li class="chip-n">{s}</li>)}</ul>
-            </div>
-          ) : null}
-        </div>
-      )}
+          <button type="button" data-clamp-btn hidden aria-expanded="false" data-more={d.showMore} data-less={lessW} class="mt-3 inline-flex items-center gap-1 text-[14px] font-medium text-accent hover:underline"><span>{d.showMore}</span><Icon name="chevronDown" class="size-4 transition-transform" /></button>
+        </section>
+      </div>
     </div>
   </div>
-
-  <section class="mx-auto mt-20 max-w-[858px] px-5 lg:mt-28 lg:px-10">
-    <h2 class="display h-section-n mb-5 lg:text-center">{ti.description}</h2>
-    {descHtml ? <div class="prose-stay about-text" data-clamp set:html={descHtml} /> : (
-      <>
-        <p class="mb-4 rounded-[16px] bg-white p-4 text-sm">{ti.noText}</p>
-        {fallbackHtml && <div class="prose-stay about-text text-ink/80" data-clamp lang={details.en && (lang === 'tr' || lang === 'de') ? 'en' : 'ru'} set:html={fallbackHtml} />}
-      </>
-    )}
-    <p class="mt-5 text-center lg:mt-6"><button type="button" data-clamp-btn hidden class="btn-n btn-n-white">{d.showMore}<Icon name="chevronDown" class="size-4" /></button></p>
-  </section>
 
   {ytId && (
     <section class="container-n mt-20 lg:mt-28">
@@ -249,7 +252,7 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
   .cur-chip { height: 28px; padding: 0 10px; border-radius: 1000px; border: .67px solid #d0d1d7; font-size: 12px; font-weight: 500; color: var(--color-soft); transition: color .2s, border-color .2s; }
   .cur-chip:hover, .cur-chip.is-on { color: var(--color-ink); border-color: var(--color-ink); }
   .about-text { font-size: 16px; line-height: 22px; letter-spacing: .2px; color: var(--color-ink-n); }
-  .about-text[data-clamped] { max-height: 264px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+  .about-text[data-clamped] { max-height: 176px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
 </style>
 <script>
   import { T, pageLocale } from '../scripts/client';
@@ -283,10 +286,17 @@ const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
   // «Показать ещё» у длинного описания
   const txt = document.querySelector<HTMLElement>('[data-clamp]');
   const more = document.querySelector<HTMLButtonElement>('[data-clamp-btn]');
-  if (txt && more && txt.scrollHeight > 340) {
+  if (txt && more && txt.scrollHeight > 240) {
     txt.dataset.clamped = '';
     more.hidden = false;
-    more.addEventListener('click', () => { delete txt.dataset.clamped; more.hidden = true; });
+    more.addEventListener('click', () => {
+      const open = 'clamped' in txt.dataset;
+      if (open) delete txt.dataset.clamped; else txt.dataset.clamped = '';
+      more.setAttribute('aria-expanded', String(open));
+      more.querySelector('span')!.textContent = (open ? more.dataset.less : more.dataset.more) ?? '';
+      more.querySelector('svg')?.classList.toggle('rotate-180', open);
+      if (!open) txt.closest('section')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    });
   }
   const mapEl = document.querySelector<HTMLElement>('[data-map]');
   if (mapEl) {
