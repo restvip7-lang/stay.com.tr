@@ -43,7 +43,9 @@ const nav = [
   { label: d.nav.contacts, href: `/${lang}/contacts/` },
 ];
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
-const langHref = (l: Lang) => alternates?.[l] ?? `/${l}/`;
+// Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
+const here = Astro.url.pathname;
+const langHref = (l: Lang) => alternates?.[l] ?? (/^\/(ru|en|tr|de|sr)\//.test(here) ? here.replace(/^\/(ru|en|tr|de|sr)\//, `/${l}/`) + Astro.url.search : `/${l}/`);
 const saleHref = catUrl(lang, { country: 'turkey', deal: 'sale' });
 const realty = [{ label: d.nav.sale, href: saleHref }, ...nav.slice(0, 2), { label: 'PRIVE', href: `/${lang}/prive/` }, { label: d.favorites, href: `/${lang}/favorites/` }];
 const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }];
@@ -74,11 +76,14 @@ const groups = [
         <a href={site.phone.href} class="icon-hover hidden text-[14px] leading-[14px] xl:inline">{site.phone.label}</a>
         <div class="lang group relative hidden sm:block">
           <button type="button" class="icon-hover inline-flex items-center gap-1 text-[14px] uppercase" aria-haspopup="true" aria-label={d.language}>{lang}<Icon name="chevronDown" class="size-3.5" /></button>
-          <ul class="invisible absolute right-0 top-full z-10 mt-3 min-w-40 rounded-[15px] bg-white p-2 text-ink opacity-0 shadow-[var(--shadow-btn)] transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+          <!-- Отступ сверху — внутри обёртки (pt-3), чтобы курсор не «проваливался» между кнопкой и окном; закрытие с задержкой. -->
+          <div class="hover-pop invisible absolute -right-3 top-full z-10 pl-6 pr-3 pt-3 opacity-0 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+          <ul class="min-w-40 rounded-[15px] bg-white p-2 text-ink shadow-[var(--shadow-btn)]">
             {LANGS.map((l) => (
               <li><a href={langHref(l)} hreflang={l} lang={l} class:list={['flex items-center justify-between gap-3 rounded-[8px] px-3 py-2 text-sm transition-colors hover:text-accent', l === lang && 'font-medium']} aria-current={l === lang ? 'true' : undefined}>{LANG_NAME[l]}<span class="text-xs uppercase text-muted">{l}</span></a></li>
             ))}
           </ul>
+          </div>
         </div>
         <a href={`/${lang}/favorites/`} class="icon-hover relative" aria-label={d.favorites}>
           <Icon name="heart" class="size-5" />
@@ -91,7 +96,7 @@ const groups = [
     <nav class="main-nav hidden h-11 items-start gap-6 text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
       <div class="group relative">
         <a href={saleHref} class="nav-item inline-flex items-center gap-1" aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-3.5" /></a>
-        <div class="invisible absolute left-0 top-full z-10 pt-3 opacity-0 transition-opacity group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+        <div class="hover-pop invisible absolute left-0 top-full z-10 pt-3 opacity-0 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
           <div class="grid w-[min(860px,90vw)] grid-cols-3 gap-6 rounded-[15px] bg-white p-5 text-ink shadow-[var(--shadow-btn)]">
             {cities.map((c) => (
               <div>
@@ -166,6 +171,9 @@ const groups = [
 </div>
 
 <style is:global>
+  /* Выпадающие окна по наведению: открываются сразу, закрываются с задержкой, чтобы успеть довести курсор. */
+  .hover-pop { transition: opacity .15s ease .3s, visibility 0s linear .45s; }
+  .group:hover > .hover-pop, .group:focus-within > .hover-pop { transition: opacity .15s ease, visibility 0s; }
   .site-header { transition: background-color .3s, color .3s; }
   .site-header.is-solid { background: #fff; color: var(--color-ink); }
   .site-header.is-overlay { background: transparent; color: #fff; }
