@@ -64,6 +64,8 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     return Response.json(reply, { headers: noStore });
   } catch (e) {
     console.error('chat error', e);
+    // ИИ не ответил (нет денег на счёте, лимит, сбой) — отвечаем в демо-режиме, чтобы чат не молчал.
+    try { return Response.json(await demoReply(history[history.length - 1].content, lang), { headers: noStore }); } catch { /* ниже */ }
     return Response.json({ error: CHAT_UI[lang].unavailable }, { status: 502, headers: noStore });
   }
 };
