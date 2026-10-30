@@ -6,6 +6,14 @@ const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bed
 const PRICE_TO = ['100000', '150000', '200000'];
 const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'prive', 'citizenship', 'f', 'sort'];
 
+/** Форма слова для числа, как pluralL на сервере. */
+function pluralW(lang: string, n: number, f: [string, string, string]) {
+  if (lang === 'tr') return f[0];
+  if (lang !== 'ru' && lang !== 'sr') return n === 1 ? f[0] : f[1];
+  const a = n % 100, b = a % 10;
+  return a > 10 && a < 20 ? f[2] : b > 1 && b < 5 ? f[1] : b === 1 ? f[0] : f[2];
+}
+
 type Allowed = Record<string, Record<string, string[]>>;
 
 /** Адрес по состоянию формы. */
@@ -13,8 +21,10 @@ export function buildUrl(form: HTMLFormElement): string {
   const fd = new FormData(form);
   const val = (k: string) => String(fd.get(k) ?? '').trim();
   const lang = form.dataset.lang || 'ru';
-  const country = val('country') || 'turkey';
   const city = val('city');
+  // Страна «Все»: берём страну выбранного города, иначе Турцию.
+  const cityCountry = city ? form.querySelector<HTMLOptionElement>(`[data-city] option[value="${CSS.escape(city)}"]`)?.dataset.country : '';
+  const country = val('country') || cityCountry || 'turkey';
   const district = city ? val('district') : '';
   const deal = val('deal') || 'sale';
   const type = val('type');
@@ -106,7 +116,7 @@ export function initFilters() {
     const district = form.querySelector<HTMLSelectElement>('[data-district]')!;
     const cascade = () => {
       city.querySelectorAll<HTMLOptionElement>('option[data-country]').forEach((o) => {
-        o.hidden = o.dataset.country !== country.value;
+        o.hidden = !!country.value && o.dataset.country !== country.value;
         if (o.hidden && o.selected) city.value = '';
       });
       district.querySelectorAll<HTMLOptionElement>('option[data-city]').forEach((o) => {
@@ -148,6 +158,10 @@ export function initFilters() {
           const r = await fetch(`/api/count?path=${encodeURIComponent(u.pathname)}&${u.searchParams}`);
           const { total } = await r.json();
           form.querySelectorAll('[data-total]').forEach((el) => (el.textContent = fmt(total)));
+          const btn = form.querySelector<HTMLElement>('[data-nouns]');
+          const noun = form.querySelector('[data-noun]');
+          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type'))];
+          if (noun && forms) noun.textContent = pluralW(form.dataset.lang || 'ru', total, forms);
         } catch { /* счётчик не критичен */ }
       }, 250);
     };

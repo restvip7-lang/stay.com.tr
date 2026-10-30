@@ -67,7 +67,7 @@ const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale
         <a href={x.href} class="card flex min-h-24 items-end justify-between p-4 text-lg font-medium transition-shadow hover:shadow-[var(--shadow-card)]">{x.label}<Icon name="arrowRight" class="size-5" /></a>
       ))}
     </div>
-    <div class="hidden lg:block"><CatalogFilter cat={turkeySale} f={noFilters()} total={saleAll.length} mode="home" /></div>
+    <div class="hidden lg:block"><CatalogFilter cat={{ ...turkeySale, type: 'apartments' }} f={noFilters()} total={saleAll.filter((x) => x.type === 'apartments').length} mode="home" /></div>
     <LinkCloud title={h.popular} links={cols.landings} />
   </section>
 
