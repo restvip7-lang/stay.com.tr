@@ -36,7 +36,9 @@ const h = d.hp;
 
 const [home, complexes, sections, cols, cities] = await Promise.all([getHomeConfig(), getComplexes(), getHomeSections(), footerColumns(lang), menuCities(lang, 12)]);
 const byCode = (c: string) => complexes.find((p) => p.code === c);
-const hero = home.hero.map((x) => byCode(x.project)).filter(Boolean) as typeof complexes;
+// Обработанные фото для слайдера (от Anuar 30.10.2026) лежат в public/hero/<код проекта>.webp; фото в базе не трогаем.
+const HERO_PHOTOS = new Set(['exodus_premium_town', 'exodus_aqua_deluxe_konakli', 'exodus_twins_residence', 'exodus_dreams_residence']);
+const hero = (home.hero.map((x) => byCode(x.project)).filter(Boolean) as typeof complexes).map((p) => (p.code && HERO_PHOTOS.has(p.code) ? { ...p, image: `/hero/${p.code}.webp` } : p));
 const list = home.projects.map(byCode).filter(Boolean) as typeof complexes;
 const priveCfg = (home.prive?.projects ?? []).map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
 const priveList = [...priveCfg, ...complexes.filter((p) => p.isPrivate && !priveCfg.includes(p))];
