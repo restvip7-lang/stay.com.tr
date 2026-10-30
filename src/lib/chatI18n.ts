@@ -14,6 +14,7 @@ export interface ChatUi {
   open: string; hintClose: string; hint: (name: string) => string; subtitle: string; reset: string; close: string;
   suggest: string[]; message: string; placeholder: string; send: string; manager: string; disclaimer: string;
   typing: string; unavailable: string; tooMany: string; waText: string;
+  mic: string; micStop: string; listening: string; micDenied: string; voiceOn: string; voiceOff: string;
 }
 
 export const CHAT_UI: Record<Lang, ChatUi> = {
@@ -25,6 +26,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     manager: 'Связаться с менеджером', disclaimer: 'ИИ может ошибаться — цены уточняйте у менеджера', typing: 'Печатает',
     unavailable: 'Помощник сейчас недоступен. Напишите нам в WhatsApp — ответим быстро.',
     tooMany: 'Слишком много сообщений. Попробуйте через несколько минут.', waText: 'Здравствуйте! Пишу с сайта stay.com.tr',
+    mic: 'Спросить голосом', micStop: 'Остановить запись', listening: 'Слушаю…', micDenied: 'Нет доступа к микрофону. Разрешите его в настройках браузера.', voiceOn: 'Озвучивать ответы', voiceOff: 'Не озвучивать ответы',
   },
   en: {
     open: 'Open the AI assistant', hintClose: 'Hide', hint: (n) => `Hi! I'm ${n}. Can I help you find a home?`,
@@ -34,6 +36,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     manager: 'Contact a manager', disclaimer: 'AI can make mistakes — please confirm prices with a manager', typing: 'Typing',
     unavailable: 'The assistant is unavailable right now. Message us on WhatsApp and we will reply quickly.',
     tooMany: 'Too many messages. Please try again in a few minutes.', waText: 'Hello! I am writing from stay.com.tr',
+    mic: 'Ask by voice', micStop: 'Stop recording', listening: 'Listening…', micDenied: 'No microphone access. Please allow it in your browser settings.', voiceOn: 'Read answers aloud', voiceOff: 'Stop reading answers aloud',
   },
   tr: {
     open: 'Yapay zekâ asistanını aç', hintClose: 'Gizle', hint: (n) => `Merhaba! Ben ${n}. Ev bulmanıza yardım edeyim mi?`,
@@ -43,6 +46,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     manager: 'Danışmanla iletişime geç', disclaimer: 'Yapay zekâ hata yapabilir — fiyatları danışmanla teyit edin', typing: 'Yazıyor',
     unavailable: 'Asistan şu anda kullanılamıyor. Bize WhatsApp’tan yazın, hızla yanıt verelim.',
     tooMany: 'Çok fazla mesaj. Lütfen birkaç dakika sonra tekrar deneyin.', waText: 'Merhaba! stay.com.tr sitesinden yazıyorum',
+    mic: 'Sesle sor', micStop: 'Kaydı durdur', listening: 'Dinliyorum…', micDenied: 'Mikrofon erişimi yok. Lütfen tarayıcı ayarlarından izin verin.', voiceOn: 'Yanıtları sesli oku', voiceOff: 'Yanıtları sesli okuma',
   },
   de: {
     open: 'KI-Assistenten öffnen', hintClose: 'Ausblenden', hint: (n) => `Hallo! Ich bin ${n}. Soll ich Ihnen bei der Suche helfen?`,
@@ -52,6 +56,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     manager: 'Berater kontaktieren', disclaimer: 'KI kann sich irren — Preise bitte beim Berater bestätigen', typing: 'Schreibt',
     unavailable: 'Der Assistent ist gerade nicht erreichbar. Schreiben Sie uns auf WhatsApp, wir antworten schnell.',
     tooMany: 'Zu viele Nachrichten. Bitte versuchen Sie es in ein paar Minuten erneut.', waText: 'Hallo! Ich schreibe von stay.com.tr',
+    mic: 'Per Sprache fragen', micStop: 'Aufnahme stoppen', listening: 'Ich höre zu…', micDenied: 'Kein Mikrofonzugriff. Bitte in den Browsereinstellungen erlauben.', voiceOn: 'Antworten vorlesen', voiceOff: 'Antworten nicht vorlesen',
   },
   sr: {
     open: 'Otvori AI asistenta', hintClose: 'Sakrij', hint: (n) => `Zdravo! Ja sam ${n}. Da vam pomognem da nađete stan?`,
@@ -61,6 +66,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     manager: 'Kontaktiraj menadžera', disclaimer: 'AI može da pogreši — cene proverite sa menadžerom', typing: 'Kuca',
     unavailable: 'Asistent trenutno nije dostupan. Pišite nam na WhatsApp, brzo odgovaramo.',
     tooMany: 'Previše poruka. Pokušajte ponovo za nekoliko minuta.', waText: 'Zdravo! Pišem sa sajta stay.com.tr',
+    mic: 'Pitaj glasom', micStop: 'Zaustavi snimanje', listening: 'Slušam…', micDenied: 'Nema pristupa mikrofonu. Dozvolite ga u podešavanjima pregledača.', voiceOn: 'Čitaj odgovore naglas', voiceOff: 'Ne čitaj odgovore naglas',
   },
 };
 

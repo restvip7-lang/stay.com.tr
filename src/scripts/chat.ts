@@ -1,10 +1,12 @@
 /** Клиентская часть чата с Доми. История хранится в браузере посетителя. */
+import { listen, recognitionSupported, speak, speechSupported, stopSpeaking, unlockSpeech } from './voice';
 
 interface Card { kind: string; id: string; title: string; subtitle: string; price: string; image: string | null; url: string; prive: boolean }
 interface Msg { role: 'user' | 'assistant'; content: string; cards?: Card[] }
 
 const STORE_BASE = 'stay-chat-v1';
 const HINT = 'stay-chat-hint';
+const VOICE = 'stay-chat-voice';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
 
@@ -69,7 +71,7 @@ function render(m: Msg) {
 export async function initChat() {
   const root = document.querySelector<HTMLElement>('[data-chat]');
   if (!root) return;
-  const T: { lang: string; typing: string; unavailable: string; hint: string } = JSON.parse(root.dataset.chatT || '{}');
+  const T: { lang: string; typing: string; unavailable: string; hint: string; mic: string; micStop: string; listening: string; micDenied: string; voiceOn: string; voiceOff: string } = JSON.parse(root.dataset.chatT || '{}');
   const lang = T.lang || 'ru';
   // История своя для каждого языка: на английской странице не всплывает русский разговор.
   const STORE = lang === 'ru' ? STORE_BASE : `${STORE_BASE}-${lang}`;
@@ -105,8 +107,37 @@ export async function initChat() {
     log.scrollTop = log.scrollHeight;
   }
 
+  const showErr = (msg: string) => {
+    const err = document.createElement('div');
+    err.className = 'chat-err';
+    err.textContent = msg;
+    log.append(err);
+    log.scrollTop = log.scrollHeight;
+  };
+
+  // Озвучка ответов: включается кнопкой в шапке; на вопрос голосом Доми отвечает голосом всегда.
+  const voiceBtn = $<HTMLButtonElement>('[data-chat-voice]');
+  let voiceOn = false;
+  try { voiceOn = localStorage.getItem(VOICE) === '1'; } catch { /* */ }
+  const syncVoice = () => {
+    voiceBtn.setAttribute('aria-pressed', String(voiceOn));
+    const l = voiceOn ? T.voiceOff : T.voiceOn;
+    voiceBtn.title = l;
+    voiceBtn.setAttribute('aria-label', l);
+  };
+  if (speechSupported()) {
+    voiceBtn.hidden = false;
+    syncVoice();
+    voiceBtn.addEventListener('click', () => {
+      voiceOn = !voiceOn;
+      try { localStorage.setItem(VOICE, voiceOn ? '1' : '0'); } catch { /* */ }
+      syncVoice();
+      if (voiceOn) unlockSpeech(); else stopSpeaking();
+    });
+  }
+
   let busy = false;
-  async function ask(text: string) {
+  async function ask(text: string, byVoice = false) {
     text = text.trim();
     if (!text || busy) return;
     busy = true;
@@ -130,16 +161,13 @@ export async function initChat() {
       history.push({ role: 'assistant', content: r.text, cards: r.cards });
       save();
       draw();
+      if (voiceOn || byVoice) speak(lang, r.text);
     } catch (e) {
       history.pop();
       save();
       draw();
       input.value = text;
-      const err = document.createElement('div');
-      err.className = 'chat-err';
-      err.textContent = (e as Error).message;
-      log.append(err);
-      log.scrollTop = log.scrollHeight;
+      showErr((e as Error).message);
     } finally {
       busy = false;
       send.disabled = false;
@@ -155,7 +183,48 @@ export async function initChat() {
     draw();
     if (matchMedia('(min-width: 561px)').matches) input.focus();
   };
+  // Микрофон: говорим вопрос, текст появляется в поле и отправляется сам, когда человек замолчит.
+  const mic = $<HTMLButtonElement>('[data-chat-mic]');
+  const placeholder = input.placeholder;
+  let rec: { stop: () => void; abort: () => void } | null = null;
+  const micState = (on: boolean) => {
+    mic.classList.toggle('is-on', on);
+    mic.setAttribute('aria-pressed', String(on));
+    mic.title = on ? T.micStop : T.mic;
+    mic.setAttribute('aria-label', mic.title);
+    input.placeholder = on ? T.listening : placeholder;
+  };
+  const stopMic = () => { rec?.abort(); rec = null; micState(false); };
+  if (recognitionSupported()) {
+    mic.hidden = false;
+    mic.addEventListener('click', () => {
+      if (rec) { rec.stop(); return; }
+      if (busy) return;
+      stopSpeaking();
+      unlockSpeech();
+      const before = input.value.trim();
+      try {
+        rec = listen(lang, {
+          onText: (t) => { input.value = before ? `${before} ${t}` : t; },
+          onDone: (t) => {
+            rec = null;
+            micState(false);
+            const q = (before ? `${before} ${t}` : t).trim();
+            if (!t) return;
+            input.value = '';
+            input.style.height = '';
+            ask(q, true);
+          },
+          onError: (code) => { if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') showErr(T.micDenied); },
+        });
+        micState(true);
+      } catch { rec = null; micState(false); }
+    });
+  }
+
   const close = () => {
+    stopMic();
+    stopSpeaking();
     root.classList.remove('is-open');
     panel.hidden = true;
     $('[data-chat-open]').setAttribute('aria-expanded', 'false');
@@ -171,16 +240,18 @@ export async function initChat() {
   });
   $('[data-chat-close]').addEventListener('click', close);
   panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-  $('[data-chat-reset]').addEventListener('click', () => { history = []; save(); draw(); input.focus(); });
+  $('[data-chat-reset]').addEventListener('click', () => { stopMic(); stopSpeaking(); history = []; save(); draw(); input.focus(); });
   suggest.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest('button');
-    if (b) ask(b.textContent || '');
+    if (b) { if (voiceOn) unlockSpeech(); ask(b.textContent || ''); }
   });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const t = input.value;
     input.value = '';
     input.style.height = '';
+    if (rec) stopMic();
+    if (voiceOn) unlockSpeech();
     ask(t);
   });
   input.addEventListener('keydown', (e) => {

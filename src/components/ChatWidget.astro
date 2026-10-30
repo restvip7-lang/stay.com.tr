@@ -9,7 +9,7 @@ import { CHAT_UI } from '../lib/chatI18n';
 const lang = Astro.locals.lang ?? 'ru';
 const u = CHAT_UI[lang];
 const wa = site.phones[0].href + '?text=' + encodeURIComponent(u.waText);
-const clientText = { lang, typing: u.typing, unavailable: u.unavailable, hint: u.hint('{name}') };
+const clientText = { lang, typing: u.typing, unavailable: u.unavailable, hint: u.hint('{name}'), mic: u.mic, micStop: u.micStop, listening: u.listening, micDenied: u.micDenied, voiceOn: u.voiceOn, voiceOff: u.voiceOff };
 ---
 <div data-chat hidden class="chat-root" data-chat-t={JSON.stringify(clientText)}>
   <div data-chat-hint class="chat-hint" hidden>
@@ -27,6 +27,9 @@ const clientText = { lang, typing: u.typing, unavailable: u.unavailable, hint: u
         <span id="chat-title" data-chat-name class="display block text-lg leading-tight">Доми</span>
         <span class="block text-xs text-white/70">{u.subtitle}</span>
       </span>
+      <button type="button" data-chat-voice class="chat-icon" hidden aria-pressed="false" title={u.voiceOn} aria-label={u.voiceOn}>
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z" /><path class="v-on" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" /><path class="v-off" d="m16 9 5 6m0-6-5 6" /></svg>
+      </button>
       <button type="button" data-chat-reset class="chat-icon" title={u.reset} aria-label={u.reset}>
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4" /></svg>
       </button>
@@ -44,6 +47,9 @@ const clientText = { lang, typing: u.typing, unavailable: u.unavailable, hint: u
     <form data-chat-form class="chat-form">
       <label for="chat-input" class="sr-only">{u.message}</label>
       <textarea id="chat-input" data-chat-input rows="1" maxlength="2000" placeholder={u.placeholder} class="chat-input"></textarea>
+      <button type="button" data-chat-mic class="chat-mic" hidden aria-pressed="false" title={u.mic} aria-label={u.mic}>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></svg>
+      </button>
       <button type="submit" data-chat-send class="chat-send" aria-label={u.send}>
         <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" /></svg>
       </button>
@@ -108,6 +114,16 @@ const clientText = { lang, typing: u.typing, unavailable: u.unavailable, hint: u
   .chat-input { flex: 1; resize: none; max-height: 120px; padding: 8px 0; font-size: 15px; background: transparent; outline: none; }
   .chat-send { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 999px; color: #fff; background: linear-gradient(90deg, #8a5cff, var(--color-accent-2)); }
   .chat-send:disabled { opacity: .4; }
+  .chat-mic { display: grid; place-items: center; flex: 0 0 40px; height: 40px; border-radius: 999px; color: var(--color-muted); transition: color .2s, background-color .2s; }
+  .chat-mic:hover { color: var(--color-ink); background: #f1f0f6; }
+  .chat-mic[hidden] { display: none; }
+  .chat-mic.is-on { color: #fff; background: #e5484d; animation: chat-rec 1.4s ease-in-out infinite; }
+  @keyframes chat-rec { 0%, 100% { box-shadow: 0 0 0 0 #e5484d66; } 50% { box-shadow: 0 0 0 8px #e5484d00; } }
+  @media (prefers-reduced-motion: reduce) { .chat-mic.is-on { animation: none; } }
+  [data-chat-voice][hidden] { display: none; }
+  [data-chat-voice] .v-on { display: none; }
+  [data-chat-voice][aria-pressed='true'] .v-on { display: inline; }
+  [data-chat-voice][aria-pressed='true'] .v-off { display: none; }
   .chat-foot { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 12px 12px; }
   .chat-note { display: block; margin-top: 6px; font-size: 12px; color: var(--color-muted); }
   .chat-manager { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: #128c4b; }
