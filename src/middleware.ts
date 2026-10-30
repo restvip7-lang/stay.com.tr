@@ -11,7 +11,7 @@ import { DEFAULT_LANG, isLang, type Lang } from './i18n/config';
 import { legacyRedirect } from './lib/legacy';
 import { redirectFor } from './lib/seoConfig';
 
-const STATIC = /^\/(_astro|_vercel|favicon|mascot|hero\/|fonts|images|api|admin|robots\.txt|sitemap|llms\.txt|og\/|og-default|logo\.png)/;
+const STATIC = /^\/(_astro|_vercel|favicon|mascot|hero\/|services\/|fonts|images|api|admin|robots\.txt|sitemap|llms\.txt|og\/|og-default|logo\.png)/;
 /** Карточка объекта или ЖК — адрес без слеша на конце. */
 const CARD = /\/(id\w+|complexes\/(?!page-\d+\/?$)[a-z0-9-]+)\/?$/;
 

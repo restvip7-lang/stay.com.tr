@@ -70,6 +70,14 @@ export function slugOf(s: string) {
     .replace(/-+$/, '');
 }
 
+/** Свои фото к услугам (в API почти у всех одна заглушка): public/services/<адрес>.webp, подобраны из фото наших объектов и старого сайта. */
+const SERVICE_PHOTOS = new Set([
+  'how-to-obtain-citizenship-of-the-republic-of-turkiye', 'residence-permit-in-turkiye', 'familiarization-tour', 'online-video-inspection',
+  'online-real-estate-purchase-in-turkiye', 'exclusive-sale-of-real-estate', 'exchange', 'mortgage-mortgage-loan-for-foreigners', 'rental',
+  'furnishing-and-equipping-the-apartment', 'renovation-and-decoration', 'cleaning-and-hygiene-services', 'insurance-services',
+  'checking-the-technical-condition-of-equipment', 'relocation-support', 'subscription-contracts-services', 'title-deed-procedures', 'transportation-services',
+]);
+
 const FREE = /бесплат|free|ücretsiz|besplat/i;
 
 async function fetchAll(kind: ContentKind): Promise<RawContent[]> {
@@ -112,7 +120,7 @@ function localize({ x, slug }: { x: RawContent; slug: string }, lang: Lang): Con
     body: t.body || '',
     category: (t.category || '').trim(),
     group: FREE.test(tr.ru?.category || x.category || '') ? 'free' : 'main',
-    image: x.image || null,
+    image: SERVICE_PHOTOS.has(slug) ? `/services/${slug}.webp` : x.image || null,
     date,
     updated: x.updated_at || date,
     langs: SITE_LANGS.filter((l) => !!tr[apiLang(l)]?.title?.trim()),
