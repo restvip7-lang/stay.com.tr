@@ -4,6 +4,7 @@ import { adminEnabled, isAdmin } from '../../lib/adminAuth';
 import { getHomeConfig, storageReady } from '../../lib/homeConfig';
 import { getProjects } from '../../lib/api';
 import { ANTHROPIC_MODELS, DEFAULT_MODELS, chatAdminView, getChatSettings } from '../../lib/chatConfig';
+import { usageFresh } from '../../lib/chatUsage';
 import { getSeoConfig } from '../../lib/seoConfig';
 import { categoryCounts } from '../../lib/sitemap';
 import { catUrl, INDEX_MIN } from '../../lib/catalog';
@@ -17,6 +18,7 @@ const error = Astro.url.searchParams.has('error');
 
 let data: any = null;
 let thin: { url: string; n: number }[] = [];
+let chatUsedN = 0;
 let seoText = { redirects: '', overrides: '{}' };
 if (authed) {
   const [seo, counts] = await Promise.all([getSeoConfig(), categoryCounts()]);
@@ -26,7 +28,8 @@ if (authed) {
     redirects: seo.redirects.map((r) => (r.status === 410 ? `${r.from} 410` : `${r.from} ${r.to}`)).join('\n'),
     overrides: JSON.stringify(seo.overrides, null, 2),
   };
-  const [home, projects, chat] = await Promise.all([getHomeConfig(), getProjects(), getChatSettings()]);
+  const [home, projects, chat, chatUsed] = await Promise.all([getHomeConfig(), getProjects(), getChatSettings(), usageFresh().catch(() => 0)]);
+  chatUsedN = chatUsed;
   data = {
     home,
     chat: chatAdminView(chat),
@@ -134,7 +137,7 @@ if (authed) {
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h2 class="text-xl font-medium">ИИ-помощник в чате</h2>
-              <p class="mt-1 text-sm text-muted">Черепаха-каретта в углу сайта. Подбирает объекты из нашей базы и отвечает на вопросы. Нужен ключ Claude или GPT.</p>
+              <p class="mt-1 text-sm text-muted">Доми в углу сайта. Подбирает объекты из нашей базы и отвечает на вопросы. Нужен ключ Claude или GPT.</p>
             </div>
             <label class="flex items-center gap-2 font-medium"><input type="checkbox" data-c="enabled" class="size-5 accent-[#754be9]" /> Показывать на сайте</label>
           </div>
@@ -155,6 +158,17 @@ if (authed) {
             </div>
             <div><label class="label" for="c-name">Имя талисмана</label><input id="c-name" data-c="name" class="field" /></div>
             <div class="md:col-span-2"><label class="label" for="c-greet">Приветствие</label><input id="c-greet" data-c="greeting" class="field" /></div>
+            <div>
+              <label class="label" for="c-daily">Ответов ИИ в сутки на весь сайт</label>
+              <input id="c-daily" data-c="dailyLimit" type="number" min="0" step="10" class="field" />
+              <p class="mt-2 text-xs text-muted">Сегодня: {chatUsedN}. Дальше до полуночи (по Турции) Доми отвечает в демо-режиме, бесплатно. 0 — без лимита.</p>
+            </div>
+            <div>
+              <label class="label" for="c-user">Вопросов в сутки от одного посетителя</label>
+              <input id="c-user" data-c="perUserDay" type="number" min="1" step="5" class="field" />
+              <p class="mt-2 text-xs text-muted">Плюс не больше 20 вопросов за 10 минут.</p>
+            </div>
+            <div class="text-xs text-muted md:self-end">Ответ ИИ — до ~1200 токенов, в ИИ уходят последние 12 сообщений. Дешевле всего Haiku, оптимально Sonnet.</div>
             <div class="md:col-span-3">
               <label class="label" for="c-notes">Что ещё знать помощнику (акции, условия, на чём делать акцент)</label>
               <textarea id="c-notes" data-c="notes" rows="4" class="field h-auto rounded-2xl py-3"></textarea>
@@ -315,11 +329,11 @@ if (authed) {
           state = c;
           (q('[data-c="enabled"]') as HTMLInputElement).checked = !!c.enabled;
           prov.value = c.provider;
-          for (const k of ['name', 'greeting', 'notes']) q(`[data-c="${k}"]`).value = c[k] ?? '';
+          for (const k of ['name', 'greeting', 'notes', 'dailyLimit', 'perUserDay']) q(`[data-c="${k}"]`).value = c[k] ?? '';
           syncModel(c.model);
           q('[data-key]').value = '';
           q('[data-key]').placeholder = c.apiKeyHint ? `сохранён ${c.apiKeyHint} — введите новый, чтобы заменить` : c.keyFromEnv ? 'задан в настройках Vercel' : 'вставьте ключ';
-          q('[data-key-state]').textContent = c.hasKey ? 'Ключ есть. Хранится в зашифрованном виде, в браузер не отдаётся.' : 'Ключа нет — Каретта работает в демо-режиме: простой поиск по базе без ИИ.';
+          q('[data-key-state]').textContent = c.hasKey ? 'Ключ есть. Хранится в зашифрованном виде, в браузер не отдаётся.' : 'Ключа нет — Доми работает в демо-режиме: простой поиск по базе без ИИ.';
         }
         function syncModel(model?: string) {
           const o = prov.value === 'openai';
@@ -343,6 +357,8 @@ if (authed) {
             name: q('[data-c="name"]').value,
             greeting: q('[data-c="greeting"]').value,
             notes: q('[data-c="notes"]').value,
+            dailyLimit: q('[data-c="dailyLimit"]').value,
+            perUserDay: q('[data-c="perUserDay"]').value,
             apiKey: q('[data-key]').value.trim(),
           });
           if (r.ok) fill(r.saved);

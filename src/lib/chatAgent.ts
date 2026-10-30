@@ -40,7 +40,7 @@ async function claude(apiKey: string, model: string, system: string, history: Ch
     const last = round === MAX_ROUNDS - 1;
     const res = await client.beta.messages.create({
       model,
-      max_tokens: 4000,
+      max_tokens: 1200,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       tools: last ? undefined : tools,
       messages,
@@ -81,7 +81,7 @@ async function openai(apiKey: string, model: string, system: string, history: Ch
     const r = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages, ...(last ? {} : { tools }), max_completion_tokens: 2000 }),
+      body: JSON.stringify({ model, messages, ...(last ? {} : { tools }), max_completion_tokens: 1200 }),
       signal: AbortSignal.timeout(55_000),
     });
     if (!r.ok) {

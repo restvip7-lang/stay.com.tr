@@ -2,24 +2,33 @@ import type { APIRoute } from 'astro';
 import { chatReady, getChatSettings, publicChat } from '../../lib/chatConfig';
 import { askAssistant, type ChatMsg } from '../../lib/chatAgent';
 import { demoReply } from '../../lib/chatDemo';
+import { addUsage, usageToday } from '../../lib/chatUsage';
 import { CHAT_UI, chatGreeting, chatLang, chatName } from '../../lib/chatI18n';
 
 export const prerender = false;
 
-const MAX_MESSAGES = 20;
+// В ИИ уходят только последние 12 сообщений: длинная переписка дорого стоит.
+const MAX_MESSAGES = 12;
 const MAX_LEN = 2000;
 // Простая защита от злоупотреблений: не больше 20 вопросов за 10 минут с одного адреса.
 const WINDOW = 10 * 60_000;
 const LIMIT = 20;
 const hits = new Map<string, number[]>();
+// Сутки с одного адреса (лимит из админки). Счёт в памяти процесса — грубая, но бесплатная защита.
+const daily = new Map<string, { day: string; n: number }>();
 
-function limited(ip: string) {
+function limited(ip: string, perDay: number) {
   const now = Date.now();
   const list = (hits.get(ip) ?? []).filter((t) => now - t < WINDOW);
   list.push(now);
   hits.set(ip, list);
   if (hits.size > 5000) hits.clear();
-  return list.length > LIMIT;
+  const day = new Date(now).toISOString().slice(0, 10);
+  const d = daily.get(ip);
+  const n = d?.day === day ? d.n + 1 : 1;
+  daily.set(ip, { day, n });
+  if (daily.size > 20000) daily.clear();
+  return list.length > LIMIT || n > perDay;
 }
 
 const noStore = { 'cache-control': 'no-store' };
@@ -49,7 +58,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   }
   const lang = chatLang(body?.lang);
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || clientAddress || 'x';
-  if (limited(ip)) return Response.json({ error: CHAT_UI[lang].tooMany }, { status: 429, headers: noStore });
+  if (limited(ip, s.perUserDay)) return Response.json({ error: CHAT_UI[lang].tooMany }, { status: 429, headers: noStore });
   const raw: unknown[] = Array.isArray(body?.messages) ? body.messages : [];
   const history: ChatMsg[] = raw
     .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
@@ -60,7 +69,10 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
   try {
     // Пока ключа нет — демо-режим без нейросети.
-    const reply = chatReady(s) ? await askAssistant(s, history, lang) : await demoReply(history[history.length - 1].content, lang);
+    // Суточный лимит ответов ИИ на весь сайт исчерпан — до полуночи отвечаем в демо-режиме.
+    const useAi = chatReady(s) && (!s.dailyLimit || (await usageToday()) < s.dailyLimit);
+    const reply = useAi ? await askAssistant(s, history, lang) : await demoReply(history[history.length - 1].content, lang);
+    if (useAi) await addUsage();
     return Response.json(reply, { headers: noStore });
   } catch (e) {
     console.error('chat error', e);

@@ -19,6 +19,10 @@ export interface ChatSettings {
   notes: string;
   apiKeyEnc: string | null;
   apiKeyHint: string | null;
+  /** Сколько ответов ИИ в сутки на весь сайт; дальше — демо-режим до полуночи. 0 — без лимита. */
+  dailyLimit: number;
+  /** Сколько вопросов в сутки с одного адреса. */
+  perUserDay: number;
 }
 
 export const DEFAULT_MODELS: Record<ChatProvider, string> = {
@@ -42,6 +46,8 @@ const DEFAULTS: ChatSettings = {
   notes: '',
   apiKeyEnc: null,
   apiKeyHint: null,
+  dailyLimit: 200,
+  perUserDay: 30,
 };
 
 const KEY = 'config/chat.json';
@@ -83,6 +89,7 @@ function normalize(x: any): ChatSettings {
   if (typeof o.name === 'string' && OLD_NAME.test(o.name)) o.name = DEFAULTS.name;
   if (typeof o.greeting === 'string' && OLD_NAME.test(o.greeting)) o.greeting = DEFAULTS.greeting;
   const provider: ChatProvider = o.provider === 'openai' ? 'openai' : 'anthropic';
+  const num = (v: unknown, min: number, max: number, def: number) => { const n = Math.round(Number(v)); return Number.isFinite(n) && v !== '' && v != null ? Math.min(max, Math.max(min, n)) : def; };
   const str = (v: unknown, max: number, def: string) => (typeof v === 'string' ? v.slice(0, max) : def);
   return {
     enabled: o.enabled !== false,
@@ -93,6 +100,8 @@ function normalize(x: any): ChatSettings {
     notes: str(o.notes, 4000, ''),
     apiKeyEnc: typeof o.apiKeyEnc === 'string' ? o.apiKeyEnc : null,
     apiKeyHint: typeof o.apiKeyHint === 'string' ? o.apiKeyHint : null,
+    dailyLimit: num(o.dailyLimit, 0, 100000, DEFAULTS.dailyLimit),
+    perUserDay: num(o.perUserDay, 1, 1000, DEFAULTS.perUserDay),
   };
 }
 
