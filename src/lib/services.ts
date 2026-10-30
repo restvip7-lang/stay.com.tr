@@ -6,7 +6,8 @@ import legacy from '../content/data/services.json';
 export { SERVICES };
 export const serviceBySlug = (slug: string): Service | null => SERVICES.find((s) => s.slug === slug) ?? null;
 export const legacyOf = (s: Service) => (s.legacy ? legacy.find((x) => x.slug === s.legacy) ?? null : null);
-export const serviceImage = (s: Service): string | null => legacyOf(s)?.image ?? null;
+const OWN_PHOTOS = new Set(['due-diligence', 'after-sales']);
+export const serviceImage = (s: Service): string | null => (OWN_PHOTOS.has(s.slug) ? `/services/${s.slug}.webp` : legacyOf(s)?.image ?? null);
 export const serviceUrl = (lang: Lang, slug?: string) => `/${lang}/services/${slug ? `${slug}/` : ''}`;
 export const serviceTitle = (lang: Lang, slug: string) => serviceBySlug(slug)?.tr[lang].title ?? slug;
 /** Старый slug (/uslugi/{legacy}/) → новый. */
