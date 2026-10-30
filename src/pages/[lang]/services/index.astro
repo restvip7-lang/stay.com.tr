@@ -47,7 +47,10 @@ const all = [...main, ...free];
         <h2 class="display h-section mb-6 mt-16">{FREE_T[lang]}</h2>
         <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {free.map((s) => (
-            <li><a href={serviceUrl(lang, s.slug)} class="card flex h-full flex-col p-5 transition-shadow hover:shadow-[var(--shadow-card)]"><span class="text-lg font-medium">{s.title}</span>{s.lead && <span class="mt-2 line-clamp-3 text-sm text-muted">{s.lead}</span>}</a></li>
+            <li><a href={serviceUrl(lang, s.slug)} class="group card flex h-full flex-col overflow-hidden p-1 transition-shadow hover:shadow-[var(--shadow-card)]">
+              {s.image && <span class="block aspect-[16/10] overflow-hidden rounded-[16px]"><Img src={s.image} alt="" class="size-full transition-transform duration-700 group-hover:scale-[1.03]" /></span>}
+              <span class="block p-4"><span class="block text-lg font-medium group-hover:text-accent">{s.title}</span>{s.lead && <span class="mt-2 line-clamp-3 block text-sm text-muted">{s.lead}</span>}</span>
+            </a></li>
           ))}
         </ul>
       </>
