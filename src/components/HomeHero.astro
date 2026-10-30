@@ -38,9 +38,17 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
       </div>
     ))}
     <div class="mt-auto flex items-end gap-3 pt-16">
-      <div class="hidden flex-col gap-2 md:flex">
-        <button type="button" data-next class="grid size-14 place-items-center rounded-full bg-white text-ink shadow-[var(--shadow-card)] hover:bg-lavender" aria-label={d.hp.nextProject}><Icon name="arrowRight" /></button>
-        <button type="button" data-prev class="grid size-14 place-items-center rounded-full bg-white text-ink shadow-[var(--shadow-card)] hover:bg-lavender" aria-label={d.hp.prevProject}><Icon name="arrowLeft" /></button>
+      <!-- Стрелки как у образца: вокруг «вперёд» идёт контур-таймер, круг замкнулся — следующий слайд. -->
+      <div class="hidden shrink-0 flex-col items-center gap-1 rounded-full bg-white/25 p-[5px] backdrop-blur-md md:flex">
+        <button type="button" data-next class="hero-next relative grid size-[70px] place-items-center rounded-full bg-white text-muted transition-colors hover:text-ink" aria-label={d.hp.nextProject}>
+          {slides.length > 1 && (
+            <svg class="hero-ring pointer-events-none absolute inset-0 size-full -rotate-90" viewBox="0 0 70 70" aria-hidden="true">
+              <circle cx="35" cy="35" r="34" fill="none" stroke="currentColor" stroke-width="2" pathLength="100" />
+            </svg>
+          )}
+          <Icon name="arrowRight" class="size-5" />
+        </button>
+        <button type="button" data-prev class="grid size-[70px] place-items-center rounded-full text-white/80 transition-colors hover:bg-white/20 hover:text-white" aria-label={d.hp.prevProject}><Icon name="arrowLeft" class="size-5" /></button>
       </div>
       <div class="scroll-x flex flex-1 gap-3">
         {slides.map((p, i) => (
@@ -60,6 +68,11 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
 
 <style>
   .hero-thumb.is-active { box-shadow: 0 0 0 2px var(--color-accent); }
+  .hero-ring { color: var(--color-accent); }
+  .hero-ring circle { stroke-dasharray: 100; stroke-dashoffset: 100; }
+  .hero-ring.is-running circle { animation: hero-ring var(--hero-ms, 9000ms) linear forwards; }
+  @keyframes hero-ring { to { stroke-dashoffset: 0; } }
+  @media (prefers-reduced-motion: reduce) { .hero-ring { display: none; } }
 </style>
 
 <script>
@@ -68,7 +81,8 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
     const texts = [...hero.querySelectorAll<HTMLElement>('[data-text]')];
     const thumbs = [...hero.querySelectorAll<HTMLElement>('[data-go]')];
     let cur = 0;
-    let timer: number | undefined;
+    const ring = hero.querySelector<SVGElement>('.hero-ring');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)');
     const go = (n: number) => {
       cur = (n + slides.length) % slides.length;
       slides.forEach((s, i) => {
@@ -80,10 +94,18 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
       thumbs.forEach((t, i) => t.classList.toggle('is-active', i === cur));
       restart();
     };
+    // Таймер — сама анимация контура (9 с): закончилась — переключаем.
+    let timer: number | undefined;
     const restart = () => {
-      clearInterval(timer);
-      if (!matchMedia('(prefers-reduced-motion: reduce)').matches) timer = window.setInterval(() => go(cur + 1), 7000);
+      clearTimeout(timer);
+      if (reduced.matches || slides.length < 2) return;
+      // На телефоне стрелок нет (контур скрыт и не анимируется) — там обычный таймер на те же 9 с.
+      if (!ring || !ring.getClientRects().length) { timer = window.setTimeout(() => go(cur + 1), 9000); return; }
+      ring.classList.remove('is-running');
+      void ring.getBoundingClientRect();
+      ring.classList.add('is-running');
     };
+    ring?.addEventListener('animationend', () => go(cur + 1));
     hero.querySelector('[data-next]')?.addEventListener('click', () => go(cur + 1));
     hero.querySelector('[data-prev]')?.addEventListener('click', () => go(cur - 1));
     thumbs.forEach((t) => t.addEventListener('click', () => go(Number(t.dataset.go))));
