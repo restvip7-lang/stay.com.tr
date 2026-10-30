@@ -2,6 +2,7 @@ import type { APIRoute } from 'astro';
 import { chatReady, getChatSettings, publicChat } from '../../lib/chatConfig';
 import { askAssistant, type ChatMsg } from '../../lib/chatAgent';
 import { demoReply } from '../../lib/chatDemo';
+import { CHAT_UI, chatGreeting, chatLang, chatName } from '../../lib/chatI18n';
 
 export const prerender = false;
 
@@ -24,9 +25,12 @@ function limited(ip: string) {
 const noStore = { 'cache-control': 'no-store' };
 
 /** Состояние чата для виджета: включён ли и как зовут талисман. */
-export const GET: APIRoute = async () => {
+export const GET: APIRoute = async ({ url }) => {
   const s = await getChatSettings();
-  return Response.json({ visible: s.enabled, ready: chatReady(s), ...publicChat(s) }, { headers: noStore });
+  const lang = chatLang(url.searchParams.get('lang'));
+  const { name, greeting } = publicChat(s);
+  const n = chatName(lang, name);
+  return Response.json({ visible: s.enabled, ready: chatReady(s), name: n, greeting: chatGreeting(lang, n, greeting) }, { headers: noStore });
 };
 
 export const POST: APIRoute = async ({ request, clientAddress }) => {
@@ -37,15 +41,15 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
   const s = await getChatSettings();
   if (!s.enabled) return Response.json({ error: 'Чат выключен' }, { status: 503, headers: noStore });
 
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || clientAddress || 'x';
-  if (limited(ip)) return Response.json({ error: 'Слишком много сообщений. Попробуйте через несколько минут.' }, { status: 429, headers: noStore });
-
   let body: any;
   try {
     body = await request.json();
   } catch {
     return Response.json({ error: 'Bad request' }, { status: 400 });
   }
+  const lang = chatLang(body?.lang);
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || clientAddress || 'x';
+  if (limited(ip)) return Response.json({ error: CHAT_UI[lang].tooMany }, { status: 429, headers: noStore });
   const raw: unknown[] = Array.isArray(body?.messages) ? body.messages : [];
   const history: ChatMsg[] = raw
     .filter((m: any) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
@@ -56,10 +60,10 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
 
   try {
     // Пока ключа нет — демо-режим без нейросети.
-    const reply = chatReady(s) ? await askAssistant(s, history) : await demoReply(history[history.length - 1].content);
+    const reply = chatReady(s) ? await askAssistant(s, history, lang) : await demoReply(history[history.length - 1].content, lang);
     return Response.json(reply, { headers: noStore });
   } catch (e) {
     console.error('chat error', e);
-    return Response.json({ error: 'Помощник сейчас недоступен. Напишите нам в WhatsApp — ответим быстро.' }, { status: 502, headers: noStore });
+    return Response.json({ error: CHAT_UI[lang].unavailable }, { status: 502, headers: noStore });
   }
 };

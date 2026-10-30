@@ -3,7 +3,7 @@
 interface Card { kind: string; id: string; title: string; subtitle: string; price: string; image: string | null; url: string; prive: boolean }
 interface Msg { role: 'user' | 'assistant'; content: string; cards?: Card[] }
 
-const STORE = 'stay-chat-v1';
+const STORE_BASE = 'stay-chat-v1';
 const HINT = 'stay-chat-hint';
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
@@ -13,7 +13,7 @@ function inline(s: string) {
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|\s)_(.+?)_(?=\s|$|[.,!?])/g, '$1<em class="chat-note">$2</em>')
     .replace(/\[([^\]]+)\]\(((?:\/|https:\/\/)[^\s)]+)\)/g, (_, t, u) => `<a href="${u}"${u.startsWith('/') ? '' : ' target="_blank" rel="noopener"'}>${t}</a>`)
-    .replace(/(^|\s)(\/(?:sale|rental|complex|prive|about|uslugi|ru\/news)\/[\w\-/]*)/g, '$1<a href="$2">$2</a>');
+    .replace(/(^|\s)(\/(?:ru|en|tr|de|sr|sale|rental|complex|prive|about|uslugi)\/[\w\-/]*)/g, '$1<a href="$2">$2</a>');
 }
 
 function card(c: Card) {
@@ -69,9 +69,13 @@ function render(m: Msg) {
 export async function initChat() {
   const root = document.querySelector<HTMLElement>('[data-chat]');
   if (!root) return;
+  const T: { lang: string; typing: string; unavailable: string; hint: string } = JSON.parse(root.dataset.chatT || '{}');
+  const lang = T.lang || 'ru';
+  // История своя для каждого языка: на английской странице не всплывает русский разговор.
+  const STORE = lang === 'ru' ? STORE_BASE : `${STORE_BASE}-${lang}`;
   let state: { visible: boolean; ready: boolean; name: string; greeting: string };
   try {
-    const r = await fetch('/api/chat', { headers: { accept: 'application/json' } });
+    const r = await fetch(`/api/chat?lang=${encodeURIComponent(lang)}`, { headers: { accept: 'application/json' } });
     state = await r.json();
   } catch {
     return;
@@ -87,7 +91,7 @@ export async function initChat() {
   const suggest = $('[data-chat-suggest]');
   const hint = $('[data-chat-hint]');
   $('[data-chat-name]').textContent = state.name;
-  $('[data-chat-hint-text]').textContent = `Привет! Я ${state.name}. Помочь подобрать квартиру?`;
+  $('[data-chat-hint-text]').textContent = (T.hint || '').replace('{name}', state.name);
   root.hidden = false;
 
   let history: Msg[] = [];
@@ -112,17 +116,17 @@ export async function initChat() {
     draw();
     const typing = document.createElement('div');
     typing.className = 'chat-msg chat-bot';
-    typing.innerHTML = '<span class="chat-typing" aria-label="Печатает"><i></i><i></i><i></i></span>';
+    typing.innerHTML = `<span class="chat-typing" aria-label="${esc(T.typing || '…')}"><i></i><i></i><i></i></span>`;
     log.append(typing);
     log.scrollTop = log.scrollHeight;
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ messages: history.map(({ role, content }) => ({ role, content })) }),
+        body: JSON.stringify({ lang, messages: history.map(({ role, content }) => ({ role, content })) }),
       });
       const r = await res.json().catch(() => ({}));
-      if (!res.ok || !r.text) throw new Error(r.error || 'Помощник сейчас недоступен. Напишите нам в WhatsApp — ответим быстро.');
+      if (!res.ok || !r.text) throw new Error(r.error || T.unavailable);
       history.push({ role: 'assistant', content: r.text, cards: r.cards });
       save();
       draw();

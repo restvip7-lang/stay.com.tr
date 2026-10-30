@@ -4,21 +4,29 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { resolveApiKey, type ChatSettings } from './chatConfig';
+import type { Lang } from '../i18n/config';
+import { chatName } from './chatI18n';
 import { TOOLS, extractCards, runTool, systemPrompt, type ChatCard, type Seen } from './chatTools';
 
 export interface ChatMsg { role: 'user' | 'assistant'; content: string }
 export interface ChatReply { text: string; cards: ChatCard[] }
 
 const MAX_ROUNDS = 6;
-const SORRY = 'Не получилось ответить на это. Давайте попробуем иначе — или нажмите «Связаться с менеджером», и вам ответит человек.';
+const SORRY: Record<Lang, string> = {
+  ru: 'Не получилось ответить на это. Давайте попробуем иначе — или нажмите «Связаться с менеджером», и вам ответит человек.',
+  en: 'I could not answer that. Let us try another way, or press “Contact a manager” and a person will reply.',
+  tr: 'Buna yanıt veremedim. Başka şekilde deneyelim ya da «Danışmanla iletişime geç» düğmesine basın, size bir kişi yanıt versin.',
+  de: 'Darauf konnte ich nicht antworten. Versuchen wir es anders – oder klicken Sie auf „Berater kontaktieren“, dann antwortet Ihnen ein Mensch.',
+  sr: 'Nisam uspeo da odgovorim na to. Pokušajmo drugačije, ili pritisnite „Kontaktiraj menadžera“ i javiće vam se osoba.',
+};
 
-export async function askAssistant(s: ChatSettings, history: ChatMsg[]): Promise<ChatReply> {
+export async function askAssistant(s: ChatSettings, history: ChatMsg[], lang: Lang = 'ru'): Promise<ChatReply> {
   const key = resolveApiKey(s);
   if (!key) throw new Error('Не задан API-ключ');
-  const seen: Seen = { listings: new Map(), projects: new Map() };
-  const system = systemPrompt(s.name, s.notes);
+  const seen: Seen = { listings: new Map(), projects: new Map(), lang };
+  const system = systemPrompt(chatName(lang, s.name), s.notes, lang);
   const text = s.provider === 'openai' ? await openai(key, s.model, system, history, seen) : await claude(key, s.model, system, history, seen);
-  return extractCards(text || SORRY, seen);
+  return extractCards(text || SORRY[lang], seen);
 }
 
 /* ---------- Claude ---------- */
@@ -41,7 +49,7 @@ async function claude(apiKey: string, model: string, system: string, history: Ch
       fallbacks: 'default',
     } as any);
 
-    if (res.stop_reason === 'refusal') return SORRY;
+    if (res.stop_reason === 'refusal') return SORRY[seen.lang ?? 'ru'];
     const answer = res.content.filter((b: any) => b.type === 'text').map((b: any) => b.text).join('\n').trim();
     if (res.stop_reason !== 'tool_use') return answer;
 
