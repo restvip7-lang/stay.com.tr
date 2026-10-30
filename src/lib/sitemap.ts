@@ -5,7 +5,7 @@
 import { LANGS, SITE, HREFLANG, type Lang } from '../i18n/config';
 import { getItems, getUnits, getComplexes, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
 import { translatedIds } from './api';
-import { SERVICES, serviceUrl } from './services';
+import { allServices, serviceUrl } from './services';
 import { BLOG_CATS, blogUrl, postsOf } from './blog';
 import { getNewsL } from './api';
 import { TEAM, EDITORIAL } from '../content/company';
@@ -128,7 +128,7 @@ export async function urlsOf(kind: Kind, lang: Lang): Promise<Url[]> {
   // static
   const paths = [
     `/${lang}/`, `/${lang}/about/`, `/${lang}/team/`, `/${lang}/reviews/`, `/${lang}/contacts/`, `/${lang}/prive/`, serviceUrl(lang),
-    ...SERVICES.map((s) => serviceUrl(lang, s.slug)),
+    ...(await allServices(lang)).map((s) => serviceUrl(lang, s.slug)),
     ...TEAM.map((m) => `/${lang}/team/${m.slug}/`), `/${lang}/team/${EDITORIAL.slug}/`,
   ];
   return paths.map((loc) => ({ loc, lastmod: d, alts: allLangs(loc) }));

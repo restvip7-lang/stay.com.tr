@@ -1,5 +1,5 @@
 ---
-/** Хаб услуг (ТЗ 3.6). */
+/** Хаб услуг (ТЗ 3.6). Услуги — из backend Stay Property (admin.stayproperty.com): основные и бесплатные; плюс наши страницы, которых там нет. */
 import Base from '../../../layouts/Base.astro';
 import Img from '../../../components/Img.astro';
 import Breadcrumbs from '../../../components/Breadcrumbs.astro';
@@ -7,36 +7,51 @@ import LeadSection from '../../../components/LeadSection.astro';
 import { isLang } from '../../../i18n/config';
 import { t } from '../../../i18n/ui';
 import { SITE } from '../../../i18n/config';
-import { SERVICES, serviceImage, serviceUrl } from '../../../lib/services';
+import { apiServices, curatedLeft, serviceImage, serviceUrl } from '../../../lib/services';
 import { itemListLd } from '../../../lib/ld';
 import { allLangs } from '../../../lib/page';
+import { strip } from '../../../lib/format';
 
 const lang = Astro.params.lang;
 if (!isLang(lang)) return Astro.rewrite('/404');
 const d = t(lang);
 const url = serviceUrl(lang);
 const title = `${d.pages.services} Stay Property`;
+const api = await apiServices(lang);
+const ours = (await curatedLeft()).map((s) => ({ slug: s.slug, title: s.tr[lang].title, lead: s.tr[lang].lead, image: serviceImage(s) }));
+const card = (x: { slug: string; title: string; excerpt?: string; body?: string; image: string | null }) => ({ slug: x.slug, title: x.title, lead: x.excerpt || strip(x.body || '', 140), image: x.image });
+const main = [...ours, ...api.filter((x) => x.group === 'main').map(card)];
+const free = api.filter((x) => x.group === 'free').map(card);
+const FREE_T: Record<string, string> = { ru: 'Бесплатные услуги для клиентов', en: 'Free services for our clients', tr: 'Müşterilerimize ücretsiz hizmetler', de: 'Kostenlose Leistungen für Kunden', sr: 'Besplatne usluge za klijente' };
+const all = [...main, ...free];
 ---
-<Base title={title} description={d.pages.servicesLead} alternates={allLangs(url)} jsonLd={itemListLd(SERVICES.map((s) => ({ url: SITE + serviceUrl(lang, s.slug), name: s.tr[lang].title })))}>
+<Base title={title} description={d.pages.servicesLead} alternates={allLangs(url)} jsonLd={itemListLd(all.map((s) => ({ url: SITE + serviceUrl(lang, s.slug), name: s.title })))}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: d.pages.services }]} />
     <h1 class="display h-page-lg mt-6">{d.pages.services}</h1>
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{d.pages.servicesLead}</p>
     <div class="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {SERVICES.map((s) => {
-        const img = serviceImage(s);
-        return (
-          <a href={serviceUrl(lang, s.slug)} class="group card flex flex-col overflow-hidden p-1">
-            {img ? <span class="block aspect-[16/10] overflow-hidden rounded-[16px]"><Img src={img} alt="" class="size-full transition-transform duration-700 group-hover:scale-[1.03]" /></span>
-                 : <span class="block aspect-[16/10] rounded-[16px] bg-lavender-2" aria-hidden="true" />}
-            <span class="block p-4">
-              <span class="block text-lg font-medium tracking-[-0.01em] group-hover:text-accent">{s.tr[lang].title}</span>
-              <span class="mt-2 block text-sm text-muted">{s.tr[lang].lead}</span>
-            </span>
-          </a>
-        );
-      })}
+      {main.map((s) => (
+        <a href={serviceUrl(lang, s.slug)} class="group card flex flex-col overflow-hidden p-1">
+          {s.image ? <span class="block aspect-[16/10] overflow-hidden rounded-[16px]"><Img src={s.image} alt="" class="size-full transition-transform duration-700 group-hover:scale-[1.03]" /></span>
+                   : <span class="block aspect-[16/10] rounded-[16px] bg-lavender-2" aria-hidden="true" />}
+          <span class="block p-4">
+            <span class="block text-lg font-medium tracking-[-0.01em] group-hover:text-accent">{s.title}</span>
+            {s.lead && <span class="mt-2 line-clamp-3 block text-sm text-muted">{s.lead}</span>}
+          </span>
+        </a>
+      ))}
     </div>
+    {free.length > 0 && (
+      <>
+        <h2 class="display h-section mb-6 mt-16">{FREE_T[lang]}</h2>
+        <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {free.map((s) => (
+            <li><a href={serviceUrl(lang, s.slug)} class="card flex h-full flex-col p-5 transition-shadow hover:shadow-[var(--shadow-card)]"><span class="text-lg font-medium">{s.title}</span>{s.lead && <span class="mt-2 line-clamp-3 text-sm text-muted">{s.lead}</span>}</a></li>
+          ))}
+        </ul>
+      </>
+    )}
   </section>
   <LeadSection context="services" />
 </Base>

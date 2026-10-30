@@ -22,7 +22,7 @@ import { getHomeSections } from '../../lib/api';
 import { getHomeConfig } from '../../lib/homeConfig';
 import { getComplexes, itemsOf, catUrl, stats, noFilters } from '../../lib/catalog';
 import { footerColumns, menuCities } from '../../lib/nav';
-import { SERVICES, serviceUrl } from '../../lib/services';
+import { allServices, serviceUrl } from '../../lib/services';
 import { REVIEWS } from '../../content/company';
 import { homeSeo } from '../../content/homeText';
 import { websiteLd } from '../../lib/ld';
@@ -38,6 +38,7 @@ const [home, complexes, sections, cols, cities] = await Promise.all([getHomeConf
 const byCode = (c: string) => complexes.find((p) => p.code === c);
 // Обработанные фото для слайдера (от Anuar 30.10.2026) лежат в public/hero/<код проекта>.webp; фото в базе не трогаем.
 const HERO_PHOTOS = new Set(['exodus_premium_town', 'exodus_aqua_deluxe_konakli', 'exodus_twins_residence', 'exodus_dreams_residence']);
+const homeServices = (await allServices(lang)).filter((x) => x.group === 'main').slice(0, 6);
 const hero = (home.hero.map((x) => byCode(x.project)).filter(Boolean) as typeof complexes).map((p) => (p.code && HERO_PHOTOS.has(p.code) ? { ...p, image: `/hero/${p.code}.webp` } : p));
 const list = home.projects.map(byCode).filter(Boolean) as typeof complexes;
 const priveCfg = (home.prive?.projects ?? []).map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
@@ -106,8 +107,8 @@ const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale
       <a href={serviceUrl(lang)} class="inline-flex items-center gap-1 font-medium text-accent hover:underline">{d.nav.services}<Icon name="arrowRight" class="size-4" /></a>
     </div>
     <ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {SERVICES.slice(0, 6).map((x) => (
-        <li><a href={serviceUrl(lang, x.slug)} class="card flex h-full flex-col p-5 transition-shadow hover:shadow-[var(--shadow-card)]"><span class="text-lg font-medium">{x.tr[lang].title}</span><span class="mt-2 text-sm text-muted">{x.tr[lang].lead}</span></a></li>
+      {homeServices.map((x) => (
+        <li><a href={serviceUrl(lang, x.slug)} class="card flex h-full flex-col p-5 transition-shadow hover:shadow-[var(--shadow-card)]"><span class="text-lg font-medium">{x.title}</span><span class="mt-2 line-clamp-3 text-sm text-muted">{x.lead}</span></a></li>
       ))}
     </ul>
   </section>

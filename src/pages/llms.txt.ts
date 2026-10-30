@@ -2,7 +2,7 @@ import type { APIRoute } from 'astro';
 import { SITE } from '../i18n/config';
 import { getItems, getComplexes, stats, catUrl, type Item } from '../lib/catalog';
 import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
-import { SERVICES, serviceUrl } from '../lib/services';
+import { allServices, serviceUrl } from '../lib/services';
 import { site } from '../lib/site';
 
 /** /llms.txt (ТЗ 11.1): о компании, разделы и ценовая сводка по городам и районам из каталога. */
@@ -41,7 +41,7 @@ Contacts: ${site.phones[0].label} (WhatsApp), ${site.email}, ${site.address}.
 - [Property for sale in Alanya](${SITE}${catUrl('en', { country: 'turkey', city: 'alanya', deal: 'sale' })})
 - [Long-term rentals in Turkey](${SITE}${catUrl('en', { country: 'turkey', deal: 'rent' })})
 - [New developments and residential complexes](${SITE}${catUrl('en', { country: 'turkey' }, { complexes: true })}) — ${complexes.length} complexes
-- [Services](${SITE}${serviceUrl('en')}): ${SERVICES.map((s) => `[${s.tr.en.title}](${SITE}${serviceUrl('en', s.slug)})`).join(', ')}
+- [Services](${SITE}${serviceUrl('en')}): ${(await allServices('en')).map((s) => `[${s.title}](${SITE}${serviceUrl('en', s.slug)})`).join(', ')}
 - [Blog: laws, area guides, news](${SITE}/en/blog/)
 - [About](${SITE}/en/about/), [Team](${SITE}/en/team/), [Reviews](${SITE}/en/reviews/), [Contacts](${SITE}/en/contacts/)
 

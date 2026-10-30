@@ -8,27 +8,43 @@ import Faq from '../../../components/Faq.astro';
 import LinkCloud from '../../../components/LinkCloud.astro';
 import { isLang } from '../../../i18n/config';
 import { t } from '../../../i18n/ui';
-import { SERVICES, serviceBySlug, legacyOf, serviceImage, serviceUrl } from '../../../lib/services';
+import { serviceBySlug, legacyOf, serviceImage, serviceUrl, apiService, apiServices, curatedLeft, curatedRedirect } from '../../../lib/services';
+import { mdToHtml, strip } from '../../../lib/format';
+import { someLangs } from '../../../lib/page';
 import { lawLinks } from '../../../lib/blog';
 import { serviceLd } from '../../../lib/ld';
 import { allLangs } from '../../../lib/page';
 import { sanitize } from '../../../lib/sanitize';
 
 const lang = Astro.params.lang;
-const s = serviceBySlug(Astro.params.slug ?? '');
-if (!isLang(lang) || !s) return Astro.rewrite('/404');
+if (!isLang(lang)) return Astro.rewrite('/404');
+const slug = Astro.params.slug ?? '';
+// Сначала услуга из backend; наша прежняя страница, перенесённая в backend, — 301 на новый адрес.
+const a = await apiService(lang, slug);
+const s = a ? null : serviceBySlug(slug);
+if (!a && s) {
+  const to = await curatedRedirect(slug);
+  if (to) return Astro.redirect(serviceUrl(lang, to), 301);
+}
+if (!a && !s) return Astro.rewrite('/404');
 const d = t(lang);
-const tx = s.tr[lang];
-const old = legacyOf(s);
+const tx = a
+  ? { title: a.title, description: strip(a.excerpt || a.body, 160), lead: a.excerpt, body: mdToHtml(a.body), faq: undefined as { q: string; a: string }[] | undefined }
+  : s!.tr[lang];
+const old = s ? legacyOf(s) : null;
 // Русский текст со старого сайта, если нового нет.
-const legacyBody = tx.body === null && old ? old : null;
-const img = serviceImage(s);
-const url = serviceUrl(lang, s.slug);
-const others = SERVICES.filter((x) => x.slug !== s.slug);
+const legacyBody = s && tx.body === null && old ? old : null;
+const img = a ? a.image : serviceImage(s!);
+const url = serviceUrl(lang, slug);
+const others = [
+  ...(await curatedLeft()).filter((x) => x.slug !== slug).map((x) => ({ slug: x.slug, title: x.tr[lang].title })),
+  ...(await apiServices(lang)).filter((x) => x.slug !== slug && x.group === 'main').map((x) => ({ slug: x.slug, title: x.title })),
+];
 const laws = lawLinks(lang, 3);
 const crumbs = [{ label: d.home, href: `/${lang}/` }, { label: d.pages.services, href: serviceUrl(lang) }, { label: tx.title }];
+const alternates = a ? someLangs(url, a.langs.length ? a.langs : [lang]) : allLangs(url);
 ---
-<Base title={`${tx.title} | Stay Property`} description={tx.description} alternates={allLangs(url)} image={img} jsonLd={serviceLd({ url, name: tx.title, description: tx.description, lang })}>
+<Base title={`${tx.title} | Stay Property`} description={tx.description} alternates={alternates} image={img} jsonLd={serviceLd({ url, name: tx.title, description: tx.description, lang })}>
   <section class="container-x pt-6 md:pt-10">
     <Breadcrumbs items={crumbs} />
     <h1 class="display h-page-lg mt-6 max-w-5xl">{tx.title}</h1>
@@ -65,11 +81,11 @@ const crumbs = [{ label: d.home, href: `/${lang}/` }, { label: d.pages.services,
       </div>
       <nav class="card p-6" aria-label={d.pages.services}>
         <p class="mb-3 text-sm text-muted">{d.pages.services}</p>
-        <ul class="space-y-2">{others.map((o) => <li><a href={serviceUrl(lang, o.slug)} class="hover:text-accent">{o.tr[lang].title}</a></li>)}</ul>
+        <ul class="space-y-2">{others.map((o) => <li><a href={serviceUrl(lang, o.slug)} class="hover:text-accent">{o.title}</a></li>)}</ul>
       </nav>
     </aside>
   </section>
   {tx.faq && <Faq items={tx.faq} />}
   {laws.length > 0 && <section class="container-x"><LinkCloud title={d.catalog.laws} links={laws} /></section>}
-  <LeadSection context={`service-${s.slug}`} />
+  <LeadSection context={`service-${slug}`} />
 </Base>

@@ -122,7 +122,7 @@ export interface Project {
 }
 
 export interface NewsItem {
-  id: number;
+  id: number | string;
   langs: string[];
   updated: string;
   seoTitle: string | null;
@@ -512,8 +512,33 @@ export async function getNews(limit = 200): Promise<NewsItem[]> {
   return d.news.map(toNews).slice(0, limit);
 }
 
-/** Новости на языке страницы (API отдаёт переводы и список доступных языков). */
+/** Новости из backend Stay Property (admin.stayproperty.com) → формат NewsItem. */
+async function contentNews(lang: string): Promise<NewsItem[]> {
+  const { contentList } = await import('./content');
+  const items = await contentList('news', lang as any);
+  return items
+    .map((n) => ({
+      id: n.id,
+      slug: n.slug,
+      title: n.title,
+      excerpt: n.excerpt,
+      content: n.body,
+      image: n.image,
+      date: n.date,
+      updated: n.updated,
+      langs: n.langs,
+      seoTitle: null,
+      seoDescription: null,
+      url: `/${lang}/blog/news/${n.slug}/`,
+    }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+/** Новости на языке страницы: новый backend, при его сбое — старый API dev. */
 export async function getNewsL(lang: string, limit = 200): Promise<NewsItem[]> {
+  try {
+    return (await contentNews(lang)).slice(0, limit);
+  } catch { /* ниже — старый источник */ }
   try {
     const d = await cached(`news-${lang}`, () => getJson<{ news: RawListing[] }>(`/api/news?language=${lang}&limit=200`));
     return d.news.filter((x) => !x.languageCode || x.languageCode === lang).map(toNews).sort((a, b) => b.date.localeCompare(a.date)).slice(0, limit);
@@ -523,14 +548,7 @@ export async function getNewsL(lang: string, limit = 200): Promise<NewsItem[]> {
 }
 
 export async function getNewsItemL(lang: string, slug: string): Promise<NewsItem | null> {
-  try {
-    const d = await cached(`news-${lang}-${slug}`, () => getJson<RawListing>(`/api/news/${encodeURIComponent(slug)}?language=${lang}`));
-    const x = (d as any).item ?? d;
-    if (x.languageCode && x.languageCode !== lang) return null;
-    return toNews(x);
-  } catch {
-    return (await getNewsL(lang)).find((n) => n.slug === slug) ?? null;
-  }
+  return (await getNewsL(lang)).find((n) => n.slug === slug) ?? null;
 }
 
 export async function getNewsItem(slug: string): Promise<NewsItem | null> {

@@ -35,7 +35,7 @@ function esc(s: string) {
 /** Простой Markdown новостей (абзацы, **жирный**, списки) → HTML. */
 export function mdToHtml(md: string): string {
   if (!md) return '';
-  if (/<p[\s>]/i.test(md)) return md;
+  if (/<(p|h[1-6]|ul|ol|div|br|table|blockquote)[\s>/]/i.test(md)) return md;
   const blocks = md.replace(/\r/g, '').split(/\n{2,}/);
   return blocks
     .map((b) => {
