@@ -215,6 +215,12 @@ pub = ROOT / 'public/picker'
 import hashlib
 ver = hashlib.sha1(js.encode()).hexdigest()[:10]
 (ROOT / 'src/lib/pickerVersion.ts').write_text(f"/** Версия public/picker/picker.js для сброса кэша (пишет scripts/import-picker.py). */\nexport const PICKER_JS_V = '{ver}';\n", encoding='utf-8')
+# Контуры корпусов на рендере — для блока «Генплан» на странице ЖК.
+import json
+geo = json.loads(re.search(r'const GEO = (\{.*?\});\n', js).group(1))
+w, h = map(int, re.search(r"complex\.jpg'\s*,\s*w:(\d+),\s*h:(\d+)", js).groups())
+(ROOT / 'src/content/picker').mkdir(parents=True, exist_ok=True)
+(ROOT / f'src/content/picker/{SLUG}.json').write_text(json.dumps({'img': {'src': 'complex.jpg', 'w': w, 'h': h}, 'geo': geo}, ensure_ascii=False), encoding='utf-8')
 for f in sorted(SRC.glob('*.jpg')):
     shutil.copyfile(f, pub / SLUG / f.name)
 print('ok:', len(css), 'css,', len(js), 'js,', len(list((pub / SLUG).glob('*.jpg'))), 'картинок')

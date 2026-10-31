@@ -17,7 +17,7 @@ import Faq from './Faq.astro';
 import LinkCloud from './LinkCloud.astro';
 import { t } from '../i18n/ui';
 import { getComplex } from '../lib/api';
-import { getComplexes, getUnits, getItems, complexUrl, catUrl, matchComplex, type Complex } from '../lib/catalog';
+import { getComplexes, getUnits, getItems, complexUrl, catUrl, itemUrl, matchComplex, type Complex } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { geoOf, complexMeta } from '../lib/seo';
 import { complexFaq } from '../lib/complexText';
@@ -28,7 +28,10 @@ import { sanitize } from '../lib/sanitize';
 import { moneyL, numL, strip } from '../lib/format';
 import { TYPE_WORDS } from '../lib/segments';
 import type { Robots } from '../lib/page';
-import { pickerFor, PICKER_TEXT } from '../lib/pickers';
+import { pickerFor, pickerReals, PICKER_TEXT } from '../lib/pickers';
+import { COMPLEX_BLOCKS } from '../lib/complexBlocks';
+import ComplexGenplan from './ComplexGenplan.astro';
+import { site } from '../lib/site';
 
 interface Props { c: Complex }
 const { c } = Astro.props;
@@ -80,6 +83,14 @@ const ld = [
   ...(vld ? [vld] : []),
 ];
 const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
+// Блоки по образцу mr-group (31.10.2026): генплан с нашим подборщиком и новые разделы (часть — заглушки).
+const tb = COMPLEX_BLOCKS[lang];
+const picker = pickerFor(c.slug);
+const pickerUrl = `${self}/picker/`;
+const real = picker ? await pickerReals(c.code, picker, lang).catch(() => []) : [];
+const flatCards = objects.filter((x) => x.image).slice(0, 4);
+const infra = p?.infrastructure ?? [];
+const progressPhotos = gallery.slice(2, 4);
 ---
 <Base system="new" title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} overlayHeader jsonLd={ld}>
   <section class="panel-b pb-8 lg:pb-10">
@@ -95,8 +106,8 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
         </p>
         {p?.promo && lang === 'ru' && <p class="mt-4"><span class="inline-flex rounded-[6px] bg-white px-2 py-1 text-[11px] font-medium uppercase tracking-[1px] text-accent">{p.promo}</span></p>}
         <div class="mt-6 flex flex-wrap gap-2.5">
-          <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>
-          {pickerFor(c.slug) && <a href={`${self}/picker/`} class="btn-n btn-n-white max-sm:w-full">{PICKER_TEXT[lang].open}</a>}
+          {picker ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
+          {picker && <a href="#lead" class="btn-n btn-n-white max-sm:w-full">{tc.getPrice}</a>}
           {ytId && <a href="#video" class="btn-n btn-n-glass max-sm:w-full"><Icon name="play" class="size-4" />{tc.video}</a>}
         </div>
       </div>
@@ -115,7 +126,23 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
         <ul class="mt-6 flex flex-wrap gap-2" aria-label={tc.amenities}>{p!.amenities.map((a) => <li class="chip-n">{a}</li>)}</ul>
       )}
 
-      {units.length > 0 && (
+      {flatCards.length > 0 ? (
+        <div id="choose" class="mt-8 scroll-mt-28 lg:mt-10">
+          <h2 class="sr-only">{tb.flats}</h2>
+          <ul class="scroll-x -mx-5 flex snap-x gap-4 px-5 lg:mx-0 lg:grid lg:grid-cols-4 lg:px-0">
+            {flatCards.map((x) => (
+              <li class="w-[248px] shrink-0 snap-start lg:w-auto">
+                <a href={itemUrl(lang, x)} class="tile-n group flex h-full flex-col gap-2 p-4 transition hover:shadow-[var(--shadow-card)]">
+                  <span class="text-[15px] leading-[20px] text-ink-n">{TYPE_WORDS[lang][x.type].one} {x.rooms}{x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}</span>
+                  <span class="overflow-hidden rounded-[12px] bg-white"><Img src={x.image} alt="" class="aspect-[4/3] w-full object-contain" width={480} height={360} /></span>
+                  <span class="mt-auto text-[16px] font-medium text-ink-n">{x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+          {objects.length > flatCards.length && <a href="#objects" class="btn-n btn-n-white mt-4">{tb.allFlats} ({objects.length})</a>}
+        </div>
+      ) : units.length > 0 && (
         <div id="choose" class="mt-8 scroll-mt-28 lg:mt-10">
           <h2 class="sr-only">{tc.layouts}</h2>
           <ul class="scroll-x -mx-5 flex snap-x gap-4 px-5 lg:mx-0 lg:grid lg:grid-cols-4 lg:px-0">
@@ -146,6 +173,27 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
     <div class="mt-8 overflow-hidden rounded-[20px] lg:mt-10"><Img src={gallery[1] ?? hero} alt={`${c.title} — ${d.photo} 2`} class="aspect-[4/3] size-full lg:aspect-[16/9]" width={1280} height={720} /></div>
   </section>
 
+  {ytId && (
+    <section id="video" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+      <h2 class="display h-section-n mb-6">{tc.video}</h2>
+      <div class="relative aspect-video overflow-hidden rounded-[20px] bg-ink" data-yt={ytId}>
+        <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={tc.video}>
+          <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
+          <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
+        </button>
+      </div>
+    </section>
+  )}
+
+  <section class="container-n mt-8 lg:mt-10">
+    <h2 class="display h-section-n mb-6">{tb.status}</h2>
+    <ul class="grid gap-4 md:grid-cols-3">
+      <li class="tile-n p-6"><p class="text-[13px] uppercase tracking-[1px] text-soft">{tc.deadline}</p><p class="mt-2 text-[22px] leading-[28px] text-ink-n">{buildEnd ?? '—'}</p></li>
+      <li class="tile-n p-6"><p class="text-[13px] uppercase tracking-[1px] text-soft">{tb.statusStage} <span class="stub">{tb.stub}</span></p><p class="mt-2 text-[22px] leading-[28px] text-ink-n">{tb.statusStageText}</p></li>
+      <li class="flex flex-col rounded-[20px] bg-accent p-6 text-white"><p class="text-[20px] leading-[26px]">{tb.viewing}</p><p class="mt-2 text-[14px] text-white/80">{tb.viewingText}</p><a href="#lead" class="btn-n btn-n-white mt-auto self-start pt-0">{tb.viewingBtn}</a></li>
+    </ul>
+  </section>
+
   {gallery.length > 2 && (
     <section class="container-n mt-20 lg:mt-28">
       <h2 class="display h-section-n mb-6">{d.item.gallery}</h2>
@@ -159,40 +207,39 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
     </section>
   )}
 
-  {ytId && (
-    <section id="video" class="container-n mt-20 scroll-mt-28 lg:mt-28">
-      <h2 class="display h-section-n mb-6">{tc.video}</h2>
-      <div class="relative aspect-video overflow-hidden rounded-[20px] bg-ink" data-yt={ytId}>
-        <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={tc.video}>
-          <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
-          <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
-        </button>
-      </div>
-    </section>
-  )}
+  {picker && <ComplexGenplan slug={c.slug} conf={picker} pickerUrl={pickerUrl} units={units} real={real} />}
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.inProject}{infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
+    {infra.length > 0 ? (
+      <ul class="grid gap-4 md:grid-cols-3">
+        {infra.map((x) => (
+          <li class="tile-n overflow-hidden">
+            {x.images[0] && <Img src={x.images[0]} alt={x.title} class="aspect-[4/3] w-full" width={640} height={480} />}
+            <div class="p-5"><h3 class="text-[18px] leading-[24px] text-ink-n">{x.title}</h3><div class="prose-stay mt-2 text-[14px]" lang="ru" set:html={sanitize(x.html)} /></div>
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <ul class="flex flex-wrap gap-2">{(p?.amenities.length ? p.amenities : [tc.amenities]).map((a) => <li class="chip-n">{a}</li>)}</ul>
+    )}
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <div class="flex flex-col gap-6 rounded-[24px] bg-ink-n p-8 text-white lg:flex-row lg:items-center lg:justify-between lg:p-12">
+      <div><p class="display text-[24px] leading-[30px] lg:text-[32px] lg:leading-[38px]">{tb.banner}</p><p class="mt-2 text-white/75">{tb.bannerText}</p></div>
+      <a href="#lead" class="btn-n btn-n-white shrink-0">{tb.bannerBtn}</a>
+    </div>
+  </section>
+
+
 
   {objects.length > 0 && (
-    <section class="container-n mt-20 lg:mt-28">
+    <section id="objects" class="container-n mt-20 scroll-mt-28 lg:mt-28">
       <h2 class="display h-section-n mb-6 lg:mb-8">{tc.available}</h2>
       <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{objects.slice(0, 12).map((x) => <li><SaleCard x={x} /></li>)}</ul>
     </section>
   )}
-
-  {(p?.lat ?? c.lat) && (p?.lng ?? c.lng) && (
-    <section class="container-n mt-20 lg:mt-28">
-      <div class="panel p-5 lg:p-10">
-        <h2 class="display h-section-n mb-6">{tc.location}</h2>
-        <div data-map data-zoom="14" data-points={JSON.stringify([{ t: c.title, u: '', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, a: place }])} class="h-[380px] overflow-hidden rounded-[20px] bg-page-n lg:h-[560px]"></div>
-      </div>
-    </section>
-  )}
-
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tc.installment}</h2>
-    <Calculator price={low} withMortgage downPct={p?.installment?.initialPay} months={p?.installment?.months} />
-  </section>
-
-  <Faq items={faq} />
 
   {others.length > 0 && (
     <section class="container-n mt-20 lg:mt-28">
@@ -200,11 +247,75 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
       <ul class="grid gap-4 md:grid-cols-3">{others.map((o) => <li><ProjectCard p={o} /></li>)}</ul>
     </section>
   )}
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.buy}</h2>
+    {(p?.paymentCards.length ?? 0) > 0 && (
+      <ul class="mb-6 grid gap-4 md:grid-cols-3">
+        {p!.paymentCards.map((x) => <li class="tile-n flex flex-col p-6"><h3 class="text-[18px] leading-[24px] text-ink-n">{x.title}</h3><p class="mt-2 text-[14px] text-soft">{x.description}</p><a href="#lead" class="mt-4 text-[14px] text-accent">{x.buttonLabel || tc.consult} →</a></li>)}
+      </ul>
+    )}
+    <h3 class="mb-4 text-[18px] text-ink-n">{tc.installment}</h3>
+    <Calculator price={low} withMortgage downPct={p?.installment?.initialPay} months={p?.installment?.months} />
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.promo} <span class="stub">{tb.stub}</span></h2>
+    <div class="grid gap-4 md:grid-cols-2">
+      <div class="relative overflow-hidden rounded-[20px] bg-ink text-white">
+        <Img src={gallery[3] ?? hero} alt="" class="absolute inset-0 size-full opacity-60" width={960} height={540} />
+        <div class="relative flex min-h-[240px] flex-col p-6"><span class="self-start rounded-[6px] bg-lime px-2 py-1 text-[12px] font-medium text-ink-n">{tb.until}</span><p class="mt-auto text-[24px] leading-[30px]">{p?.promo ?? tb.promoTitle}</p><p class="mt-1 text-white/80">{tb.promoText}</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.docs} <span class="stub">{tb.stub}</span></h2>
+    <ul class="grid gap-3 md:grid-cols-2">
+      {tb.docsList.map((x) => <li class="tile-n flex items-center justify-between gap-4 p-5"><span class="text-ink-n">{x}</span><span class="text-[13px] text-soft">PDF · {tb.soon}</span></li>)}
+    </ul>
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.progress} <span class="stub">{tb.stub}</span></h2>
+    <ul class="grid gap-4 md:grid-cols-2">
+      {(progressPhotos.length ? progressPhotos : [hero, hero]).map((src) => (
+        <li class="overflow-hidden rounded-[20px] bg-white"><Img src={src} alt="" class="aspect-[16/9] w-full" width={960} height={540} /><p class="p-4 text-[14px] text-soft">{tb.newsDate}</p></li>
+      ))}
+    </ul>
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.news} <span class="stub">{tb.stub}</span></h2>
+    <ul class="grid gap-4 md:grid-cols-3">
+      {tb.newsList.map((x) => <li class="tile-n flex min-h-[180px] flex-col p-6"><span class="text-[13px] text-soft">{tb.newsDate}</span><span class="mt-auto text-[18px] leading-[24px] text-ink-n">{x}</span></li>)}
+    </ul>
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.contacts}</h2>
+    <div class="grid gap-4 lg:grid-cols-[1fr_380px]">
+      {(p?.lat ?? c.lat) && (p?.lng ?? c.lng) ? <div data-map data-zoom="14" data-points={JSON.stringify([{ t: c.title, u: '', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, a: place }])} class="h-[380px] overflow-hidden rounded-[20px] bg-white lg:h-[460px]"></div> : <div></div>}
+      <div class="flex flex-col gap-4 rounded-[20px] bg-white p-6">
+        <p class="text-[20px] leading-[26px] text-ink-n">{tb.office}</p>
+        <p class="text-[14px] text-soft">{site.address}</p>
+        <p class="text-[14px]"><span class="text-soft">{tb.hours}:</span> {tb.hoursText}</p>
+        <a href={site.phone.href} class="text-[18px] text-ink-n">{site.phone.label}</a>
+        <a href="#lead" class="btn-n btn-n-dark mt-auto w-full">{tc.consult}</a>
+      </div>
+    </div>
+  </section>
+
+
+
+  <Faq items={faq} />
+
   <section class="container-n"><LinkCloud title={d.catalog.popular(district?.in[lang] ?? city.in[lang])} links={links} /></section>
 
   <LeadSection n context={`complex-${c.code}`} title={tc.lead} subtitle={tc.leadText} submitLabel={tc.getPrice} />
 </Base>
 <style>
+  .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
   .fact { display: flex; align-items: center; gap: 12px; }
   .fact-i { display: grid; place-items: center; flex-shrink: 0; width: 56px; height: 56px; border-radius: 16px; background: #d0d1d766; color: var(--color-ink-n); }
   .fact dt { font-size: 14px; line-height: 20px; color: var(--color-soft); }
