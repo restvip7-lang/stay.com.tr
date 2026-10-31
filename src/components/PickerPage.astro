@@ -12,7 +12,7 @@ import { LANGS } from '../i18n/config';
 import { complexUrl, type Complex } from '../lib/catalog';
 import { catCrumbs } from '../lib/nav';
 import { PICKER_JS_V } from '../lib/pickerVersion';
-import { pickerFor, pickerLang, PICKER_LANGS, PICKER_TEXT } from '../lib/pickers';
+import { pickerFor, pickerLang, pickerReals, PICKER_LANGS, PICKER_TEXT } from '../lib/pickers';
 
 interface Props { c: Complex }
 const { c } = Astro.props;
@@ -26,7 +26,11 @@ crumbs[crumbs.length - 1].href = self;
 crumbs.push({ label: tx.crumb });
 // Адреса этой страницы на языках подборщика: по ним старые ссылки ?lang=en открывают нужную версию.
 const langUrl = Object.fromEntries(PICKER_LANGS.map((l) => [l, `${complexUrl(l, c)}/picker/`]));
-const AP = { lang: pickerLang(lang), base: conf.base, name: c.title, langUrl, admin: false };
+// Квартиры ЖК из базы, привязанные к квартирам подборщика (пример привязки, см. lib/pickers.ts).
+const real = await pickerReals(c.code, conf, lang).catch(() => []);
+const rt = PICKER_TEXT[pickerLang(lang)];
+const realText = { base: rt.base, fromBase: rt.fromBase('#'), card: rt.card, note: rt.note };
+const AP = { lang: pickerLang(lang), base: conf.base, name: c.title, langUrl, admin: false, real, realText };
 const alternates = Object.fromEntries(LANGS.map((l) => [l, `${complexUrl(l, c)}/picker/`]));
 ---
 <Base system="new" title={tx.title(c.title)} description={tx.description(c.title)} canonical={url} robots="noindex,follow" alternates={alternates}>

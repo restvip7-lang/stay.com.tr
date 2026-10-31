@@ -25,6 +25,7 @@ import { moneyL, numL, dateL, strip } from '../lib/format';
 import { sanitize } from '../lib/sanitize';
 import { site } from '../lib/site';
 import type { Robots } from '../lib/page';
+import { pickerLinkFor, PICKER_TEXT } from '../lib/pickers';
 
 interface Props { x: Item; sold?: boolean; soldAt?: string | null }
 const { x, sold = false, soldAt = null } = Astro.props;
@@ -46,6 +47,8 @@ const own = details[lang] ?? null;
 const fallback = own ?? (lang === 'tr' || lang === 'de' ? details.en ?? details.ru : details.ru ?? details.en) ?? null;
 const translated = LANGS.filter((l) => details[l]);
 const self = itemUrl(lang, x);
+// Квартира ЖК с подборщиком — ссылка на неё на плане.
+const onPlan = sold ? null : await pickerLinkFor(x, lang).catch(() => null);
 // hreflang — только между языками, где у объекта есть перевод (ТЗ 4.2).
 const alternates = Object.fromEntries((translated.length ? translated : (['ru'] as Lang[])).map((l) => [l, itemUrl(l, x)]));
 const hasText = !!own || (x.unit && lang === 'ru');
@@ -158,6 +161,7 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
           </div>
           {!sold && <a href="#lead" class="btn-n btn-n-dark mt-5 w-full"><Icon name="phone" class="size-4" />{ti.book}</a>}
           <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn-n btn-n-white mt-2 w-full"><Icon name="whatsapp" class="size-4" />{d.whatsapp}</a>
+          {onPlan && <a href={onPlan} class="btn-n btn-n-white mt-2 w-full"><Icon name="layout" class="size-4" />{PICKER_TEXT[lang].onPlan}</a>}
         </div>
         <div class="card-n p-5">
           <h2 class="text-[19px] font-medium leading-[24px] lg:text-[18px] lg:leading-[22px]">{ti.specs}</h2>

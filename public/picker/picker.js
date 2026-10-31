@@ -41,7 +41,10 @@ function setGeo(b,g){
       img: b.id==='L'? (AP.base||'')+`apt-${String(t.n).padStart(2,'0')}.jpg` : null, photos:[]};
     b.flats.push(q); FLAT[num]=q;
   });
+  applyReal(b);
 }
+function applyReal(b){ (AP.real||[]).filter(r=>r.b===b.id).forEach(r=>{ const q=b.flats.find(x=>x.floor===r.floor&&x.n===r.n); if(!q) return;
+  Object.assign(q,{status:'free', price:r.price??q.price, area:r.area||q.area, type:['1+1','2+1','3+1'].includes(r.rooms)?r.rooms:q.type, real:r}) }) }
 const BUILDINGS = Object.entries(GEO).sort((a,b)=>a[0].localeCompare(b[0])).map(([id,g])=>{
   const b={id, ppm:2100+Math.round(R()*12)*50}; setGeo(b,g); return b });
 const BY = Object.fromEntries(BUILDINGS.map(b=>[b.id,b]));
@@ -707,7 +710,7 @@ function renderSide(){
 function thumbOf(q){ return q.img? `<img src="${q.img}" alt="${t('planAlt',q.num)}" loading="lazy">` : schemeSvg(q) }
 function quickCard(q){
   const sold=q.status==='sold';
-  return `<div><h2>${t('flatN',q.num)}</h2><div style="margin-top:8px"><span class="pill ${q.status}">${ST(q.status)}</span></div></div>
+  return `<div><h2>${t('flatN',q.num)}</h2><div style="margin-top:8px"><span class="pill ${q.status}">${ST(q.status)}</span>${q.real?` <span class="pill real">${(AP.realText||{}).base}</span>`:''}</div></div>
     <div class="big">${sold?t('soldWord'):eur(q.price)}</div>
     <p style="margin:0;font-size:17px">${q.type} · ${sqm(q.area)} · ${t('fl',q.floor)}</p>
     <div class="thumb">${thumbOf(q)}</div>
@@ -764,7 +767,7 @@ function cardHtml(q){
   return `<article class="fcard" data-num="${q.num}">
     <div class="tw"><div class="thumb">${thumbOf(q)}</div><button class="btn heart sl-btn" data-num="${q.num}" data-icon="1"></button></div>
     <div class="stack" style="gap:6px;min-width:0">
-      <div class="t"><span class="num">${q.num}</span><span class="pill ${q.status}">${ST(q.status)}</span></div>
+      <div class="t"><span class="num">${q.num}</span><span>${q.real?`<span class="pill real">${(AP.realText||{}).base}</span> `:''}<span class="pill ${q.status}">${ST(q.status)}</span></span></div>
       <div class="meta">${q.type} · ${sqm(q.area)} · ${t('fl',q.floor)}${CUR.b===q.b?'':' · '+t('building_',q.b)}</div>
       <div class="pr">${q.status==='sold'?t('soldWord'):eur(q.price)}</div>
       <div class="acts"><button class="btn" data-go="page">${t('details')}</button><button class="btn" data-go="plan">${t('onPlan')}</button></div>
@@ -814,7 +817,7 @@ function showPage(prev){
   if(!tabs.some(x=>x[0]===pageTab)) pageTab='plan';
   P.innerHTML=`
     <button class="btn link back" data-back>← ${bk.label}</button>
-    <div class="fhead"><h1>${t('flatN',q.num)}</h1><span class="pill ${q.status}">${ST(q.status)}</span></div>
+    <div class="fhead"><h1>${t('flatN',q.num)}</h1><span class="pill ${q.status}">${ST(q.status)}</span>${q.real?`<span class="pill real">${(AP.realText||{}).base}</span>`:''}</div>
     <p class="params">${q.type}<span>·</span>${bName(q.b)}<span>·</span>${t('floorN',q.floor)}<span>·</span>${sqm(q.area)}</p>
     ${sold?`<div class="banner sold">${t('soldBanner')}</div>`:''}
     ${q.status==='booked'?`<div class="banner">${t('bookedBanner')}</div>`:''}
@@ -824,7 +827,7 @@ function showPage(prev){
       <aside class="buy">
         <div class="big">${sold?t('soldWord'):eur(q.price)}</div>
         <dl class="kv"><dt>${t('totalArea')}</dt><dd>${sqm(q.area)}</dd><dt>${t('floor')}</dt><dd>${t('floorOf',q.floor,b.floors)}</dd><dt>${t('view')}</dt><dd>${t('tbc')}</dd><dt>${t('aidat')}</dt><dd>${t('tbc')}</dd></dl>
-        <p class="note">${t('testNote')}</p>
+        ${q.real?`<div class="realbox"><b>${(AP.realText||{}).fromBase.replace('#',esc(q.real.ref))}</b><p class="note">${(AP.realText||{}).note}</p><a class="btn block" href="${esc(q.real.url)}">${(AP.realText||{}).card}</a></div>`:`<p class="note">${t('testNote')}</p>`}
         ${sold?`<button class="btn primary block" data-act="sim">${t('seeSimilar')}</button>`
               :`<button class="btn primary block" data-act="ask">${t('ask')}</button><button class="btn block sl-btn" data-num="${q.num}"></button>`}
         <button class="btn block" data-act="share">${t('share')}</button>

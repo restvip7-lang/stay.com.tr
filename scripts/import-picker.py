@@ -136,6 +136,8 @@ SITE = """
 .ap{padding:8px 0 48px;font-size:15px;line-height:1.5}
 .ap .wrap{max-width:none}
 .ap .btn.primary:hover{filter:none;background:var(--color-accent-2);border-color:var(--color-accent-2)}
+.ap .pill.real{background:var(--accent);color:#fff}
+.ap .realbox{display:grid;gap:8px;border:1px solid var(--accent);border-radius:12px;padding:12px 14px;background:#f6f3ff}
 body.fs-open .chat-root,body:has(.ap .modal:not([hidden])) .chat-root{display:none}
 @media (max-width:720px){ body.has-sticky .chat-root{display:none} }
 """
@@ -178,6 +180,20 @@ sub("fill=\"${on?'#f5b54a':'#fff'}\" opacity=\".95\"/>\n      <text x=\"${cx}\" 
     "fill=\"${on?'#754be9':'#fff'}\" opacity=\".95\"/>\n      <text x=\"${cx}\" y=\"${y-8}\" text-anchor=\"middle\" font-family=\"Manrope,sans-serif\" font-size=\"20\" font-weight=\"800\" fill=\"${on?'#fff':'#1c1e26'}\">")
 sub('stroke="#f5b54a"', 'stroke="#754be9"')
 js = js.replace('font-family="Manrope,sans-serif"', 'font-family="Inter,sans-serif"').replace('font-family="Manrope"', 'font-family="Inter"')
+# Квартиры из базы (AP.real) поверх тестовых: цена, площадь, «свободна», ссылка на карточку объекта.
+sub("    b.flats.push(q); FLAT[num]=q;\n  });\n}",
+    "    b.flats.push(q); FLAT[num]=q;\n  });\n  applyReal(b);\n}\n"
+    "function applyReal(b){ (AP.real||[]).filter(r=>r.b===b.id).forEach(r=>{ const q=b.flats.find(x=>x.floor===r.floor&&x.n===r.n); if(!q) return;\n"
+    "  Object.assign(q,{status:'free', price:r.price??q.price, area:r.area||q.area, type:['1+1','2+1','3+1'].includes(r.rooms)?r.rooms:q.type, real:r}) }) }")
+RT = "(AP.realText||{})"
+sub("<p class=\"note\">${t('testNote')}</p>",
+    "${q.real?`<div class=\"realbox\"><b>${" + RT + ".fromBase.replace('#',esc(q.real.ref))}</b><p class=\"note\">${" + RT + ".note}</p><a class=\"btn block\" href=\"${esc(q.real.url)}\">${" + RT + ".card}</a></div>`:`<p class=\"note\">${t('testNote')}</p>`}")
+sub("<div style=\"margin-top:8px\"><span class=\"pill ${q.status}\">${ST(q.status)}</span></div></div>",
+    "<div style=\"margin-top:8px\"><span class=\"pill ${q.status}\">${ST(q.status)}</span>${q.real?` <span class=\"pill real\">${" + RT + ".base}</span>`:''}</div></div>")
+sub("<div class=\"t\"><span class=\"num\">${q.num}</span><span class=\"pill ${q.status}\">${ST(q.status)}</span></div>",
+    "<div class=\"t\"><span class=\"num\">${q.num}</span><span>${q.real?`<span class=\"pill real\">${" + RT + ".base}</span> `:''}<span class=\"pill ${q.status}\">${ST(q.status)}</span></span></div>")
+sub("<div class=\"fhead\"><h1>${t('flatN',q.num)}</h1><span class=\"pill ${q.status}\">${ST(q.status)}</span></div>",
+    "<div class=\"fhead\"><h1>${t('flatN',q.num)}</h1><span class=\"pill ${q.status}\">${ST(q.status)}</span>${q.real?`<span class=\"pill real\">${" + RT + ".base}</span>`:''}</div>")
 # Режим «Продажи», разметка этажей и последний шаг тура — только после входа в админку.
 sub("$('#tourBtn').onclick=()=>tourGo(0);",
     "if(!AP.admin) TOUR.pop();\n"

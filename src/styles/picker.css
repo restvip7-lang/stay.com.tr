@@ -307,5 +307,7 @@ body.fs-open .ap{overflow:hidden}
 .ap{padding:8px 0 48px;font-size:15px;line-height:1.5}
 .ap .wrap{max-width:none}
 .ap .btn.primary:hover{filter:none;background:var(--color-accent-2);border-color:var(--color-accent-2)}
+.ap .pill.real{background:var(--accent);color:#fff}
+.ap .realbox{display:grid;gap:8px;border:1px solid var(--accent);border-radius:12px;padding:12px 14px;background:#f6f3ff}
 body.fs-open .chat-root,body:has(.ap .modal:not([hidden])) .chat-root{display:none}
 @media (max-width:720px){ body.has-sticky .chat-root{display:none} }
