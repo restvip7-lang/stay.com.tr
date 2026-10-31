@@ -1,26 +1,21 @@
 ---
 /**
- * Карточка жилого комплекса (ТЗ 3.4, Б.5): hero с H1, статусом и ценой от/до → ключевые факты →
- * планировки с ценами «от» → описание → галерея и видео → объекты комплекса → карта → рассрочка →
- * FAQ → другие комплексы и посадочные района → форма. Описание из API есть только на русском,
+ * Карточка жилого комплекса, порядок и вид блоков как у образца mr-group (решение Anuar 31.10.2026):
+ * шапка с квартирами → о комплексе (видео/фото, статус) → галерея → генплан → «В проекте» → форма →
+ * смотрите также → способы покупки и акции → материалы → ход строительства → новости → контакты → подборки. Описание из API есть только на русском,
  * поэтому версии на других языках пока noindex (см. отчёт).
  */
 import Base from '../layouts/Base.astro';
 import Img from './Img.astro';
 import Icon from './Icon.astro';
 import Breadcrumbs from './Breadcrumbs.astro';
-import Calculator from './Calculator.astro';
-import LeadSection from './LeadSection.astro';
 import ProjectCard from './ProjectCard.astro';
-import SaleCard from './SaleCard.astro';
-import Faq from './Faq.astro';
-import LinkCloud from './LinkCloud.astro';
+import LeadForm from './LeadForm.astro';
 import { t } from '../i18n/ui';
 import { getComplex } from '../lib/api';
 import { getComplexes, getUnits, getItems, complexUrl, catUrl, itemUrl, matchComplex, type Complex } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { geoOf, complexMeta } from '../lib/seo';
-import { complexFaq } from '../lib/complexText';
 import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
 import { complexLd, videoLd } from '../lib/ld';
 import { guideFor } from '../lib/blog';
@@ -75,7 +70,6 @@ const links = [
   ...(guide ? [{ href: guide.href, text: guide.title }] : []),
   { href: `/${lang}/services/due-diligence/`, text: SERVICE_TITLES[lang]['due-diligence'] },
 ];
-const faq = complexFaq(lang, c.title, low, high, p?.installment ? { down: p.installment.initialPay, months: p.installment.months } : null);
 const crumbs = catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
 const vld = p?.video ? videoLd(p.video, c.title, description, new Date().toISOString()) : null;
 const ld = [
@@ -88,7 +82,7 @@ const tb = COMPLEX_BLOCKS[lang];
 const picker = pickerFor(c.slug);
 const pickerUrl = `${self}/picker/`;
 const real = picker ? await pickerReals(c.code, picker, lang).catch(() => []) : [];
-const flatCards = objects.filter((x) => x.image).slice(0, 4);
+const flatCards = objects.filter((x) => x.image);
 const infra = p?.infrastructure ?? [];
 const progressPhotos = gallery.slice(2, 4);
 ---
@@ -97,18 +91,22 @@ const progressPhotos = gallery.slice(2, 4);
     <div class="relative isolate overflow-hidden rounded-b-[24px] bg-ink text-white lg:rounded-b-[var(--radius-panel)]">
       <Img src={hero} alt={`${c.title} — ${place}`} class="absolute inset-0 -z-10 size-full" priority sizes="100vw" width={1920} height={1080} />
       <div class="absolute inset-0 -z-10 bg-gradient-to-b from-ink/50 via-ink/10 to-ink/75"></div>
-      <div class="container-n flex min-h-[600px] flex-col justify-end pb-8 pt-32 lg:min-h-[792px] lg:pb-10">
+      <div class="container-n relative flex min-h-[560px] flex-col justify-end pb-8 pt-32 lg:min-h-[720px] lg:pb-10">
+        {(p?.promo || buildEnd) && (
+          <div class="absolute right-5 top-32 hidden w-[300px] rounded-[16px] bg-white p-4 text-ink-n lg:right-10 lg:block">
+            <span class="inline-flex rounded-[6px] bg-ink-n px-2 py-0.5 text-[11px] font-medium uppercase tracking-[1px] text-white">{p?.promo && lang === 'ru' ? tb.promo : tc.deadline}</span>
+            <p class="mt-2 text-[15px] leading-[20px]">{p?.promo && lang === 'ru' ? p.promo : buildEnd}</p>
+          </div>
+        )}
         <h1 class="display h-page max-w-4xl text-white">{meta.h1}</h1>
         <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-white/90">
           <span class="inline-flex items-center gap-1.5"><Icon name="pin" class="size-4" />{place}</span>
           {buildEnd && <span>{tc.deadline}: {buildEnd}</span>}
           {c.rooms.length > 0 && <span>{c.rooms.join(' · ')}</span>}
         </p>
-        {p?.promo && lang === 'ru' && <p class="mt-4"><span class="inline-flex rounded-[6px] bg-white px-2 py-1 text-[11px] font-medium uppercase tracking-[1px] text-accent">{p.promo}</span></p>}
         <div class="mt-6 flex flex-wrap gap-2.5">
           {picker ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
-          {picker && <a href="#lead" class="btn-n btn-n-white max-sm:w-full">{tc.getPrice}</a>}
-          {ytId && <a href="#video" class="btn-n btn-n-glass max-sm:w-full"><Icon name="play" class="size-4" />{tc.video}</a>}
+          {picker && <a href="#lead" class="btn-n btn-n-glass max-sm:w-full">{tc.getPrice}</a>}
         </div>
       </div>
     </div>
@@ -119,28 +117,25 @@ const progressPhotos = gallery.slice(2, 4);
         <dl class="mt-6 grid gap-5 sm:grid-cols-2 lg:flex lg:flex-wrap lg:gap-x-10">
           {low && <div class="fact"><span class="fact-i"><Icon name="tag" class="size-5" /></span><div><dt>{tc.priceRange}</dt><dd>{d.from(moneyL(lang, low))}{high && high > low ? ` – ${moneyL(lang, high)}` : ''}</dd></div></div>}
           {p?.facts.filter((f) => f.label !== 'price').map((f) => <div class="fact"><span class="fact-i"><Icon name={f.label === 'build-end' ? 'calendar' : f.label === 'location' ? 'pin' : f.label === 'mix' ? 'layout' : 'building'} class="size-5" /></span><div><dt>{FACT_LABEL[f.label] ?? f.label}</dt><dd>{f.value}</dd></div></div>)}
-          {objects.length > 0 && <div class="fact"><span class="fact-i"><Icon name="building" class="size-5" /></span><div><dt>{tc.available}</dt><dd>{numL(lang, objects.length)}</dd></div></div>}
+          {objects.length > 0 && <div class="fact lg:ml-auto"><span class="fact-i fact-dark"><Icon name="building" class="size-5" /></span><div><dt>{tc.available}</dt><dd>{numL(lang, objects.length)}</dd></div></div>}
         </dl>
-      )}
-      {(p?.amenities.length ?? 0) > 0 && (
-        <ul class="mt-6 flex flex-wrap gap-2" aria-label={tc.amenities}>{p!.amenities.map((a) => <li class="chip-n">{a}</li>)}</ul>
       )}
 
       {flatCards.length > 0 ? (
-        <div id="choose" class="mt-8 scroll-mt-28 lg:mt-10">
+        <div id="choose" class="relative mt-8 scroll-mt-28 lg:mt-10" data-car>
           <h2 class="sr-only">{tb.flats}</h2>
-          <ul class="scroll-x -mx-5 flex snap-x gap-4 px-5 lg:mx-0 lg:grid lg:grid-cols-4 lg:px-0">
+          <ul class="scroll-x -mx-5 flex snap-x scroll-px-5 gap-4 px-5 lg:mx-0 lg:scroll-px-0 lg:px-0" data-car-track>
             {flatCards.map((x) => (
-              <li class="w-[248px] shrink-0 snap-start lg:w-auto">
-                <a href={itemUrl(lang, x)} class="tile-n group flex h-full flex-col gap-2 p-4 transition hover:shadow-[var(--shadow-card)]">
+              <li class="w-[248px] shrink-0 snap-start lg:w-[calc((100%-48px)/4)]">
+                <a href={itemUrl(lang, x)} class="tile-n group flex h-full flex-col gap-1 p-4 transition hover:shadow-[var(--shadow-card)]">
                   <span class="text-[15px] leading-[20px] text-ink-n">{TYPE_WORDS[lang][x.type].one} {x.rooms}{x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}</span>
-                  <span class="overflow-hidden rounded-[12px] bg-white"><Img src={x.image} alt="" class="aspect-[4/3] w-full object-contain" width={480} height={360} /></span>
-                  <span class="mt-auto text-[16px] font-medium text-ink-n">{x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
+                  <span class="text-[13px] text-soft">{x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
+                  <span class="mt-2 overflow-hidden rounded-[12px] bg-white"><Img src={x.image} alt="" class="aspect-[4/3] w-full object-contain" width={480} height={360} /></span>
                 </a>
               </li>
             ))}
           </ul>
-          {objects.length > flatCards.length && <a href="#objects" class="btn-n btn-n-white mt-4">{tb.allFlats} ({objects.length})</a>}
+          {flatCards.length > 4 && <button type="button" class="car-btn absolute -right-5 top-1/2 hidden -translate-y-1/2 lg:grid" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button>}
         </div>
       ) : units.length > 0 && (
         <div id="choose" class="mt-8 scroll-mt-28 lg:mt-10">
@@ -151,10 +146,6 @@ const progressPhotos = gallery.slice(2, 4);
                 <a href="#lead" class="tile-n group relative flex h-full min-h-[168px] flex-col p-5 transition hover:shadow-[var(--shadow-card)]">
                   <span class="text-[16px] leading-[22px] tracking-[.2px] text-ink-n">{u.type}{u.rooms ? ` ${u.rooms}` : ''}{u.areaFrom ? <>, {d.from(`${numL(lang, u.areaFrom)} ${d.m2}`)}</> : null}</span>
                   <span class="mt-1 text-[14px] leading-[19px] text-ink-n">{u.priceFrom ? d.from(moneyL(lang, u.priceFrom)) : d.priceOnRequest}</span>
-                  <span class="mt-auto flex items-end justify-between gap-3 pt-6">
-                    <span class="rounded-full bg-white px-2 py-1.5 text-[11px] font-medium uppercase leading-none tracking-[1px] text-ink-n">{tc.getPrice}</span>
-                    <span class="grid size-[50px] place-items-center rounded-[12px] bg-white text-ink shadow-[var(--shadow-btn)]"><Icon name="chevronRight" class="size-4" /></span>
-                  </span>
                 </a>
               </li>
             ))}
@@ -164,40 +155,51 @@ const progressPhotos = gallery.slice(2, 4);
     </div>
   </section>
 
-  <section class="mx-auto mt-20 max-w-[1046px] px-5 lg:mt-28 lg:px-10">
-    <div class="mx-auto max-w-[778px] lg:text-center">
-      <h2 class="display h-section-n mb-4">{tc.description}</h2>
-      {lang !== 'ru' && <p class="mb-4 rounded-[16px] bg-white p-4 text-sm">{tc.noText}</p>}
-      {intro ? <div class="prose-stay complex-intro" lang="ru" set:html={intro} /> : <p class="text-[18px] leading-[26px] lg:text-[19px]">{meta.description}</p>}
-    </div>
-    <div class="mt-8 overflow-hidden rounded-[20px] lg:mt-10"><Img src={gallery[1] ?? hero} alt={`${c.title} — ${d.photo} 2`} class="aspect-[4/3] size-full lg:aspect-[16/9]" width={1280} height={720} /></div>
-  </section>
-
-  {ytId && (
-    <section id="video" class="container-n mt-20 scroll-mt-28 lg:mt-28">
-      <h2 class="display h-section-n mb-6">{tc.video}</h2>
-      <div class="relative aspect-video overflow-hidden rounded-[20px] bg-ink" data-yt={ytId}>
-        <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={tc.video}>
-          <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
-          <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
-        </button>
+  <section class="mt-20 lg:mt-28" data-tabs>
+    <div class="mx-auto max-w-[778px] px-5 text-center">
+      <h2 class="display h-section-n mb-4">{c.title}</h2>
+      {lang !== 'ru' && <p class="mb-4 rounded-[16px] bg-white p-4 text-left text-sm">{tc.noText}</p>}
+      {intro ? <div class="prose-stay complex-intro clamp" lang="ru" set:html={intro} data-clamp /> : <p class="text-[18px] leading-[26px] lg:text-[19px]">{meta.description}</p>}
+      {intro && <button type="button" class="mt-3 text-[14px] text-accent" data-more>{tb.promoMore}</button>}
+      <div class="mt-6 flex justify-center gap-2">
+        {ytId && <button type="button" class="chip-n is-on" data-jump="0">{tb.video}</button>}
+        {gallery.length > 0 && <button type="button" class:list={['chip-n', !ytId && 'is-on']} data-jump={ytId ? '1' : '0'}>{tb.photo}</button>}
       </div>
-    </section>
-  )}
-
-  <section class="container-n mt-8 lg:mt-10">
-    <h2 class="display h-section-n mb-6">{tb.status}</h2>
-    <ul class="grid gap-4 md:grid-cols-3">
-      <li class="tile-n p-6"><p class="text-[13px] uppercase tracking-[1px] text-soft">{tc.deadline}</p><p class="mt-2 text-[22px] leading-[28px] text-ink-n">{buildEnd ?? '—'}</p></li>
-      <li class="tile-n p-6"><p class="text-[13px] uppercase tracking-[1px] text-soft">{tb.statusStage} <span class="stub">{tb.stub}</span></p><p class="mt-2 text-[22px] leading-[28px] text-ink-n">{tb.statusStageText}</p></li>
-      <li class="flex flex-col rounded-[20px] bg-accent p-6 text-white"><p class="text-[20px] leading-[26px]">{tb.viewing}</p><p class="mt-2 text-[14px] text-white/80">{tb.viewingText}</p><a href="#lead" class="btn-n btn-n-white mt-auto self-start pt-0">{tb.viewingBtn}</a></li>
-    </ul>
+    </div>
+    <div class="container-n mt-6 lg:pl-[max(40px,calc((100%-1046px)/2+40px))]" data-car>
+      <div class="scroll-x flex snap-x snap-mandatory gap-3" data-car-track>
+        {ytId && (
+          <div id="video" class="relative aspect-video w-[90%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-ink lg:w-[78%]" data-yt={ytId}>
+            <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={tc.video}>
+              <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
+              <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
+            </button>
+          </div>
+        )}
+        {gallery.slice(0, 6).map((src, i) => (
+          <div class="aspect-video w-[90%] shrink-0 snap-start overflow-hidden rounded-[20px] lg:w-[78%]"><Img src={src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="size-full" width={1280} height={720} /></div>
+        ))}
+      </div>
+      <h2 class="sr-only">{tb.status}</h2>
+      <ul class="mt-4 grid gap-4 md:grid-cols-3 lg:w-[78%]">
+        <li class="tile-n flex min-h-[200px] flex-col bg-white! p-5"><p class="text-[16px] text-ink-n">{tb.status}</p><p class="mt-1 text-[13px] text-soft">{tc.deadline}: {buildEnd ?? '—'}</p><span class="mt-auto grid size-10 place-items-center self-start rounded-[12px] bg-page-n text-ink-n"><Icon name="building" class="size-5" /></span></li>
+        <li class="tile-n flex min-h-[200px] flex-col bg-white! p-5"><p class="text-[16px] text-ink-n">{tb.statusStage} <span class="stub">{tb.stub}</span></p><p class="mt-1 text-[13px] text-soft">{tb.statusStageText}</p><span class="mt-auto self-end text-soft"><Icon name="arrowRight" class="size-4" /></span></li>
+        <li class="flex min-h-[200px] flex-col rounded-[20px] bg-accent p-5 text-white"><p class="text-[16px]">{tb.viewing}</p><p class="mt-1 text-[13px] text-white/80">{tb.viewingText}</p><a href="#viewing" class="mt-auto grid size-10 place-items-center self-end rounded-[12px] bg-white text-ink" aria-label={tb.viewingBtn}><Icon name="arrowRight" class="size-4" /></a></li>
+      </ul>
+    </div>
   </section>
 
   {gallery.length > 2 && (
-    <section class="container-n mt-20 lg:mt-28">
-      <h2 class="display h-section-n mb-6">{d.item.gallery}</h2>
-      <div class="scroll-x flex snap-x snap-mandatory gap-3">
+    <section class="container-n mt-20 lg:mt-28" data-car>
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+        <h2 class="display h-section-n">{d.item.gallery}</h2>
+        <div class="flex items-center gap-2">
+          <div class="seg"><span aria-selected="true">{tb.all} · {gallery.length}</span></div>
+          <button type="button" class="car-btn hidden lg:grid" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button>
+          <button type="button" class="car-btn hidden lg:grid" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button>
+        </div>
+      </div>
+      <div class="scroll-x flex snap-x snap-mandatory gap-3" data-car-track>
         {gallery.map((src, i) => (
           <a href={src} target="_blank" rel="noopener" class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] lg:w-[82%]">
             <Img src={src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="aspect-[4/3] w-full lg:aspect-[16/9]" width={1280} height={720} />
@@ -209,110 +211,143 @@ const progressPhotos = gallery.slice(2, 4);
 
   {picker && <ComplexGenplan slug={c.slug} conf={picker} pickerUrl={pickerUrl} units={units} real={real} />}
 
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.inProject}{infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
-    {infra.length > 0 ? (
+  <section class="mt-20 lg:mt-28" data-tabs>
+    <div class="mx-auto max-w-[778px] px-5 text-center">
+      <h2 class="display h-section-n mb-4">{tb.inProject}{infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
+      {infra.length > 1 && <div class="mb-4 flex flex-wrap justify-center gap-2">{infra.map((x, i) => <button type="button" class:list={['chip-n', i === 0 && 'is-on']} data-tab={i}>{x.title}</button>)}</div>}
+    </div>
+    {infra.length > 0 ? infra.map((x, i) => (
+      <div data-pane={i} hidden={i !== 0}>
+        <div class="prose-stay mx-auto max-w-[778px] px-5 text-left text-[15px] infra-text" lang="ru" set:html={sanitize(x.html)} />
+        <div class="mx-auto mt-6 max-w-[1046px] px-5 lg:px-10"><div class="overflow-hidden rounded-[20px]"><Img src={x.images[0] ?? gallery[i + 2] ?? hero} alt={x.title} class="aspect-[4/3] w-full lg:aspect-[16/10]" width={1280} height={800} /></div></div>
+      </div>
+    )) : (
+      <div class="mx-auto max-w-[1046px] px-5 lg:px-10">
+        <ul class="mb-6 flex flex-wrap justify-center gap-2">{(p?.amenities.length ? p.amenities : [tc.amenities]).map((a) => <li class="chip-n">{a}</li>)}</ul>
+        <div class="overflow-hidden rounded-[20px]"><Img src={gallery[2] ?? hero} alt="" class="aspect-[4/3] w-full lg:aspect-[16/10]" width={1280} height={800} /></div>
+      </div>
+    )}
+  </section>
+
+  <section id="lead" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+    <div class="grid overflow-hidden rounded-[24px] bg-ink-n md:grid-cols-2">
+      <Img src={gallery[4] ?? gallery[0] ?? hero} alt="" class="aspect-[16/10] size-full md:aspect-auto" width={960} height={600} />
+      <div class="p-6 text-white lg:p-10"><LeadForm context={`complex-${c.code}`} title={tb.formTitle} subtitle={tb.formText} submitLabel={tb.formBtn} dark /></div>
+    </div>
+  </section>
+
+  {others.length > 0 && (
+    <section class="container-n mt-20 lg:mt-28" data-car>
+      <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
+        <h2 class="display h-section-n">{tb.seeAlso}</h2>
+        {others.length > 2 && <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>}
+      </div>
+      <ul class="scroll-x flex snap-x gap-4" data-car-track>{others.map((o) => <li class="w-[86%] shrink-0 snap-start md:w-[calc(50%-8px)]"><ProjectCard p={o} /></li>)}</ul>
+    </section>
+  )}
+
+  <section class="panel mt-20 py-12 lg:mt-28 lg:py-16">
+    <div class="container-n">
+      <h2 class="display h-section-n mb-6 lg:mb-8">{tb.buy}</h2>
       <ul class="grid gap-4 md:grid-cols-3">
-        {infra.map((x) => (
-          <li class="tile-n overflow-hidden">
-            {x.images[0] && <Img src={x.images[0]} alt={x.title} class="aspect-[4/3] w-full" width={640} height={480} />}
-            <div class="p-5"><h3 class="text-[18px] leading-[24px] text-ink-n">{x.title}</h3><div class="prose-stay mt-2 text-[14px]" lang="ru" set:html={sanitize(x.html)} /></div>
+        {(p?.paymentCards.length ? p.paymentCards : []).map((x, i) => (
+          <li class="tile-n flex min-h-[180px] flex-col p-5">
+            <span class="grid size-10 place-items-center rounded-[12px] bg-white text-ink-n"><Icon name={['tag', 'calendar', 'building'][i % 3]} class="size-5" /></span>
+            <h3 class="mt-4 text-[16px] leading-[22px] text-ink-n">{x.title}</h3>
+            <p class="mt-1 text-[13px] leading-[18px] text-soft">{x.description}</p>
+            <a href="#lead" class="mt-auto pt-3 text-[13px] text-accent">{x.buttonLabel || tc.consult} →</a>
           </li>
         ))}
       </ul>
-    ) : (
-      <ul class="flex flex-wrap gap-2">{(p?.amenities.length ? p.amenities : [tc.amenities]).map((a) => <li class="chip-n">{a}</li>)}</ul>
-    )}
-  </section>
-
-  <section class="container-n mt-20 lg:mt-28">
-    <div class="flex flex-col gap-6 rounded-[24px] bg-ink-n p-8 text-white lg:flex-row lg:items-center lg:justify-between lg:p-12">
-      <div><p class="display text-[24px] leading-[30px] lg:text-[32px] lg:leading-[38px]">{tb.banner}</p><p class="mt-2 text-white/75">{tb.bannerText}</p></div>
-      <a href="#lead" class="btn-n btn-n-white shrink-0">{tb.bannerBtn}</a>
-    </div>
-  </section>
-
-
-
-  {objects.length > 0 && (
-    <section id="objects" class="container-n mt-20 scroll-mt-28 lg:mt-28">
-      <h2 class="display h-section-n mb-6 lg:mb-8">{tc.available}</h2>
-      <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{objects.slice(0, 12).map((x) => <li><SaleCard x={x} /></li>)}</ul>
-    </section>
-  )}
-
-  {others.length > 0 && (
-    <section class="container-n mt-20 lg:mt-28">
-      <h2 class="display h-section-n mb-6 lg:mb-8">{tc.others}</h2>
-      <ul class="grid gap-4 md:grid-cols-3">{others.map((o) => <li><ProjectCard p={o} /></li>)}</ul>
-    </section>
-  )}
-
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.buy}</h2>
-    {(p?.paymentCards.length ?? 0) > 0 && (
-      <ul class="mb-6 grid gap-4 md:grid-cols-3">
-        {p!.paymentCards.map((x) => <li class="tile-n flex flex-col p-6"><h3 class="text-[18px] leading-[24px] text-ink-n">{x.title}</h3><p class="mt-2 text-[14px] text-soft">{x.description}</p><a href="#lead" class="mt-4 text-[14px] text-accent">{x.buttonLabel || tc.consult} →</a></li>)}
-      </ul>
-    )}
-    <h3 class="mb-4 text-[18px] text-ink-n">{tc.installment}</h3>
-    <Calculator price={low} withMortgage downPct={p?.installment?.initialPay} months={p?.installment?.months} />
-  </section>
-
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.promo} <span class="stub">{tb.stub}</span></h2>
-    <div class="grid gap-4 md:grid-cols-2">
+      <h2 class="display h-section-n mb-6 mt-14 lg:mb-8">{tb.promo} <span class="stub">{tb.stub}</span></h2>
       <div class="relative overflow-hidden rounded-[20px] bg-ink text-white">
-        <Img src={gallery[3] ?? hero} alt="" class="absolute inset-0 size-full opacity-60" width={960} height={540} />
-        <div class="relative flex min-h-[240px] flex-col p-6"><span class="self-start rounded-[6px] bg-lime px-2 py-1 text-[12px] font-medium text-ink-n">{tb.until}</span><p class="mt-auto text-[24px] leading-[30px]">{p?.promo ?? tb.promoTitle}</p><p class="mt-1 text-white/80">{tb.promoText}</p></div>
+        <Img src={gallery[3] ?? hero} alt="" class="absolute inset-0 size-full opacity-70" width={1600} height={500} />
+        <div class="absolute inset-0 bg-gradient-to-r from-ink/80 to-transparent"></div>
+        <div class="relative flex min-h-[260px] max-w-[520px] flex-col p-6 lg:min-h-[300px] lg:p-8">
+          <p class="text-[24px] leading-[30px]">{p?.promo && lang === 'ru' ? p.promo : tb.promoTitle}</p>
+          <p class="mt-1 text-white/80">{tb.promoText}</p>
+          <span class="mt-3 self-start rounded-[6px] bg-[#8d1d2c] px-2 py-1 text-[12px] font-medium">{tb.until}</span>
+          <a href="#lead" class="btn-n btn-n-white mt-auto self-start">{tb.promoMore}</a>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.docs} <span class="stub">{tb.stub}</span></h2>
-    <ul class="grid gap-3 md:grid-cols-2">
-      {tb.docsList.map((x) => <li class="tile-n flex items-center justify-between gap-4 p-5"><span class="text-ink-n">{x}</span><span class="text-[13px] text-soft">PDF · {tb.soon}</span></li>)}
-    </ul>
+  <section class="container-n mt-20 lg:mt-28" data-tabs>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+      <h2 class="display h-section-n">{tb.docs} <span class="stub">{tb.stub}</span></h2>
+      <div class="seg" role="tablist">{tb.docsTabs.map((x, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{x}</button>)}</div>
+    </div>
+    {[tb.docsList.slice(1), tb.docsList.slice(0, 1)].map((list, i) => (
+      <ul class="grid gap-3 md:grid-cols-2" data-pane={i} hidden={i !== 0}>
+        {list.map((x) => <li class="flex items-center justify-between gap-4 rounded-[16px] bg-white px-5 py-4"><span class="text-[14px] text-ink-n">{x}</span><span class="text-[12px] text-soft">PDF · {tb.soon}</span></li>)}
+      </ul>
+    ))}
   </section>
 
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.progress} <span class="stub">{tb.stub}</span></h2>
+  <section class="container-n mt-20 lg:mt-28" data-tabs>
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+      <h2 class="display h-section-n">{tb.progress} <span class="stub">{tb.stub}</span></h2>
+      <div class="seg"><span aria-selected="true">{new Date().getFullYear()}</span></div>
+    </div>
     <ul class="grid gap-4 md:grid-cols-2">
-      {(progressPhotos.length ? progressPhotos : [hero, hero]).map((src) => (
-        <li class="overflow-hidden rounded-[20px] bg-white"><Img src={src} alt="" class="aspect-[16/9] w-full" width={960} height={540} /><p class="p-4 text-[14px] text-soft">{tb.newsDate}</p></li>
+      {(progressPhotos.length ? progressPhotos : [hero, hero]).map((src) => <li class="overflow-hidden rounded-[20px]"><Img src={src} alt="" class="aspect-[16/10] w-full" width={960} height={600} /></li>)}
+    </ul>
+    <ol class="scroll-x mt-4 flex gap-1 rounded-[16px] bg-white p-2 text-[12px] text-soft">
+      {tb.months.map((m, i) => <li class:list={['grid h-9 min-w-[56px] flex-1 place-items-center rounded-[10px]', i === new Date().getMonth() && 'bg-ink-n text-white']}>{m}</li>)}
+    </ol>
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28" data-car>
+    <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
+      <h2 class="display h-section-n">{tb.news} <span class="stub">{tb.stub}</span></h2>
+      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
+    </div>
+    <ul class="scroll-x flex snap-x gap-4" data-car-track>
+      {[...tb.newsList, tb.newsList[0]].map((x) => <li class="flex min-h-[200px] w-[80%] shrink-0 snap-start flex-col rounded-[20px] bg-white p-5 md:w-[calc(25%-12px)]"><span class="text-[12px] text-soft">{tb.newsDate}</span><span class="mt-3 text-[16px] leading-[22px] text-ink-n">{x}</span></li>)}
+    </ul>
+    <a href={`/${lang}/blog/`} class="btn-n btn-n-dark mt-6">{tb.newsAll}</a>
+  </section>
+
+  <section id="viewing" class="panel mt-20 scroll-mt-24 py-12 lg:mt-28 lg:py-16">
+    <div class="container-n">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+        <h2 class="display h-section-n">{tb.contacts}</h2>
+        <div class="seg"><span aria-selected="true">{tb.contactsTabs[0]}</span></div>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-2">
+        {(p?.lat ?? c.lat) && (p?.lng ?? c.lng) ? <div data-map data-zoom="14" data-points={JSON.stringify([{ t: c.title, u: '', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, a: place }])} class="h-[340px] overflow-hidden rounded-[20px] bg-page-n lg:h-auto lg:min-h-[480px]"></div> : <div class="hidden lg:block"></div>}
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-1 flex-col gap-2 rounded-[20px] bg-page-n p-6">
+            <p class="text-[18px] leading-[24px] text-ink-n">{c.title}</p>
+            <p class="text-[13px] text-soft">{place}</p>
+            <p class="mt-2 text-[15px] text-ink-n">{tb.office}</p>
+            <p class="text-[13px] text-soft">{site.address}</p>
+            <p class="text-[13px]"><span class="text-soft">{tb.hours}:</span> {tb.hoursText}</p>
+            <a href={site.phone.href} class="mt-auto pt-4 text-[16px] text-ink-n"><Icon name="phone" class="mr-1 inline size-4" />{site.phone.label}</a>
+          </div>
+          <div class="rounded-[20px] bg-ink-n p-6 text-white"><LeadForm context={`complex-${c.code}-viewing`} title={tb.viewingForm} subtitle={tb.viewingFormText} submitLabel={tb.viewingBtn} headingLevel="p" dark /></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container-n mt-20 mb-10 lg:mt-28" data-car>
+    <div class="mb-6 flex items-end justify-between gap-4 lg:mb-8">
+      <div><h2 class="display h-section-n">{tb.collections}</h2><p class="mt-2 text-[14px] text-soft">{tb.collectionsText}</p></div>
+      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
+    </div>
+    <ul class="scroll-x flex snap-x gap-4" data-car-track>
+      {links.map((l, i) => (
+        <li class="w-[70%] shrink-0 snap-start md:w-[calc(25%-12px)]">
+          <a href={l.href} class="relative block overflow-hidden rounded-[20px] bg-ink">
+            <Img src={gallery[(i + 5) % Math.max(gallery.length, 1)] ?? hero} alt="" class="aspect-[4/3] w-full opacity-80" width={480} height={360} />
+            <span class="absolute inset-x-0 top-0 bg-gradient-to-b from-ink/70 to-transparent p-4 text-[15px] leading-[20px] text-white">{l.text}</span>
+          </a>
+        </li>
       ))}
     </ul>
   </section>
-
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.news} <span class="stub">{tb.stub}</span></h2>
-    <ul class="grid gap-4 md:grid-cols-3">
-      {tb.newsList.map((x) => <li class="tile-n flex min-h-[180px] flex-col p-6"><span class="text-[13px] text-soft">{tb.newsDate}</span><span class="mt-auto text-[18px] leading-[24px] text-ink-n">{x}</span></li>)}
-    </ul>
-  </section>
-
-  <section class="container-n mt-20 lg:mt-28">
-    <h2 class="display h-section-n mb-6 lg:mb-8">{tb.contacts}</h2>
-    <div class="grid gap-4 lg:grid-cols-[1fr_380px]">
-      {(p?.lat ?? c.lat) && (p?.lng ?? c.lng) ? <div data-map data-zoom="14" data-points={JSON.stringify([{ t: c.title, u: '', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, a: place }])} class="h-[380px] overflow-hidden rounded-[20px] bg-white lg:h-[460px]"></div> : <div></div>}
-      <div class="flex flex-col gap-4 rounded-[20px] bg-white p-6">
-        <p class="text-[20px] leading-[26px] text-ink-n">{tb.office}</p>
-        <p class="text-[14px] text-soft">{site.address}</p>
-        <p class="text-[14px]"><span class="text-soft">{tb.hours}:</span> {tb.hoursText}</p>
-        <a href={site.phone.href} class="text-[18px] text-ink-n">{site.phone.label}</a>
-        <a href="#lead" class="btn-n btn-n-dark mt-auto w-full">{tc.consult}</a>
-      </div>
-    </div>
-  </section>
-
-
-
-  <Faq items={faq} />
-
-  <section class="container-n"><LinkCloud title={d.catalog.popular(district?.in[lang] ?? city.in[lang])} links={links} /></section>
-
-  <LeadSection n context={`complex-${c.code}`} title={tc.lead} subtitle={tc.leadText} submitLabel={tc.getPrice} />
 </Base>
 <style>
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
@@ -325,8 +360,16 @@ const progressPhotos = gallery.slice(2, 4);
     .fact dt, .fact dd { font-size: 11px; font-weight: 500; line-height: 13px; letter-spacing: 1px; text-transform: uppercase; }
     .fact dd { margin-top: 4px; }
   }
-  .complex-intro { font-size: 18px; line-height: 26px; letter-spacing: .1px; }
-  @media (min-width: 1024px) { .complex-intro { font-size: 19px; } }
+  .complex-intro { font-size: 16px; line-height: 24px; letter-spacing: .1px; }
+  .complex-intro.clamp { max-height: 144px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
+  .infra-text :global(ul) { columns: 2; column-gap: 24px; text-align: left; padding-left: 18px; }
+  @media (min-width: 768px) { .infra-text :global(ul) { columns: 3; } }
+  .infra-text :global(li) { break-inside: avoid; }
+  .chip-n.is-on { background: var(--color-ink-n); color: #fff; }
+  .car-btn { place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--color-ink-n); box-shadow: var(--shadow-btn); }
+  .car-btn:hover { background: var(--color-page-n); }
+  .seg > button { cursor: pointer; }
+  .fact-dark { background: var(--color-ink-n); color: #fff; }
 </style>
 <script>
   import { mountMap } from '../scripts/map';
@@ -338,4 +381,28 @@ const progressPhotos = gallery.slice(2, 4);
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });
     io.observe(mapEl);
   }
+  // Карусели: стрелки листают ленту на ширину видимой части.
+  document.querySelectorAll<HTMLElement>('[data-car]').forEach((car) => {
+    const track = car.querySelector<HTMLElement>('[data-car-track]');
+    if (!track) return;
+    const go = (dir: number) => track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
+    car.querySelectorAll('[data-car-prev]').forEach((b) => b.addEventListener('click', () => go(-1)));
+    car.querySelectorAll('[data-car-next]').forEach((b) => b.addEventListener('click', () => go(1)));
+    car.closest('section')?.querySelectorAll<HTMLElement>('[data-jump]').forEach((b) => b.addEventListener('click', () => {
+      const slide = track.children[Number(b.dataset.jump)] as HTMLElement | undefined;
+      if (slide) track.scrollTo({ left: slide.offsetLeft - track.offsetLeft, behavior: 'smooth' });
+      b.parentElement?.querySelectorAll('[data-jump]').forEach((x) => x.classList.toggle('is-on', x === b));
+    }));
+  });
+  // Вкладки внутри блока: кнопка data-tab показывает панель data-pane с тем же номером.
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((box) => {
+    box.querySelectorAll<HTMLElement>('[data-tab]').forEach((b) => b.addEventListener('click', () => {
+      box.querySelectorAll<HTMLElement>('[data-tab]').forEach((x) => { x.classList.toggle('is-on', x === b); if (x.hasAttribute('aria-selected')) x.setAttribute('aria-selected', String(x === b)); });
+      box.querySelectorAll<HTMLElement>('[data-pane]').forEach((pn) => { pn.hidden = pn.dataset.pane !== b.dataset.tab; });
+    }));
+  });
+  // «Подробнее» под описанием комплекса раскрывает весь текст.
+  document.querySelectorAll<HTMLElement>('[data-more]').forEach((b) => b.addEventListener('click', () => {
+    b.parentElement?.querySelector('[data-clamp]')?.classList.remove('clamp'); b.remove();
+  }));
 </script>
