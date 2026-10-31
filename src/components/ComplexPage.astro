@@ -28,6 +28,7 @@ import { sanitize } from '../lib/sanitize';
 import { moneyL, numL, strip } from '../lib/format';
 import { TYPE_WORDS } from '../lib/segments';
 import type { Robots } from '../lib/page';
+import { pickerFor, PICKER_TEXT } from '../lib/pickers';
 
 interface Props { c: Complex }
 const { c } = Astro.props;
@@ -95,6 +96,7 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
         {p?.promo && lang === 'ru' && <p class="mt-4"><span class="inline-flex rounded-[6px] bg-white px-2 py-1 text-[11px] font-medium uppercase tracking-[1px] text-accent">{p.promo}</span></p>}
         <div class="mt-6 flex flex-wrap gap-2.5">
           <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>
+          {pickerFor(c.slug) && <a href={`${self}/picker/`} class="btn-n btn-n-white max-sm:w-full">{PICKER_TEXT[lang].open}</a>}
           {ytId && <a href="#video" class="btn-n btn-n-glass max-sm:w-full"><Icon name="play" class="size-4" />{tc.video}</a>}
         </div>
       </div>
