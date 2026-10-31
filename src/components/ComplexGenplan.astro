@@ -1,0 +1,148 @@
+---
+/**
+ * Блок «Генплан» страницы ЖК по образцу mr-group: рендер комплекса с корпусами; при наведении (на телефоне —
+ * по нажатию) карточка корпуса: этажность, комнатность «от м² / от цены» и кнопка «Выбрать квартиру»,
+ * которая открывает наш подборщик сразу на этом корпусе. Контуры корпусов — из подборщика (scripts/import-picker.py).
+ */
+import { COMPLEX_BLOCKS } from '../lib/complexBlocks';
+import { moneyL, numL } from '../lib/format';
+import { t } from '../i18n/ui';
+import type { PickerConf, PickerReal } from '../lib/pickers';
+
+interface Unit { type: string; rooms: string | null; areaFrom: number | null; priceFrom: number | null }
+interface Props { slug: string; conf: PickerConf; pickerUrl: string; units: Unit[]; real: PickerReal[] }
+const { slug, conf, pickerUrl, units, real } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const tb = COMPLEX_BLOCKS[lang];
+
+const files = import.meta.glob<{ default: { img: { src: string; w: number; h: number }; geo: Record<string, { f: number; p: number[][] }> } }>('../content/picker/*.json', { eager: true });
+const data = files[`../content/picker/${slug}.json`]?.default;
+const ids = data ? Object.keys(data.geo).sort() : [];
+const box = (p: number[][]) => { const xs = p.map((q) => q[0]), ys = p.map((q) => q[1]); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+const m2 = (a: number) => `${numL(lang, a)} ${d.m2}`;
+// Строки карточки: квартиры корпуса из базы, сгруппированные по комнатности; если их нет — планировки ЖК «от».
+const rowsOf = (id: string) => {
+  const mine = real.filter((r) => r.b === id);
+  if (!mine.length) return units.map((u) => ({ label: [u.type, u.rooms].filter(Boolean).join(' '), t: u.rooms, area: u.areaFrom, price: u.priceFrom }));
+  const by = new Map<string, PickerReal[]>();
+  mine.forEach((r) => by.set(r.rooms ?? '—', [...(by.get(r.rooms ?? '—') ?? []), r]));
+  return [...by].map(([rooms, list]) => ({
+    label: rooms, t: rooms,
+    area: Math.min(...list.map((r) => r.area ?? Infinity)),
+    price: Math.min(...list.map((r) => r.price ?? Infinity)),
+  })).map((r) => ({ ...r, area: Number.isFinite(r.area) ? r.area : null, price: Number.isFinite(r.price) ? r.price : null }));
+};
+const first = ids.find((id) => real.some((r) => r.b === id)) ?? ids[0];
+const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === 'tr' ? lang : 'en'}`;
+---
+{data && (
+  <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+      <h2 class="display h-section-n">{tb.genplan}</h2>
+      <div class="seg scroll-x max-w-full" role="tablist" aria-label={tb.genplan}>
+        {tb.gpViews.map((v, i) => <button type="button" role="tab" data-gv={i} aria-selected={i === 0 ? 'true' : 'false'}>{v}</button>)}
+      </div>
+    </div>
+    <div class="gp" data-gp data-first={first}>
+      <div class="gp-stage" data-view="0" style={`aspect-ratio:${data.img.w}/${data.img.h}`}>
+        <img src={conf.base + data.img.src} alt="" width={data.img.w} height={data.img.h} loading="lazy" class="absolute inset-0 size-full object-cover" />
+        <svg viewBox={`0 0 ${data.img.w} ${data.img.h}`} class="absolute inset-0 size-full" aria-label={tb.genplan}>
+          {ids.map((id) => <polygon class="gp-b" data-b={id} tabindex="0" role="button" aria-label={tb.bld(id)} points={data.geo[id].p.map((q) => q.join(',')).join(' ')} />)}
+          {ids.map((id) => { const [x1, y1, x2, y2] = box(data.geo[id].p); const cx = (x1 + x2) / 2, cy = y1 + (y2 - y1) * 0.4; const n = real.filter((r) => r.b === id).length; return (
+            <g class="gp-pin" data-pin={id} pointer-events="none"><circle cx={cx} cy={cy} r="20" /><text x={cx} y={cy + 7} text-anchor="middle">{id}</text>{n > 0 && <><circle class="gp-n" cx={cx + 18} cy={cy - 16} r="11" /><text class="gp-nt" x={cx + 18} y={cy - 11.5} text-anchor="middle">{n}</text></>}</g>
+          ); })}
+        </svg>
+        {ids.map((id) => { const [x1, y1, x2] = box(data.geo[id].p); const rows = rowsOf(id); const n = real.filter((r) => r.b === id).length; return (
+          <div class="gp-card" data-card={id} hidden={id !== first} style={`--x1:${(x1 / data.img.w) * 100}%;--x2:${(x2 / data.img.w) * 100}%;--y:${(y1 / data.img.h) * 100}%`}>
+            <div class="flex items-center gap-2"><span class="text-[20px] leading-[26px] text-ink-n">{tb.bld(id)}</span>{n > 0 && <span class="rounded-[6px] bg-accent px-2 py-0.5 text-[12px] font-medium text-white">{tb.inSale(n)}</span>}</div>
+            <span class="mt-3 inline-flex rounded-[8px] bg-page-n px-2.5 py-1 text-[13px] text-ink-n">{tb.floors(data.geo[id].f)}</span>
+            <ul class="mt-3">
+              {rows.map((r) => (
+                <li><a href={url(`/b/${id}`) + (r.t && ['1+1', '2+1', '3+1'].includes(r.t) ? `&t=${encodeURIComponent(r.t)}` : '')} class="gp-row">
+                  <span>{r.label}</span><span class="text-soft">{r.area ? tb.fromArea(m2(r.area)) : ''}</span><span>{r.price ? tb.fromPrice(moneyL(lang, r.price)) : tb.onRequest}</span><span aria-hidden="true">›</span>
+                </a></li>
+              ))}
+            </ul>
+            <a href={url(`/b/${id}/facade`)} class="btn-n btn-n-dark mt-4 w-full">{tb.pick}</a>
+          </div>
+        ); })}
+      </div>
+      {[1, 2].map((i) => (
+        <div class="gp-soon" data-view={i} hidden style={`aspect-ratio:${data.img.w}/${data.img.h}`}>
+          <img src={conf.base + data.img.src} alt="" loading="lazy" class={i === 2 ? 'top' : ''} />
+          <div class="gp-soon-note"><span class="stub">{tb.stub}</span><span>{tb.gpViews[i]}</span><span class="text-soft">{tb.gpSoon}</span></div>
+        </div>
+      ))}
+      <p class="mt-3 text-[13px] text-soft lg:hidden" data-view="0">{tb.tapHint}</p>
+    </div>
+  </section>
+)}
+<style>
+  .gp-stage { position: relative; border-radius: 20px; overflow: hidden; background: #e9eaf0; }
+  @media (min-width: 1024px) { .gp-stage { border-radius: 24px; } }
+  .gp-b { fill: rgba(117, 75, 233, 0); stroke: rgba(255, 255, 255, 0); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .15s, stroke .15s; }
+  .gp-b:hover, .gp-b.on { fill: rgba(117, 75, 233, .28); stroke: #fff; }
+  .gp-b:focus-visible { outline: none; stroke: #fff; stroke-dasharray: 6 4; }
+  .gp-pin circle { fill: #fff; opacity: .95; }
+  .gp-pin .gp-n { fill: #754be9; opacity: 1; }
+  .gp-pin .gp-nt { font-size: 13px; fill: #fff; }
+  .gp-pin text { font: 600 18px Inter, sans-serif; fill: #1c1e26; }
+  .gp-pin.on text:not(.gp-nt) { fill: #fff; }
+  .gp-pin.on circle:not(.gp-n) { fill: #1c1e26; opacity: 1; }
+  .gp-card { position: absolute; z-index: 2; top: clamp(12px, var(--y), calc(100% - 340px)); left: calc(var(--x2) + 16px); width: 340px; padding: 20px; border-radius: 20px; background: #fff; box-shadow: 0 12px 32px rgba(28, 30, 38, .18); }
+  .gp-card.left { left: auto; right: calc(100% - var(--x1) + 16px); }
+  .gp-soon { position: relative; border-radius: 20px; overflow: hidden; background: #e9eaf0; display: grid; place-items: center; }
+  .gp-soon[hidden] { display: none; }
+  .gp-soon img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: blur(14px) saturate(.6); opacity: .55; transform: scale(1.1) scaleX(-1); }
+  .gp-soon img.top { transform: scale(1.4) rotate(-12deg); }
+  .gp-soon-note { position: relative; display: grid; justify-items: center; gap: 8px; max-width: 320px; padding: 24px; border-radius: 20px; background: #fff; text-align: center; font-size: 15px; color: var(--color-ink-n); }
+  .gp-soon-note .stub { display: inline-flex; padding: 3px 8px; border-radius: 6px; border: 1px solid #d9dae2; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
+  .seg > button { cursor: pointer; }
+  @media (max-width: 767px) { .seg > button { padding: 0 10px; letter-spacing: .3px; } }
+  .gp.v1, .gp.v2 { padding-bottom: 0; }
+  .gp-row { display: grid; grid-template-columns: auto 1fr auto 12px; gap: 12px; align-items: center; min-height: 36px; font-size: 14px; color: var(--color-ink-n); }
+  .gp-row .text-soft { text-align: right; }
+  .gp-row:hover { color: var(--color-accent); }
+  @media (max-width: 767px) {
+    .gp-stage { overflow: visible; border-radius: 20px 20px 0 0; }
+    .gp-stage > img { border-radius: 20px 20px 0 0; }
+    .gp-card { position: absolute; top: 100%; left: 0 !important; right: 0 !important; width: auto; border-radius: 0 0 20px 20px; box-shadow: none; }
+    .gp { padding-bottom: var(--card-h, 280px); }
+    .gp-pin circle:not(.gp-n) { r: 30px; }
+    .gp-pin text:not(.gp-nt) { font-size: 28px; }
+  }
+</style>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-gp]').forEach((gp) => {
+    const show = (id: string) => {
+      gp.querySelectorAll<HTMLElement>('[data-card]').forEach((c) => {
+        const on = c.dataset.card === id; c.hidden = !on;
+        if (on) {
+          // Карточка справа от корпуса, если помещается, иначе слева.
+          const stage = gp.querySelector<HTMLElement>('.gp-stage')!;
+          c.classList.remove('left');
+          if (c.getBoundingClientRect().right > stage.getBoundingClientRect().right - 8) c.classList.add('left');
+          gp.style.setProperty('--card-h', `${c.offsetHeight + 16}px`);
+        }
+      });
+      gp.querySelectorAll('[data-b]').forEach((p) => p.classList.toggle('on', (p as SVGElement).dataset.b === id));
+      gp.querySelectorAll('[data-pin]').forEach((p) => p.classList.toggle('on', (p as SVGElement).dataset.pin === id));
+    };
+    gp.querySelectorAll<SVGElement>('[data-b]').forEach((p) => {
+      const id = p.dataset.b!;
+      p.addEventListener('mouseenter', () => show(id));
+      p.addEventListener('click', () => show(id));
+      p.addEventListener('focus', () => show(id));
+    });
+    show(gp.dataset.first!);
+    // Вкладки видов генплана: 3D (рендер с разметкой корпусов), 3D с другой стороны и 2D (пока заглушки).
+    const sec = gp.closest('section')!;
+    sec.querySelectorAll<HTMLButtonElement>('[data-gv]').forEach((b) => b.addEventListener('click', () => {
+      const v = b.dataset.gv!;
+      sec.querySelectorAll('[data-gv]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      gp.querySelectorAll<HTMLElement>('[data-view]').forEach((el) => { el.hidden = el.dataset.view !== v; });
+      gp.classList.toggle('v1', v === '1'); gp.classList.toggle('v2', v === '2');
+    }));
+  });
+</script>

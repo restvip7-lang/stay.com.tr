@@ -1,0 +1,313 @@
+/* Сгенерировано scripts/import-picker.py из apartment-picker/index.html — правки вносить в скрипт */
+
+/* Сброс одноимённых классов сайта (global.css) внутри подборщика */
+.ap .btn{height:auto;line-height:1.2;letter-spacing:normal;font-family:inherit;transition:border-color .2s,background-color .2s,color .2s}
+.ap .chip{height:auto;line-height:1.2;font-family:inherit;font-weight:inherit;color:inherit;transition:border-color .2s}
+.ap .badge{gap:0;border:0;letter-spacing:normal;text-transform:none;line-height:1;font-weight:700}
+.ap .seg{gap:0;padding:0;box-shadow:none}
+.ap .seg>*{height:auto;border-radius:0;text-transform:none;letter-spacing:normal;line-height:1.2;font-weight:inherit;box-shadow:none;display:inline-flex;align-items:center;justify-content:center}
+.ap .field{width:auto;height:auto;border-radius:0;background:none;border:0;padding:0;transition:none}
+.ap .field:hover,.ap .field:focus{border-color:transparent}
+
+/* Три экрана: комплекс → этаж → страница квартиры. Тёмный фон, светлые планы, янтарный акцент */
+.ap{
+  --bg:#f0f1f6; --surface:#fff; --surface-2:#f5f5f9; --fg:#1c1e26; --muted:#6b6d77; --line:#e2e3e8;
+  --accent:#754be9; --accent-ink:#fff; --sel:#754be9;
+  --free:#22a565; --booked:#d6a520; --sold:#9a9ca6;
+  --plan:#f6f4ef; --plan-ink:#1d2533;
+  --display:var(--font-display); --body:var(--font-sans);
+  --r:20px; --shadow:0 12px 32px rgba(28,30,38,.16);
+  color-scheme:light;
+}
+.ap *{box-sizing:border-box}
+.ap{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5;
+  padding:20px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px));overflow-x:hidden}
+.ap .wrap{max-width:1240px;margin:0 auto;display:grid;gap:16px;min-width:0}
+.ap h1,.ap h2,.ap h3{margin:0;text-wrap:balance}
+.ap button{font:inherit;color:inherit}
+.ap [hidden],.ap .pg-hide{display:none!important}
+.ap :focus-visible{outline:2px solid var(--sel);outline-offset:2px}
+
+/* ---------- Шапка ---------- */
+.ap .top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between}
+.ap .eyebrow{margin:0 0 4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);font-weight:800}
+.ap .top h1{font-family:var(--display);font-weight:500;font-size:clamp(22px,3.2vw,34px);letter-spacing:-.01em}
+.ap .summary{margin:4px 0 0;color:var(--muted);font-size:16px;font-variant-numeric:tabular-nums}
+.ap .summary b{color:var(--fg)}
+.ap .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ap .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--surface)}
+.ap .seg button{border:0;background:none;padding:0 14px;min-height:44px;cursor:pointer;font-size:14px;color:var(--fg)}
+.ap .seg button[aria-pressed="true"]{background:var(--fg);color:var(--bg);font-weight:700}
+.ap .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);
+  background:transparent;color:var(--fg);font-weight:700;font-size:14px;cursor:pointer;text-decoration:none;white-space:nowrap}
+.ap .btn:hover{border-color:var(--muted)}
+.ap .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.ap .btn.primary:hover{filter:brightness(1.06)}
+.ap .btn.block{width:100%}
+.ap .btn.link{border-color:transparent;color:var(--accent);padding:0 8px}
+.ap .btn[disabled]{opacity:.45;cursor:not-allowed}
+.ap .btn[aria-pressed="true"].sl-btn{border-color:var(--free);color:#1a8a52}
+.ap .badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:99px;background:var(--accent);color:var(--accent-ink);font-size:12px}
+.ap .badge:empty{display:none}
+
+.ap .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ap .kpi{background:var(--surface);padding:12px 14px;display:grid;gap:2px;min-width:0}
+.ap .kpi span,.ap .kpi small{font-size:12px;color:var(--muted)}
+.ap .kpi b{font-family:var(--display);font-weight:500;font-size:clamp(16px,2vw,20px);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ---------- Фильтры ---------- */
+.ap .fbar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 16px}
+.ap .fgroup{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0}
+.ap .flabel{font-weight:700;font-size:14px}
+.ap .fbar input,.ap .fbar select{font:inherit;font-size:14px;min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--fg);min-width:0}
+.ap .fbar input{width:120px}
+.ap .fbar select{width:auto}
+.ap .fbar .seg button{padding:0 16px}
+.ap .fbar .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.ap .fbar .spacer{flex:1}
+.ap .fsheet-head,.ap .fsheet-foot{display:none}
+.ap .fopen{display:none}
+
+/* ---------- Навигация ---------- */
+.ap .crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px;font-size:14px;color:var(--muted)}
+.ap .crumbs button{border:0;background:none;color:var(--muted);cursor:pointer;min-height:44px;padding:0 6px}
+.ap .crumbs button:hover{color:var(--fg)}
+.ap .crumbs .cur{color:var(--accent);font-weight:700}
+.ap .crumbs .sep{opacity:.6}
+
+/* ---------- Экран выбора: сцена + карточка ---------- */
+.ap #picker{margin:0;max-width:none;width:100%}
+.ap .main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;align-items:start}
+.ap .stage{position:relative;border-radius:var(--r);overflow:hidden;background:#e9eaf0;min-width:0}
+.ap .stage.render{aspect-ratio:1500/844}
+.ap .stage.plan{background:#fff;height:clamp(440px,calc(100vh - 290px),720px)}
+.ap .stage.plan.wide{height:auto;aspect-ratio:920/520}
+.ap .stage svg{display:block;width:100%;height:100%;touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.ap .stage.zoomed svg,.ap .stage.fs svg{touch-action:none;cursor:grab}
+.ap .stage.zoomed svg:active{cursor:grabbing}
+.ap .stage.fs{position:fixed;inset:0;z-index:90;border-radius:0;height:auto;aspect-ratio:auto}
+body.fs-open .ap{overflow:hidden}
+.ap .ctrls{position:absolute;right:12px;bottom:12px;display:flex;gap:8px;z-index:4}
+.ap .ctrl{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.94);color:var(--fg);cursor:pointer;display:grid;place-items:center;font-size:20px;line-height:1}
+.ap .ctrl.txt{width:auto;padding:0 12px;font-size:13px;font-weight:700}
+.ap .ctrl:hover{background:#fff;border-color:var(--accent);color:var(--accent)}
+.ap .fsinfo{position:absolute;left:12px;bottom:12px;z-index:4;background:rgba(11,18,32,.9);color:#fff;border-radius:12px;padding:8px 8px 8px 12px;display:none;gap:10px;align-items:center;font-size:14px;max-width:calc(100% - 260px)}
+.ap .stage.fs .fsinfo.on{display:flex}
+.ap .scene-enter{opacity:0}
+.ap .stage svg{transition:opacity .25s}
+
+/* интерактивные зоны */
+.ap .zone{cursor:pointer;transition:fill .15s,stroke .15s}
+.ap .bld{fill:rgba(117,75,233,0);stroke:rgba(117,75,233,0);stroke-width:2;vector-effect:non-scaling-stroke}
+.ap .bld:hover,.ap .bld.hov{fill:rgba(117,75,233,.18);stroke:#ffffff}
+.ap .bld.sel{fill:rgba(117,75,233,.30);stroke:var(--sel);stroke-width:3}
+.ap .heat .bld{fill:var(--hf);stroke:rgba(255,255,255,.6);stroke-width:1.5}
+.ap .heat .bld.sel{stroke:var(--sel);stroke-width:3}
+.ap .band{fill:rgba(255,255,255,0);stroke:rgba(255,255,255,.35);stroke-width:1;vector-effect:non-scaling-stroke;cursor:pointer}
+.ap .band:hover,.ap .band.hov{fill:rgba(117,75,233,.5);stroke:#ffffff;stroke-width:2}
+.ap .flab{cursor:pointer}
+.ap .flab.hov rect{fill:var(--accent)}
+.ap .flat{stroke:rgba(29,37,51,.55);stroke-width:1.5;vector-effect:non-scaling-stroke}
+.ap .flat.free{fill:rgba(34,165,101,.30)} .ap .flat.booked{fill:rgba(201,164,58,.38)} .ap .flat.sold{fill:rgba(120,128,142,.42)}
+.ap .flat.free:hover,.ap .flat.free.hov{fill:rgba(34,165,101,.5)} .ap .flat.booked:hover,.ap .flat.booked.hov{fill:rgba(201,164,58,.58)} .ap .flat.sold:hover,.ap .flat.sold.hov{fill:rgba(120,128,142,.6)}
+.ap .ring-o{fill:none;stroke:#fff;stroke-width:9;vector-effect:non-scaling-stroke;pointer-events:none;stroke-linejoin:round}
+.ap .ring-i{fill:none;stroke:var(--sel);stroke-width:4.5;vector-effect:non-scaling-stroke;pointer-events:none;stroke-linejoin:round}
+.ap .zone:focus{outline:none}
+.ap .zone:focus-visible{stroke:#fff;stroke-width:3;stroke-dasharray:6 4}
+.ap .pin{pointer-events:none} .ap .pin.hov rect{fill:#754be9}
+
+/* подсказка при наведении */
+.ap .tip{position:absolute;z-index:5;max-width:250px;background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow);
+  pointer-events:none;font-size:13px;opacity:0;transform:translateY(4px);transition:opacity .12s,transform .12s}
+.ap .tip.show{opacity:1;transform:none}
+.ap .tip b{font-size:14px}
+.ap .tip .h{color:var(--muted);font-size:12px;margin-top:4px}
+
+/* карточка справа */
+.ap .side{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:14px;min-width:0}
+.ap .side h2{font-family:var(--display);font-weight:500;font-size:24px}
+.ap .side .muted{color:var(--muted);margin:0}
+.ap .side .hl{color:var(--accent);font-weight:700;font-size:18px;margin:0}
+.ap .big{font-family:var(--display);font-weight:500;font-size:30px;font-variant-numeric:tabular-nums;line-height:1.15}
+.ap .rows{display:grid;border-top:1px solid var(--line)}
+.ap .row{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:52px;padding:0 4px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;cursor:pointer;width:100%}
+.ap .row:hover{background:var(--surface-2)}
+.ap .row b{font-size:17px}
+.ap .row span{color:var(--muted)}
+.ap .row[aria-pressed="true"]{background:var(--surface-2)}
+.ap .row[aria-pressed="true"] b{color:var(--accent)}
+.ap .row .chev{color:var(--muted);font-size:20px}
+.ap .bgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px}
+.ap .bgrid button{min-height:52px;border-radius:12px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;display:grid;place-items:center;line-height:1.15;padding:4px}
+.ap .bgrid button b{font-size:16px}
+.ap .bgrid button span{font-size:12px;color:#1a8a52}
+.ap .bgrid button:hover,.ap .bgrid button.hov{border-color:var(--accent);background:rgba(117,75,233,.12)}
+.ap .kv{display:grid;grid-template-columns:auto 1fr;gap:8px 12px;margin:0;font-size:14px}
+.ap .kv dt{color:var(--muted)} .ap .kv dd{margin:0;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.ap .pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:800;color:#fff;white-space:nowrap}
+.ap .pill.free{background:var(--free)} .ap .pill.booked{background:var(--booked);color:#1c1e26} .ap .pill.sold{background:var(--sold);color:#fff}
+.ap .dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.ap .thumb{background:#fff;border-radius:12px;aspect-ratio:4/3;display:grid;place-items:center;overflow:hidden}
+.ap .thumb img,.ap .thumb svg{width:100%;height:100%;object-fit:contain;display:block}
+.ap .stack{display:grid;gap:8px}
+.ap .salesbox{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px;font-size:13px}
+.ap .minibar{display:flex;gap:2px;height:8px;border-radius:4px;overflow:hidden}
+.ap .note{font-size:12px;color:var(--muted);margin:0}
+
+.ap .below{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;justify-content:space-between;color:var(--muted);font-size:13px}
+.ap .legend{display:flex;gap:14px;flex-wrap:wrap}
+.ap .legend span{display:inline-flex;align-items:center;gap:6px}
+.ap .floorsw{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.ap .floorsw button{min-width:44px;min-height:44px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:700}
+.ap .floorsw button[aria-current="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.ap .heatbar{display:inline-block;width:110px;height:8px;border-radius:4px;background:linear-gradient(90deg,hsla(42,92%,70%,.6),hsla(12,92%,48%,.95))}
+
+/* ---------- Список ---------- */
+.ap .list{display:grid;gap:14px;margin-top:8px}
+.ap .list-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;justify-content:space-between}
+.ap .list-head h2{font-family:var(--display);font-weight:500;font-size:clamp(18px,2.4vw,24px)}
+.ap .ctx{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ap .chip{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 6px 0 14px;border-radius:99px;border:1px solid var(--line);background:var(--surface);font-size:14px;cursor:pointer}
+.ap .chip:hover{border-color:var(--accent)}
+.ap .chip i{font-style:normal;color:var(--muted);font-size:18px;width:28px;text-align:center}
+.ap .count{color:var(--muted);font-variant-numeric:tabular-nums}
+.ap .list-head select{font:inherit;font-size:14px;min-height:44px;padding:0 10px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--fg)}
+.ap .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px}
+.ap .fcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;grid-template-columns:132px minmax(0,1fr);gap:14px;min-width:0}
+.ap .fcard:hover{border-color:#d0d1d7}
+.ap .fcard .thumb{aspect-ratio:1;align-self:start}
+.ap .fcard .t{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ap .fcard .num{font-family:var(--display);font-weight:500;font-size:17px}
+.ap .fcard .meta{color:var(--muted);font-size:13px}
+.ap .fcard .pr{font-family:var(--display);font-weight:500;font-size:20px;font-variant-numeric:tabular-nums}
+.ap .fcard .acts{display:flex;gap:8px;flex-wrap:wrap}
+.ap .fcard .acts .btn{flex:1 1 auto;padding:0 12px;font-size:13px}
+.ap .fcard .tw{position:relative;align-self:start}
+.ap .fcard .heart{position:absolute;top:4px;right:4px;width:44px;height:44px;padding:0;font-size:20px;border-radius:50%;background:rgba(255,255,255,.94);border-color:var(--line);color:var(--fg)}
+.ap .fcard .heart[aria-pressed="true"]{color:#e5484d}
+.ap .more{justify-self:center}
+.ap .empty{background:var(--surface);border:1px dashed var(--line);border-radius:var(--r);padding:22px;display:grid;gap:12px;justify-items:start}
+.ap .empty p{margin:0}
+
+/* ---------- Страница квартиры ---------- */
+.ap .fpage{display:grid;gap:18px}
+.ap .back{justify-self:start}
+.ap .fhead{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.ap .fhead h1{font-family:var(--display);font-weight:500;font-size:clamp(26px,4vw,40px)}
+.ap .fhead .pill{font-size:14px;padding:4px 12px}
+.ap .params{margin:-8px 0 0;font-size:17px;color:var(--fg)}
+.ap .params span{color:var(--muted);margin:0 6px}
+.ap .banner{border:1px solid var(--line);border-left:4px solid var(--booked);background:var(--surface);border-radius:12px;padding:12px 14px}
+.ap .banner.sold{border-left-color:var(--sold)}
+.ap .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.ap .tabs button{border:0;background:none;min-height:44px;padding:0 14px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;font-weight:700}
+.ap .tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.ap .fgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;align-items:start}
+.ap .gal{position:relative;background:#fff;border-radius:var(--r);overflow:hidden;aspect-ratio:4/3}
+.ap .gal>img,.ap .gal>svg.fp{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;padding:18px}
+.ap .gal .stage{position:absolute;inset:0;border-radius:0;height:auto}
+.ap .gal .cap{position:absolute;left:14px;bottom:12px;font-size:12px;color:#6b7686;z-index:3}
+.ap .gal.fs{position:fixed;inset:0;z-index:90;border-radius:0;aspect-ratio:auto}
+.ap .buy{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:grid;gap:14px}
+.ap .buy .big{font-size:clamp(26px,3vw,34px)}
+.ap .card2{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:18px 20px;display:grid;gap:12px;min-width:0;align-content:start}
+.ap .card2 h2{font-family:var(--display);font-weight:500;font-size:20px}
+.ap .card2 p{margin:0}
+.ap .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.ap .chars{display:grid}
+.ap .chars div{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;min-height:46px;border-bottom:1px solid var(--line)}
+.ap .chars div:last-child{border-bottom:0}
+.ap .chars i{font-style:normal;color:var(--accent);text-align:center}
+.ap .chars b{text-align:right}
+.ap .miniplan{background:#fff;border-radius:12px;border:0;padding:0;cursor:zoom-in;display:block;width:100%;aspect-ratio:16/10;overflow:hidden}
+.ap .miniplan svg{width:100%;height:100%;display:block}
+.ap .terms{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.ap .term{border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;grid-template-columns:32px 1fr;gap:4px 12px;align-items:start}
+.ap .term i{font-style:normal;font-size:22px;color:var(--accent);grid-row:span 2}
+.ap .term span{color:var(--muted);font-size:14px}
+.ap .stickybuy{display:none}
+
+/* ---------- Диалоги, тур, уведомления ---------- */
+.ap .modal{position:fixed;inset:0;z-index:95;background:rgba(9,7,20,.66);display:grid;place-items:center;padding:16px}
+.ap .dialog{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(520px,100%);max-height:calc(100dvh - 32px);overflow:auto;padding:22px;display:grid;gap:14px;position:relative}
+.ap .dialog h2{font-family:var(--display);font-size:20px;padding-right:40px}
+.ap .dialog .x{position:absolute;top:8px;right:8px;width:44px;height:44px;border:0;background:none;color:var(--muted);font-size:24px;cursor:pointer}
+.ap .sitem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:8px 6px 8px 12px;font-size:14px}
+.ap .sitem .warn{grid-column:1/-1;color:#a16207;font-size:13px}
+.ap .sitem .acts{display:flex;gap:4px}
+.ap .sitem .acts .btn{min-height:40px;padding:0 10px;font-size:13px}
+.ap .field{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.ap .field input,.ap .field textarea{font:inherit;font-size:15px;color:var(--fg);min-height:44px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
+.ap .field textarea{min-height:84px;resize:vertical}
+.ap .err{color:#d92d20;font-size:13px;margin:0}
+.ap .msg{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.ap .demo-warn{border:1px solid #f0d48a;background:#fff7e0;color:#6b4e00;border-radius:12px;padding:12px;font-size:14px}
+.ap .tour{position:fixed;z-index:96;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(520px,calc(100% - 32px));
+  background:var(--fg);color:var(--bg);border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:grid;gap:8px}
+.ap .tour p{margin:0;font-size:15px}
+.ap .tour .st{font-size:12px;letter-spacing:.06em;text-transform:uppercase;opacity:.7}
+.ap .tour .acts{display:flex;justify-content:flex-end;gap:8px}
+.ap .tour .btn{color:var(--bg);border-color:rgba(127,127,127,.5)}
+.ap .tour .btn.primary{color:var(--accent-ink)}
+.ap .toast{position:fixed;z-index:97;left:50%;top:16px;transform:translate(-50%,-140%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:12px;font-weight:700;transition:transform .2s;max-width:calc(100% - 32px)}
+.ap .toast.show{transform:translate(-50%,0)}
+.ap .mkbar{position:absolute;z-index:8;left:12px;top:12px;max-width:min(420px,calc(100% - 24px));background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:12px 14px;display:grid;gap:8px;font-size:13px}
+.ap .mkbar p{margin:0}
+.ap .mkbar .acts{display:flex;gap:6px;flex-wrap:wrap}
+.ap .mkbar select{font:inherit;min-height:36px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+.ap .marking .band,.ap .marking .flab{pointer-events:none}
+.ap .mkexport{background:var(--surface);border:1px solid var(--accent);border-radius:12px;padding:12px 14px;display:grid;gap:8px;font-size:13px}
+.ap .mkexport textarea{font:12px ui-monospace,Menlo,monospace;width:100%;min-height:70px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);padding:8px}
+
+/* ---------- Планшет и телефон ---------- */
+@media (max-width:980px){
+  .ap .main,.ap .fgrid{grid-template-columns:minmax(0,1fr)}
+  .ap .two{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:720px){
+  
+  .ap .actions{width:100%}
+  .ap .actions .seg{flex:1 1 100%;display:flex}
+  .ap .actions .seg button{flex:1}
+  .ap .actions>.btn{flex:1 1 auto}
+  body.has-sticky .ap .buy [data-act="ask"]{display:none}
+  .ap .fopen{display:inline-flex}
+  .ap .fbar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:86;border-radius:16px 16px 0 0;max-height:85dvh;overflow:auto;
+    flex-direction:column;align-items:stretch;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))}
+  .ap .fbar.open{display:flex}
+  .ap .fbar .fgroup{flex-direction:column;align-items:stretch}
+  .ap .fbar input{width:100%}
+  .ap .fbar .budget{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px}
+  .ap .fbar .seg{display:grid;grid-template-columns:repeat(4,1fr)}
+  .ap .fbar select{width:100%}
+  .ap .fbar .spacer{display:none}
+  .ap .fsheet-head{display:flex;justify-content:space-between;align-items:center}
+  .ap .fsheet-head b{font-family:var(--display);font-size:18px}
+  .ap .fsheet-foot{display:block}
+  .ap .scrim{position:fixed;inset:0;z-index:85;background:rgba(9,7,20,.6)}
+  .ap .stage.plan{height:auto;aspect-ratio:auto;padding-bottom:60px}
+  .ap .stage.plan #sceneHost{aspect-ratio:1115/1550;height:auto!important}
+  .ap .stage.plan.wide #sceneHost{aspect-ratio:920/520}
+  .ap .stage.plan.fs #sceneHost{aspect-ratio:auto;height:100%!important}
+  .ap .fcard{grid-template-columns:96px minmax(0,1fr)}
+  .ap .terms{grid-template-columns:minmax(0,1fr)}
+  .ap .side{padding:16px}
+  .ap .ctrls{right:8px;bottom:8px;gap:6px}
+  .ap .stickybuy{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--surface);border-top:1px solid var(--line);
+    padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));gap:10px;align-items:center}
+  .ap .stickybuy .btn{flex:1}
+  body.has-sticky .ap .ap{padding-bottom:96px}
+  .ap .tour{bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+}
+@media (prefers-reduced-motion:reduce){.ap *{transition:none!important}}
+
+
+
+/* Встраивание в сайт */
+.ap{padding:8px 0 48px;font-size:15px;line-height:1.5}
+.ap .wrap{max-width:none}
+.ap .btn.primary:hover{filter:none;background:var(--color-accent-2);border-color:var(--color-accent-2)}
+.ap .pill.real{background:var(--accent);color:#fff}
+.ap .realbox{display:grid;gap:8px;border:1px solid var(--accent);border-radius:12px;padding:12px 14px;background:#f6f3ff}
+body.fs-open .chat-root,body:has(.ap .modal:not([hidden])) .chat-root{display:none}
+@media (max-width:720px){ body.has-sticky .chat-root{display:none} }
