@@ -37,7 +37,7 @@ const first = ids.find((id) => real.some((r) => r.b === id)) ?? ids[0];
 const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === 'tr' ? lang : 'en'}`;
 ---
 {data && (
-  <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+  <section id="genplan" class="container-n gp-wrap mt-20 scroll-mt-28 lg:mt-28">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.genplan}</h2>
       <div class="seg scroll-x max-w-full" role="tablist" aria-label={tb.genplan}>
@@ -64,7 +64,7 @@ const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === '
                 </a></li>
               ))}
             </ul>
-            <a href={url(`/b/${id}/facade`)} class="btn-n btn-n-dark mt-4 w-full">{tb.pick}</a>
+            <a href={url(`/b/${id}/facade`)} class="btn-n btn-n-dark mt-4 h-14! w-full rounded-[16px]! text-[16px]!">{tb.pick}</a>
           </div>
         ); })}
       </div>
@@ -79,7 +79,8 @@ const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === '
   </section>
 )}
 <style>
-  .gp-stage { position: relative; border-radius: 20px; overflow: hidden; background: #e9eaf0; }
+  .gp-stage { position: relative; border-radius: 20px; overflow: hidden; background: rgba(208, 209, 215, .4); }
+  @media (min-width: 1280px) { .gp-wrap { padding-left: max(40px, calc((100% - 1384px) / 2)); padding-right: max(40px, calc((100% - 1384px) / 2)); } }
   @media (min-width: 1024px) { .gp-stage { border-radius: 24px; } }
   .gp-b { fill: rgba(117, 75, 233, 0); stroke: rgba(255, 255, 255, 0); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .15s, stroke .15s; }
   .gp-b:hover, .gp-b.on { fill: rgba(117, 75, 233, .28); stroke: #fff; }
@@ -90,7 +91,7 @@ const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === '
   .gp-pin text { font: 600 18px Inter, sans-serif; fill: #1c1e26; }
   .gp-pin.on text:not(.gp-nt) { fill: #fff; }
   .gp-pin.on circle:not(.gp-n) { fill: #1c1e26; opacity: 1; }
-  .gp-card { position: absolute; z-index: 2; top: clamp(12px, var(--y), calc(100% - 340px)); left: calc(var(--x2) + 16px); width: 340px; padding: 20px; border-radius: 20px; background: #fff; box-shadow: 0 12px 32px rgba(28, 30, 38, .18); }
+  .gp-card { position: absolute; z-index: 2; top: clamp(20px, var(--y), calc(100% - 360px)); left: calc(var(--x2) + 16px); width: 360px; padding: 15px; border-radius: 15px; background: #fff; box-shadow: 0 12px 32px rgba(28, 30, 38, .18); }
   .gp-card.left { left: auto; right: calc(100% - var(--x1) + 16px); }
   .gp-soon { position: relative; border-radius: 20px; overflow: hidden; background: #e9eaf0; display: grid; place-items: center; }
   .gp-soon[hidden] { display: none; }

@@ -19,14 +19,14 @@ export interface ComplexBlocksText {
   video: string; photo: string; all: string; prev: string; next: string; seeAlso: string;
   formTitle: string; formText: string; formBtn: string; promoMore: string;
   docsTabs: [string, string]; months: string[]; newsAll: string;
-  contactsTabs: [string, string]; viewingForm: string; viewingFormText: string; collections: string; collectionsText: string;
+  contactsTabs: [string, string]; aboutProject: string; progressTabs: [string, string, string]; callback: string; callbackText: string; send: string; leaveRequest: string; streamSoon: string; pickOnPlan: string; viewingForm: string; viewingFormText: string; collections: string; collectionsText: string;
 }
 
 const ru: ComplexBlocksText = {
   video: 'Видео', photo: 'Фото', all: 'Все', prev: 'Назад', next: 'Вперёд', seeAlso: 'Смотрите также',
   formTitle: 'Хотите узнать больше?', formText: 'Оставьте контакты, пришлём презентацию, планировки и актуальные цены', formBtn: 'Получить презентацию', promoMore: 'Подробнее',
-  docsTabs: ['Документы', 'Презентации'], months: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'], newsAll: 'Все новости',
-  contactsTabs: ['Жилой комплекс', 'Офис продаж'], viewingForm: 'Записаться на просмотр', viewingFormText: 'Покажем квартиры онлайн или на месте в Алании', collections: 'Подборки квартир', collectionsText: 'Квартиры и комплексы рядом по готовым подборкам',
+  docsTabs: ['Брошюры', 'Документация'], months: ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'], newsAll: 'Все новости',
+  contactsTabs: ['Проект', 'Офис продаж'], aboutProject: 'О проекте', progressTabs: ['Фото', 'Онлайн-трансляция', 'Видео'], callback: 'Обратный звонок', callbackText: 'Позвоним и проконсультируем в течение часа', send: 'Отправить', leaveRequest: 'Оставить заявку', streamSoon: 'Трансляция со стройки появится здесь', pickOnPlan: 'Выбрать квартиру на генплане', viewingForm: 'Записаться на просмотр', viewingFormText: 'Покажем квартиры онлайн или на месте в Алании', collections: 'Подборки квартир', collectionsText: 'Квартиры и комплексы рядом по готовым подборкам',
   choose: 'Выбрать квартиру', about: 'О проекте', flats: 'Квартиры', allFlats: 'Все квартиры',
   genplan: 'Генплан', genplan3d: '3D-генплан', gpViews: ['3D-генплан', 'Повернуть 3D-генплан', '2D-генплан'], gpSoon: 'Этот вид генплана скоро появится', floors: (n) => `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'этаж' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'этажа' : 'этажей'}`,
   pick: 'Выбрать квартиру', tapHint: 'Нажмите на корпус, чтобы увидеть квартиры и цены', fromArea: (a) => `от ${a}`, fromPrice: (p) => `от ${p}`, onRequest: 'по запросу',
@@ -42,8 +42,8 @@ const ru: ComplexBlocksText = {
 const en: ComplexBlocksText = {
   video: 'Video', photo: 'Photos', all: 'All', prev: 'Previous', next: 'Next', seeAlso: 'See also',
   formTitle: 'Want to know more?', formText: 'Leave your contacts and we will send the brochure, layouts and current prices', formBtn: 'Get the brochure', promoMore: 'Learn more',
-  docsTabs: ['Documents', 'Brochures'], months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], newsAll: 'All news',
-  contactsTabs: ['Residential complex', 'Sales office'], viewingForm: 'Book a viewing', viewingFormText: 'We will show the apartments online or on site in Alanya', collections: 'Apartment collections', collectionsText: 'Apartments and complexes nearby in ready-made collections',
+  docsTabs: ['Brochures', 'Documents'], months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'], newsAll: 'All news',
+  contactsTabs: ['Project', 'Sales office'], aboutProject: 'About the project', progressTabs: ['Photos', 'Live stream', 'Video'], callback: 'Call back', callbackText: 'We will call you and advise within an hour', send: 'Send', leaveRequest: 'Leave a request', streamSoon: 'The construction live stream will appear here', pickOnPlan: 'Choose an apartment on the site plan', viewingForm: 'Book a viewing', viewingFormText: 'We will show the apartments online or on site in Alanya', collections: 'Apartment collections', collectionsText: 'Apartments and complexes nearby in ready-made collections',
   choose: 'Choose an apartment', about: 'About the project', flats: 'Apartments', allFlats: 'All apartments',
   genplan: 'Site plan', genplan3d: '3D site plan', gpViews: ['3D site plan', 'Rotate 3D plan', '2D site plan'], gpSoon: 'This site plan view is coming soon', floors: (n) => `${n} floor${n === 1 ? '' : 's'}`,
   pick: 'Choose an apartment', tapHint: 'Tap a building to see apartments and prices', fromArea: (a) => `from ${a}`, fromPrice: (p) => `from ${p}`, onRequest: 'on request',
@@ -60,8 +60,8 @@ const tr: ComplexBlocksText = {
   ...en,
   video: 'Video', photo: 'Fotoğraflar', all: 'Tümü', prev: 'Geri', next: 'İleri', seeAlso: 'Bunlara da göz atın',
   formTitle: 'Daha fazla bilgi ister misiniz?', formText: 'İletişim bilgilerinizi bırakın, sunumu, planları ve güncel fiyatları gönderelim', formBtn: 'Sunumu al', promoMore: 'Detaylar',
-  docsTabs: ['Belgeler', 'Sunumlar'], months: ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'], newsAll: 'Tüm haberler',
-  contactsTabs: ['Konut projesi', 'Satış ofisi'], viewingForm: 'Gösterim randevusu', viewingFormText: 'Daireleri online veya Alanya’da yerinde gösteririz', collections: 'Daire seçkileri', collectionsText: 'Yakındaki daireler ve projeler hazır seçkilerde',
+  docsTabs: ['Broşürler', 'Belgeler'], months: ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'], newsAll: 'Tüm haberler',
+  contactsTabs: ['Proje', 'Satış ofisi'], aboutProject: 'Proje hakkında', progressTabs: ['Fotoğraf', 'Canlı yayın', 'Video'], callback: 'Geri arama', callbackText: 'Bir saat içinde sizi arayıp bilgi verelim', send: 'Gönder', leaveRequest: 'Talep bırakın', streamSoon: 'İnşaat canlı yayını burada yer alacak', pickOnPlan: 'Vaziyet planında daire seçin', viewingForm: 'Gösterim randevusu', viewingFormText: 'Daireleri online veya Alanya’da yerinde gösteririz', collections: 'Daire seçkileri', collectionsText: 'Yakındaki daireler ve projeler hazır seçkilerde',
   choose: 'Daire seçin', about: 'Proje hakkında', flats: 'Daireler', allFlats: 'Tüm daireler',
   genplan: 'Vaziyet planı', genplan3d: '3D vaziyet planı', gpViews: ['3D plan', '3D planı döndür', '2D plan'], gpSoon: 'Vaziyet planının bu görünümü yakında eklenecek', floors: (n) => `${n} kat`, pick: 'Daire seçin', tapHint: 'Daireleri ve fiyatları görmek için bir bloğa dokunun',
   fromArea: (a) => `${a}'den`, fromPrice: (p) => `${p}'den`, onRequest: 'talep üzerine',
