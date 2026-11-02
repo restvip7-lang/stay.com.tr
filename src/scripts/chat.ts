@@ -20,9 +20,10 @@ function inline(s: string) {
     .replace(/(^|\s)(\/(?:ru|en|tr|de|sr|sale|rental|complex|prive|about|uslugi)\/[\w\-/]*)/g, '$1<a href="$2">$2</a>');
 }
 
-function card(c: Card) {
+function card(c: Card, n?: number) {
+  const num = n ? `<em class="chat-num">${n}</em>` : '';
   const img = c.image ? `<img src="${esc(c.image)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('i'),{className:'ph'}))">` : '<i class="ph"></i>';
-  return `<a class="chat-card${c.prive ? ' prive' : ''}" href="${esc(c.url)}">${img}<b>${esc(c.title)}</b><small>${esc(c.subtitle)}</small><span>${esc(c.price)}</span></a>`;
+  return `<a class="chat-card${c.prive ? ' prive' : ''}" href="${esc(c.url)}">${num}${img}<b>${esc(c.title)}</b><small>${esc(c.subtitle)}</small><span>${esc(c.price)}</span></a>`;
 }
 
 /** Подпись кнопки PDF под ответами с карточками (задаётся при запуске чата). */
@@ -32,6 +33,10 @@ let pdfLabel = '';
 function render(m: Msg) {
   const cards = new Map((m.cards ?? []).map((c) => [(c.kind === 'listing' ? 'obj:' : 'project:') + c.id, c]));
   const used = new Set<string>();
+  // Порядок вариантов — как помощник поставил метки.
+  const order = [...new Set([...m.content.matchAll(/\[\[(obj|project):([^\]\s]+)\]\]/g)].map((k) => k[1] + ':' + k[2]))].filter((k) => cards.has(k));
+  let rowDone = false;
+  let pending = '';
   const out: string[] = [];
   let para: string[] = [];
   let list: string[] = [];
@@ -60,17 +65,29 @@ function render(m: Msg) {
     const marks = [...line.matchAll(/\[\[(obj|project):([^\]\s]+)\]\]/g)];
     if (marks.length) {
       flush();
-      for (const k of marks) {
-        const key = k[1] + ':' + k[2];
-        const c = cards.get(key);
-        if (c && !used.has(key)) { row.push(card(c)); used.add(key); }
+      // Все варианты ответа — одной лентой по порядку (1, 2, 3…) там, где стоит первая метка.
+      if (!rowDone) {
+        for (const k of order) row.push(card(cards.get(k)!, order.length > 1 ? order.indexOf(k) + 1 : undefined));
+        order.forEach((k) => used.add(k));
+        flushRow();
+        rowDone = true;
       }
+      const ks = marks.map((k) => k[1] + ':' + k[2]).filter((k) => order.includes(k));
+      pending = ks.length && order.length > 1 ? ks.map((k) => order.indexOf(k) + 1).join(', ') : '';
       const rest = line.replace(/\[\[[^\]]+\]\]/g, '').replace(/^[-*•\d.)\s]+$/, '').trim();
-      if (rest) { flushRow(); para.push(rest.replace(/^[-*•]\s*/, '')); }
+      if (rest) { para.push((pending ? `**${pending}.** ` : '') + rest.replace(/^[-*•\d.)\s]+/, '')); pending = ''; }
       continue;
     }
     if (!line) { flush(); continue; }
     flushRow();
+    // Описание варианта под меткой — с его номером из ленты.
+    if (pending && !/^\|/.test(line)) {
+      const body = line.replace(/^[-*•]\s+/, '');
+      if (para.length || list.length) flush();
+      para.push(`**${pending}.** ${body}`);
+      pending = '';
+      continue;
+    }
     // Таблица Markdown: | a | b |
     if (/^\|.*\|$/.test(line)) {
       if (para.length || list.length) { const t = table; table = []; flush(); table = t; }
@@ -138,7 +155,7 @@ export async function initChat() {
     log.scrollTop = log.scrollHeight;
   };
 
-  // Озвучка ответов: включается кнопкой в шапке; на вопрос голосом Доми отвечает голосом всегда.
+  // Озвучка ответов: только когда включена кнопкой в шапке.
   const voiceBtn = $<HTMLButtonElement>('[data-chat-voice]');
   let voiceOn = false;
   try { voiceOn = localStorage.getItem(VOICE) === '1'; } catch { /* */ }
@@ -160,7 +177,7 @@ export async function initChat() {
   }
 
   let busy = false;
-  async function ask(text: string, byVoice = false) {
+  async function ask(text: string) {
     text = text.trim();
     if (!text || busy) return;
     busy = true;
@@ -184,7 +201,7 @@ export async function initChat() {
       history.push({ role: 'assistant', content: r.text, cards: r.cards });
       save();
       draw();
-      if (voiceOn || byVoice) speak(lang, r.text);
+      if (voiceOn) speak(lang, r.text);
     } catch (e) {
       history.pop();
       save();
@@ -218,7 +235,6 @@ export async function initChat() {
     input.placeholder = on ? T.listening : placeholder;
   };
   const stopMic = () => { rec?.abort(); rec = null; micState(false); };
-  let byVoice = false;
   if (recognitionSupported()) {
     mic.hidden = false;
     mic.addEventListener('click', () => {
@@ -230,14 +246,13 @@ export async function initChat() {
       try {
         rec = listen(lang, {
           onText: (t) => { input.value = before ? `${before} ${t}` : t; },
-          // Текст остаётся в поле: человек сам правит его и отправляет. Ответ на такой вопрос Доми озвучит.
+          // Текст остаётся в поле: человек сам правит его и отправляет. Озвучка — только если включена кнопкой в шапке.
           onDone: (t) => {
             rec = null;
             micState(false);
             if (!t) return;
             input.value = (before ? `${before} ${t}` : t).trim();
             input.dispatchEvent(new Event('input'));
-            byVoice = true;
             input.focus();
             input.setSelectionRange(input.value.length, input.value.length);
           },
@@ -280,9 +295,8 @@ export async function initChat() {
     input.value = '';
     input.style.height = '';
     if (rec) stopMic();
-    if (voiceOn || byVoice) unlockSpeech();
-    ask(t, byVoice);
-    byVoice = false;
+    if (voiceOn) unlockSpeech();
+    ask(t);
   });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }

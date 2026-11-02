@@ -16,38 +16,71 @@ export function speechSupported() {
   return typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 }
 
+/** Сколько ждать тишины, прежде чем закончить запись (браузеры сами обрывают раньше — перезапускаем). */
+const SILENCE_MS = 5000;
+
 /**
- * Запись вопроса. Пишет и через паузы, пока человек не нажмёт микрофон ещё раз (или браузер не остановит запись сам).
+ * Запись вопроса. Пишет через паузы: останавливается после 5 с тишины или по повторному нажатию микрофона.
+ * Chrome на Android обрывает распознавание через 1–2 с тишины — тогда запись тихо перезапускается, текст копится.
  * onText — промежуточный текст (для поля ввода), onDone — итог или '' при отмене.
  */
 export function listen(lang: string, h: { onText: (t: string) => void; onDone: (t: string) => void; onError: (code: string) => void }) {
   const R = (window as Rec).SpeechRecognition || (window as Rec).webkitSpeechRecognition;
-  const rec: Rec = new R();
-  rec.lang = LOCALE[lang] ?? 'ru-RU';
-  rec.interimResults = true;
-  rec.continuous = true;
-  rec.maxAlternatives = 1;
-  let text = '';
+  let saved = ''; // текст прошлых сеансов распознавания
+  let text = ''; // текст текущего сеанса
+  let finished = false;
   let failed = false;
-  rec.onresult = (e: Rec) => {
-    // Chrome на Android в непрерывном режиме повторяет в каждом куске весь текст с начала — склеиваем без повторов.
-    const parts: string[] = [];
-    for (const r of Array.from(e.results as ArrayLike<Rec>)) {
-      const t = String(r[0].transcript).trim();
-      const prev = parts[parts.length - 1];
-      if (prev && t.toLowerCase().startsWith(prev.toLowerCase())) parts[parts.length - 1] = t;
-      else if (t) parts.push(t);
-    }
-    text = parts.join(' ').replace(/\s+/g, ' ').trim();
-    h.onText(text);
+  let lastHeard = Date.now();
+  let rec: Rec;
+  const all = () => [saved, text].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+  const silence = window.setInterval(() => { if (Date.now() - lastHeard > SILENCE_MS) stop(); }, 500);
+  const done = () => {
+    if (finished) return;
+    finished = true;
+    clearInterval(silence);
+    h.onDone(failed && !all() ? '' : all());
   };
-  rec.onerror = (e: Rec) => {
-    failed = true;
-    if (e.error !== 'aborted' && e.error !== 'no-speech') h.onError(e.error);
+  const stop = () => { if (finished) return; finished = true; clearInterval(silence); try { rec.stop(); } catch { /* */ } h.onDone(all()); };
+  const begin = () => {
+    rec = new R();
+    rec.lang = LOCALE[lang] ?? 'ru-RU';
+    rec.interimResults = true;
+    rec.continuous = true;
+    rec.maxAlternatives = 1;
+    text = '';
+    rec.onresult = (e: Rec) => {
+      // Chrome на Android повторяет в каждом куске весь текст с начала — склеиваем без повторов.
+      const parts: string[] = [];
+      for (const r of Array.from(e.results as ArrayLike<Rec>)) {
+        const t = String(r[0].transcript).trim();
+        const prev = parts[parts.length - 1];
+        if (prev && t.toLowerCase().startsWith(prev.toLowerCase())) parts[parts.length - 1] = t;
+        else if (t) parts.push(t);
+      }
+      text = parts.join(' ');
+      lastHeard = Date.now();
+      h.onText(all());
+    };
+    rec.onerror = (e: Rec) => {
+      if (e.error === 'no-speech' || e.error === 'aborted') return;
+      failed = true;
+      h.onError(e.error);
+      done();
+    };
+    rec.onend = () => {
+      if (finished) return;
+      saved = all();
+      text = '';
+      // Браузер закончил сам, а 5 секунд тишины ещё не прошло — слушаем дальше.
+      if (!failed && Date.now() - lastHeard < SILENCE_MS) {
+        try { begin(); return; } catch { /* */ }
+      }
+      done();
+    };
+    rec.start();
   };
-  rec.onend = () => h.onDone(failed && !text ? '' : text);
-  rec.start();
-  return { stop: () => rec.stop(), abort: () => { failed = true; text = ''; rec.abort(); } };
+  begin();
+  return { stop, abort: () => { if (finished) return; finished = true; clearInterval(silence); saved = text = ''; try { rec.abort(); } catch { /* */ } h.onDone(''); } };
 }
 
 /** Текст ответа без разметки, ссылок и меток карточек — то, что можно прочитать вслух. */
