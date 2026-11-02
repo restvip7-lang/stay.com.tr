@@ -80,7 +80,8 @@ const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === '
 )}
 <style>
   .gp-stage { position: relative; border-radius: 20px; overflow: hidden; background: rgba(208, 209, 215, .4); }
-  @media (min-width: 1280px) { .gp-wrap { padding-left: max(40px, calc((100% - 1384px) / 2)); padding-right: max(40px, calc((100% - 1384px) / 2)); } }
+  /* Генплан шире остальных блоков: 1384 px контента (как у образца). */
+  @media (min-width: 1280px) { .gp-wrap { max-width: 1464px; } }
   @media (min-width: 1024px) { .gp-stage { border-radius: 24px; } }
   .gp-b { fill: rgba(117, 75, 233, 0); stroke: rgba(255, 255, 255, 0); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .15s, stroke .15s; }
   .gp-b:hover, .gp-b.on { fill: rgba(117, 75, 233, .28); stroke: #fff; }
