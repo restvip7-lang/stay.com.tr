@@ -85,9 +85,25 @@ const real = picker ? await pickerReals(c.code, picker, lang).catch(() => []) : 
 const flatCards = objects.filter((x) => x.image);
 const infra = p?.infrastructure ?? [];
 const progressPhotos = gallery.slice(2, 6);
-// «О проекте»: текст и фото — из карточки «Расположение» (или первой карточки инфраструктуры).
-const aboutCard = infra.find((x) => /располож|location|konum/i.test(x.title)) ?? infra[0];
-const about = aboutCard ? { html: sanitize(aboutCard.html), images: aboutCard.images } : null;
+// Карточка-характеристики вида «Планировка:» / «1+1, 2+1» / «Площадь:» / «от 61 до 147 кв.м.» → пары «название — значение».
+const pairsOf = (html: string) => {
+  const ps = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map((m) => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()).filter(Boolean);
+  if (ps.length < 2 || ps.length % 2) return null;
+  const out: [string, string][] = [];
+  for (let i = 0; i < ps.length; i += 2) {
+    if (!ps[i].endsWith(':') || ps[i + 1].endsWith(':')) return null;
+    out.push([ps[i].slice(0, -1), ps[i + 1].replace(/кв\.?\s?м\.?/g, 'м²')]);
+  }
+  return out;
+};
+const textLen = (html: string) => html.replace(/<[^>]+>/g, '').trim().length;
+// «О проекте»: текст и фото — из карточки «Расположение». Без неё — характеристики плитками (а не столбиком
+// «Планировка: / 1+1»), а если их нет — первая карточка с обычным текстом (не списком).
+const factsCard = infra.find((x) => pairsOf(x.html));
+const aboutCard = infra.find((x) => /располож|location|konum/i.test(x.title)) ?? (factsCard ? undefined : infra.find((x) => !/<li/i.test(x.html) && textLen(x.html) > 150));
+const about = aboutCard
+  ? { html: sanitize(aboutCard.html), images: aboutCard.images, pairs: null }
+  : factsCard ? { html: '', images: factsCard.images, pairs: pairsOf(factsCard.html) } : null;
 const year = new Date().getFullYear();
 const month = new Date().getMonth();
 ---
@@ -217,11 +233,31 @@ const month = new Date().getMonth();
   )}
 
   {picker && <ComplexGenplan slug={c.slug} conf={picker} pickerUrl={pickerUrl} units={units} real={real} />}
+  {!picker && hero && (
+    <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+      <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+        <h2 class="display h-section-n">{tb.genplan}</h2>
+        <div class="seg"><span aria-selected="true">{tb.genplan3d}</span></div>
+      </div>
+      <div class="relative overflow-hidden rounded-[20px] bg-ink lg:rounded-[24px]">
+        <Img src={hero} alt={`${c.title} — ${tb.genplan}`} class="aspect-[4/3] w-full md:aspect-[1384/700]" width={1600} height={810} />
+        <div class="absolute inset-x-3 bottom-3 rounded-[16px] bg-white p-4 text-ink-n md:inset-x-auto md:bottom-6 md:left-6 md:w-[360px] md:p-5">
+          <p class="text-[16px] leading-[22px]">{tb.gpPickSoon}</p>
+          <a href="#lead" class="btn-n btn-n-dark mt-3 h-12! w-full rounded-[14px]!">{tb.leaveRequest}</a>
+        </div>
+      </div>
+    </section>
+  )}
 
   <section class="mt-20 lg:mt-28" data-tabs>
     <div class="mx-auto max-w-[988px] px-5 text-center">
       <h2 class="display h-section-n mb-4">{tb.aboutProject}{infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
-      {about && <div class="prose-stay about-text" lang="ru" set:html={about.html} />}
+      {about?.html && <div class="prose-stay about-text" lang="ru" set:html={about.html} />}
+      {about?.pairs && (
+        <dl class="mt-2 flex flex-wrap justify-center gap-3" lang="ru">
+          {about.pairs.map(([k, v]) => <div class="min-w-[160px] rounded-[16px] bg-white px-5 py-4 text-left"><dt class="text-[13px] text-soft">{k}</dt><dd class="mt-1 text-[18px] leading-[24px] text-ink-n">{v}</dd></div>)}
+        </dl>
+      )}
     </div>
     <div class="mx-auto mt-6 max-w-[1256px] px-5">
       <div class="relative overflow-hidden rounded-[24px] bg-ink text-white">
@@ -233,7 +269,12 @@ const month = new Date().getMonth();
       {infra.length > 0 && (
         <div class="mt-6 hidden rounded-[24px] bg-white p-6 lg:p-8" data-infra>
           {infra.length > 1 && <div class="seg mb-6 max-w-full scroll-x" role="tablist">{infra.map((x, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{x.title}</button>)}</div>}
-          {infra.map((x, i) => <div data-pane={i} hidden={i !== 0} class="prose-stay infra-text text-[15px]" lang="ru" set:html={sanitize(x.html)} />)}
+          {infra.map((x, i) => {
+            const pr = pairsOf(x.html);
+            return pr
+              ? <dl data-pane={i} hidden={i !== 0} class="flex flex-wrap gap-3" lang="ru">{pr.map(([k, v]) => <div class="min-w-[160px] rounded-[16px] bg-page-n px-5 py-4"><dt class="text-[13px] text-soft">{k}</dt><dd class="mt-1 text-[18px] leading-[24px] text-ink-n">{v}</dd></div>)}</dl>
+              : <div data-pane={i} hidden={i !== 0} class="prose-stay infra-text text-[15px]" lang="ru" set:html={sanitize(x.html)} />;
+          })}
         </div>
       )}
     </div>
