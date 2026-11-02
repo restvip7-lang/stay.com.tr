@@ -11,7 +11,7 @@ import LinkCloud from '../../../../components/LinkCloud.astro';
 import { isLang, LANGS, type Lang } from '../../../../i18n/config';
 import { t } from '../../../../i18n/ui';
 import { SITE } from '../../../../i18n/config';
-import { BLOG_CATS, BLOG_CAT_NAME, BLOG_CAT_LEAD, blogUrl, postsOf, lawBySlug, guideBySlug, guideCat, guideName, guideTitle, type BlogCat } from '../../../../lib/blog';
+import { BLOG_CATS, BLOG_CAT_NAME, BLOG_CAT_LEAD, blogUrl, postsOf, lawBySlug, guideBySlug, guideCat, guideName, guideTitle, guideImage, type BlogCat } from '../../../../lib/blog';
 import { getNewsItemL } from '../../../../lib/api';
 import { itemsOf, stats, catUrl, getComplexes, matchComplex, featureCounts, typeCounts, INDEX_MIN } from '../../../../lib/catalog';
 import { TYPE_WORDS, FEATURE_LABEL, DEAL_WORDS } from '../../../../lib/segments';
@@ -93,7 +93,7 @@ if (!isList && cat === 'laws') {
     sr: `${name}: gde živeti, šta je u blizini i koliko koštaju nekretnine. ${total ? `${total} nekretnina na prodaju${min && isFinite(min) ? `, cene od ${moneyL(lang, min)}` : ''}.` : ''}`,
   }[lang];
   art = {
-    title: `${guideTitle(lang, g)} | Stay Property`, description: desc.trim(), h1: guideTitle(lang, g), html, published: '2026-10-28', updated: new Date().toISOString().slice(0, 10), image: null,
+    title: `${guideTitle(lang, g)} | Stay Property`, description: desc.trim(), h1: guideTitle(lang, g), html, published: '2026-10-28', updated: new Date().toISOString().slice(0, 10), image: await guideImage(g.slug),
     alternates: allLangs(blogUrl(lang, cat, slug)), related: (await itemsOf(sale)).slice(0, 4), relatedHref: catUrl(lang, sale),
   };
 } else if (!isList && cat === 'news') {

@@ -242,19 +242,32 @@ const month = new Date().getMonth();
   )}
 
   {picker && <ComplexGenplan slug={c.slug} conf={picker} pickerUrl={pickerUrl} units={units} real={real} />}
-  {!picker && hero && (
-    <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+  {!picker && (
+    <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-gpf>
       <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
         <h2 class="display h-section-n">{tb.genplan}</h2>
-        <div class="seg"><span aria-selected="true">{tb.genplan3d}</span></div>
-      </div>
-      <div class="relative overflow-hidden rounded-[20px] bg-ink lg:rounded-[24px]">
-        <Img src={hero} alt={`${c.title} — ${tb.genplan}`} class="aspect-[4/3] w-full md:aspect-[1384/700]" width={1600} height={810} />
-        <div class="absolute inset-x-3 bottom-3 rounded-[16px] bg-white p-4 text-ink-n md:inset-x-auto md:bottom-6 md:left-6 md:w-[360px] md:p-5">
-          <p class="text-[16px] leading-[22px]">{tb.gpPickSoon}</p>
-          <a href="#lead" class="btn-n btn-n-dark mt-3 h-12! w-full rounded-[14px]!">{tb.leaveRequest}</a>
+        <div class="seg scroll-x max-w-full" role="tablist" aria-label={tb.genplan}>
+          {tb.gpViews.map((v, i) => <button type="button" role="tab" data-gfv={i} aria-selected={i === 0 ? 'true' : 'false'}>{v}</button>)}
         </div>
       </div>
+      {[0, 1, 2].map((i) => (
+        <div class="relative overflow-hidden rounded-[20px] bg-[#e9eaf0] lg:rounded-[24px]" data-gfview={i} hidden={i !== 0}>
+          {hero
+            ? <Img src={hero} alt={i === 0 ? `${c.title} — ${tb.genplan}` : ''} class={`aspect-[4/3] w-full md:aspect-[1384/700] ${i ? 'gpf-blur' : ''}`} width={1600} height={810} />
+            : <div class="aspect-[4/3] w-full md:aspect-[1384/700]"></div>}
+          {i === 0 && hero
+            ? <div class="absolute inset-x-3 bottom-3 rounded-[16px] bg-white p-4 text-ink-n md:inset-x-auto md:bottom-6 md:left-6 md:w-[360px] md:p-5">
+                <p class="text-[16px] leading-[22px]">{tb.gpPickSoon}</p>
+                <a href="#lead" class="btn-n btn-n-dark mt-3 h-12! w-full rounded-[14px]!">{tb.leaveRequest}</a>
+              </div>
+            : <div class="absolute inset-0 grid place-items-center p-4">
+                <div class="grid max-w-[320px] justify-items-center gap-2 rounded-[20px] bg-white p-6 text-center text-[15px] text-ink-n">
+                  <span>{tb.gpViews[i]}</span><span class="text-soft">{hero ? tb.gpSoon : tb.gpAllSoon}</span>
+                  <a href="#lead" class="btn-n btn-n-dark mt-2 h-12! w-full rounded-[14px]!">{tb.leaveRequest}</a>
+                </div>
+              </div>}
+        </div>
+      ))}
     </section>
   )}
 
@@ -445,6 +458,8 @@ const month = new Date().getMonth();
   </section>
 </Base>
 <style>
+  :global(.gpf-blur) { filter: blur(14px) saturate(.6); opacity: .55; transform: scale(1.1); }
+  [data-gfview][hidden] { display: none; }
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
   .fact { display: flex; align-items: center; gap: 12px; }
   .fact-i { display: grid; place-items: center; flex-shrink: 0; width: 56px; height: 56px; border-radius: 16px; background: #d0d1d766; color: var(--color-ink-n); }
@@ -471,6 +486,13 @@ const month = new Date().getMonth();
   .fact-dark { background: var(--color-ink-n); color: #fff; }
 </style>
 <script>
+  // Вкладки генплана у ЖК без подборщика: 3D-картинка ЖК, остальные виды — «скоро появится».
+  document.querySelectorAll<HTMLElement>('[data-gpf]').forEach((sec) => {
+    sec.querySelectorAll<HTMLButtonElement>('[data-gfv]').forEach((b) => b.addEventListener('click', () => {
+      sec.querySelectorAll('[data-gfv]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      sec.querySelectorAll<HTMLElement>('[data-gfview]').forEach((el) => { el.hidden = el.dataset.gfview !== b.dataset.gfv; });
+    }));
+  });
   import { mountMap } from '../scripts/map';
   document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
     v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;

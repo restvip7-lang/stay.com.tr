@@ -82,8 +82,27 @@ export function guideLead(lang: L2, g: Guide): string {
   return g.text[lang][0] ?? '';
 }
 
+/** Картинка гайда: фото ЖК этого района из каталога (у каждого гайда своё). */
+let gImg: { at: number; map: Map<string, string | null> } | null = null;
+export async function guideImage(slug: string): Promise<string | null> {
+  if (!gImg || Date.now() - gImg.at > 5 * 60_000) {
+    const { getComplexes, matchComplex } = await import('./catalog');
+    const all = (await getComplexes().catch(() => [])).filter((x) => x.image && !x.isPrivate);
+    const used = new Set<string>();
+    const map = new Map<string, string | null>();
+    // Сначала районы, потом город целиком — чтобы у города не забрать единственное фото района.
+    for (const g of [...GUIDES].sort((a, b) => Number(!a.district) - Number(!b.district))) {
+      const pick = all.find((x) => matchComplex(x, guideCat(g)) && !used.has(x.image!));
+      if (pick) used.add(pick.image!);
+      map.set(g.slug, pick?.image ?? null);
+    }
+    gImg = { at: Date.now(), map };
+  }
+  return gImg.map.get(slug) ?? null;
+}
+
 export async function postsOf(lang: L2, cat: BlogCat): Promise<Post[]> {
   if (cat === 'laws') return lawsOf(lang).map((a) => ({ cat, slug: a.slug, href: blogUrl(lang, cat, a.slug), title: a.tr[lang]!.title, description: a.tr[lang]!.description, image: a.image, date: a.published, updated: a.updated }));
-  if (cat === 'area-guides') return GUIDES.map((g) => ({ cat, slug: g.slug, href: blogUrl(lang, cat, g.slug), title: guideTitle(lang, g), description: strip(guideLead(lang, g), 160), image: null, date: GUIDE_DATE, updated: GUIDE_DATE }));
+  if (cat === 'area-guides') return Promise.all(GUIDES.map(async (g) => ({ cat, slug: g.slug, href: blogUrl(lang, cat, g.slug), title: guideTitle(lang, g), description: strip(guideLead(lang, g), 160), image: await guideImage(g.slug), date: GUIDE_DATE, updated: GUIDE_DATE })));
   return (await getNewsL(lang)).map((n) => ({ cat, slug: n.slug, href: blogUrl(lang, 'news', n.slug), title: n.title, description: n.seoDescription || strip(n.excerpt || n.content, 160), image: n.image, date: n.date, updated: n.updated }));
 }

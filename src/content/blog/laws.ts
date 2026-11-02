@@ -12,7 +12,7 @@ export const LAWS: Article[] = [
     cat: 'laws',
     published: PUB,
     updated: PUB,
-    image: null,
+    image: '/services/title-deed-procedures.webp',
     tr: {
       ru: {
         title: 'Как иностранцу купить недвижимость в Турции: этапы и расходы',
@@ -136,7 +136,7 @@ export const LAWS: Article[] = [
     cat: 'laws',
     published: PUB,
     updated: PUB,
-    image: null,
+    image: '/services/how-to-obtain-citizenship-of-the-republic-of-turkiye.webp',
     tr: {
       ru: {
         title: 'Гражданство Турции за покупку недвижимости: условия',
@@ -250,7 +250,7 @@ export const LAWS: Article[] = [
     cat: 'laws',
     published: PUB,
     updated: PUB,
-    image: null,
+    image: '/services/residence-permit-in-turkiye.webp',
     tr: {
       ru: {
         title: 'ВНЖ в Турции на основании покупки недвижимости',
