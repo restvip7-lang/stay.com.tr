@@ -85,6 +85,9 @@ const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === '
   @media (min-width: 1024px) { .gp-stage { border-radius: 24px; } }
   .gp-b { fill: rgba(117, 75, 233, 0); stroke: rgba(255, 255, 255, 0); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: pointer; transition: fill .15s, stroke .15s; }
   .gp-b:hover, .gp-b.on { fill: rgba(117, 75, 233, .28); stroke: #fff; }
+  /* Корпус зафиксирован кликом: остальные при наведении только обводятся. */
+  .gp.locked .gp-b:not(.on):hover { fill: rgba(255, 255, 255, .08); stroke: rgba(255, 255, 255, .8); }
+  .gp.locked .gp-b.on { fill: rgba(117, 75, 233, .38); }
   .gp-b:focus-visible { outline: none; stroke: #fff; stroke-dasharray: 6 4; }
   .gp-pin circle { fill: #fff; opacity: .95; }
   .gp-pin .gp-n { fill: #754be9; opacity: 1; }
@@ -131,12 +134,26 @@ const url = (h: string) => `${pickerUrl}#${h}?lang=${lang === 'ru' || lang === '
       gp.querySelectorAll('[data-b]').forEach((p) => p.classList.toggle('on', (p as SVGElement).dataset.b === id));
       gp.querySelectorAll('[data-pin]').forEach((p) => p.classList.toggle('on', (p as SVGElement).dataset.pin === id));
     };
+    // Наведение показывает корпус, клик фиксирует его: карточка остаётся, другие корпуса при наведении
+    // только обводятся. Повторный клик по тому же корпусу (или «Выбрать квартиру») ведёт к выбору квартиры,
+    // клик по пустому месту снимает фиксацию.
+    let locked: string | null = null;
+    const lock = (id: string | null) => { locked = id; gp.classList.toggle('locked', !!id); if (id) show(id); };
+    const go = (id: string) => {
+      const a = gp.querySelector<HTMLAnchorElement>(`[data-card="${id}"] a.btn-n`);
+      if (a) location.href = a.href;
+    };
     gp.querySelectorAll<SVGElement>('[data-b]').forEach((p) => {
       const id = p.dataset.b!;
-      p.addEventListener('mouseenter', () => show(id));
-      p.addEventListener('click', () => show(id));
-      p.addEventListener('focus', () => show(id));
+      p.addEventListener('mouseenter', () => { if (!locked) show(id); });
+      p.addEventListener('click', (e) => { e.stopPropagation(); if (locked === id) go(id); else lock(id); });
+      p.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); p.dispatchEvent(new MouseEvent('click', { bubbles: true })); } });
+      p.addEventListener('focus', () => { if (!locked) show(id); });
     });
+    gp.querySelector('.gp-stage')?.addEventListener('click', (e) => {
+      if (!(e.target as Element).closest('[data-card]') && locked) { lock(null); }
+    });
+    gp.querySelector('.gp-stage')?.addEventListener('mouseleave', () => { if (locked) show(locked); });
     show(gp.dataset.first!);
     // Вкладки видов генплана: 3D (рендер с разметкой корпусов), 3D с другой стороны и 2D (пока заглушки).
     const sec = gp.closest('section')!;
