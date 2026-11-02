@@ -15,6 +15,8 @@ export interface ChatUi {
   suggest: string[]; message: string; placeholder: string; send: string; manager: string; disclaimer: string;
   typing: string; unavailable: string; tooMany: string; waText: string;
   mic: string; micStop: string; listening: string; micDenied: string; voiceOn: string; voiceOff: string;
+  /** Кнопка и страница «Скачать подборку (PDF)»: столбцы — объект, район, комнаты, площадь, до моря, цена, € за м². */
+  pdf: string; pdfTitle: string; pdfCols: string[]; pdfFoot: string; pdfPrint: string;
 }
 
 export const CHAT_UI: Record<Lang, ChatUi> = {
@@ -27,6 +29,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     unavailable: 'Помощник сейчас недоступен. Напишите нам в WhatsApp — ответим быстро.',
     tooMany: 'Слишком много сообщений. Попробуйте через несколько минут.', waText: 'Здравствуйте! Пишу с сайта stay.com.tr',
     mic: 'Спросить голосом', micStop: 'Остановить запись', listening: 'Слушаю…', micDenied: 'Нет доступа к микрофону. Разрешите его в настройках браузера.', voiceOn: 'Озвучивать ответы', voiceOff: 'Не озвучивать ответы',
+    pdf: 'Скачать подборку (PDF)', pdfTitle: 'Подборка недвижимости', pdfCols: ['Объект', 'Район', 'Комнаты', 'Площадь', 'До моря', 'Цена', '€ за м²'], pdfFoot: 'Цены и наличие уточняйте у менеджера.', pdfPrint: 'Сохранить в PDF',
   },
   en: {
     open: 'Open the AI assistant', hintClose: 'Hide', hint: (n) => `Hi! I'm ${n}. Can I help you find a home?`,
@@ -37,6 +40,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     unavailable: 'The assistant is unavailable right now. Message us on WhatsApp and we will reply quickly.',
     tooMany: 'Too many messages. Please try again in a few minutes.', waText: 'Hello! I am writing from stay.com.tr',
     mic: 'Ask by voice', micStop: 'Stop recording', listening: 'Listening…', micDenied: 'No microphone access. Please allow it in your browser settings.', voiceOn: 'Read answers aloud', voiceOff: 'Stop reading answers aloud',
+    pdf: 'Download selection (PDF)', pdfTitle: 'Property selection', pdfCols: ['Property', 'Area', 'Rooms', 'Size', 'To the sea', 'Price', '€ per m²'], pdfFoot: 'Please confirm prices and availability with a manager.', pdfPrint: 'Save as PDF',
   },
   tr: {
     open: 'Yapay zekâ asistanını aç', hintClose: 'Gizle', hint: (n) => `Merhaba! Ben ${n}. Ev bulmanıza yardım edeyim mi?`,
@@ -47,6 +51,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     unavailable: 'Asistan şu anda kullanılamıyor. Bize WhatsApp’tan yazın, hızla yanıt verelim.',
     tooMany: 'Çok fazla mesaj. Lütfen birkaç dakika sonra tekrar deneyin.', waText: 'Merhaba! stay.com.tr sitesinden yazıyorum',
     mic: 'Sesle sor', micStop: 'Kaydı durdur', listening: 'Dinliyorum…', micDenied: 'Mikrofon erişimi yok. Lütfen tarayıcı ayarlarından izin verin.', voiceOn: 'Yanıtları sesli oku', voiceOff: 'Yanıtları sesli okuma',
+    pdf: 'Seçkiyi indir (PDF)', pdfTitle: 'Gayrimenkul seçkisi', pdfCols: ['Mülk', 'Bölge', 'Oda', 'Alan', 'Denize', 'Fiyat', '€ / m²'], pdfFoot: 'Fiyat ve müsaitliği lütfen danışmanınızla teyit edin.', pdfPrint: 'PDF olarak kaydet',
   },
   de: {
     open: 'KI-Assistenten öffnen', hintClose: 'Ausblenden', hint: (n) => `Hallo! Ich bin ${n}. Soll ich Ihnen bei der Suche helfen?`,
@@ -57,6 +62,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     unavailable: 'Der Assistent ist gerade nicht erreichbar. Schreiben Sie uns auf WhatsApp, wir antworten schnell.',
     tooMany: 'Zu viele Nachrichten. Bitte versuchen Sie es in ein paar Minuten erneut.', waText: 'Hallo! Ich schreibe von stay.com.tr',
     mic: 'Per Sprache fragen', micStop: 'Aufnahme stoppen', listening: 'Ich höre zu…', micDenied: 'Kein Mikrofonzugriff. Bitte in den Browsereinstellungen erlauben.', voiceOn: 'Antworten vorlesen', voiceOff: 'Antworten nicht vorlesen',
+    pdf: 'Auswahl herunterladen (PDF)', pdfTitle: 'Immobilienauswahl', pdfCols: ['Objekt', 'Lage', 'Zimmer', 'Fläche', 'Zum Meer', 'Preis', '€ pro m²'], pdfFoot: 'Preise und Verfügbarkeit bitte beim Manager bestätigen.', pdfPrint: 'Als PDF speichern',
   },
   sr: {
     open: 'Otvori AI asistenta', hintClose: 'Sakrij', hint: (n) => `Zdravo! Ja sam ${n}. Da vam pomognem da nađete stan?`,
@@ -67,6 +73,7 @@ export const CHAT_UI: Record<Lang, ChatUi> = {
     unavailable: 'Asistent trenutno nije dostupan. Pišite nam na WhatsApp, brzo odgovaramo.',
     tooMany: 'Previše poruka. Pokušajte ponovo za nekoliko minuta.', waText: 'Zdravo! Pišem sa sajta stay.com.tr',
     mic: 'Pitaj glasom', micStop: 'Zaustavi snimanje', listening: 'Slušam…', micDenied: 'Nema pristupa mikrofonu. Dozvolite ga u podešavanjima pregledača.', voiceOn: 'Čitaj odgovore naglas', voiceOff: 'Ne čitaj odgovore naglas',
+    pdf: 'Preuzmi izbor (PDF)', pdfTitle: 'Izbor nekretnina', pdfCols: ['Objekat', 'Kraj', 'Sobe', 'Površina', 'Do mora', 'Cena', '€ po m²'], pdfFoot: 'Cene i dostupnost proverite sa menadžerom.', pdfPrint: 'Sačuvaj kao PDF',
   },
 };
 
