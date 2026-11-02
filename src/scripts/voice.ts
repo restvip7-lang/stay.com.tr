@@ -16,18 +16,29 @@ export function speechSupported() {
   return typeof window !== 'undefined' && 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
 }
 
-/** Запись одного вопроса. onText — промежуточный текст (для поля ввода), onDone — итог или '' при отмене. */
+/**
+ * Запись вопроса. Пишет и через паузы, пока человек не нажмёт микрофон ещё раз (или браузер не остановит запись сам).
+ * onText — промежуточный текст (для поля ввода), onDone — итог или '' при отмене.
+ */
 export function listen(lang: string, h: { onText: (t: string) => void; onDone: (t: string) => void; onError: (code: string) => void }) {
   const R = (window as Rec).SpeechRecognition || (window as Rec).webkitSpeechRecognition;
   const rec: Rec = new R();
   rec.lang = LOCALE[lang] ?? 'ru-RU';
   rec.interimResults = true;
-  rec.continuous = false;
+  rec.continuous = true;
   rec.maxAlternatives = 1;
   let text = '';
   let failed = false;
   rec.onresult = (e: Rec) => {
-    text = Array.from(e.results as ArrayLike<Rec>).map((r: Rec) => r[0].transcript).join(' ').replace(/\s+/g, ' ').trim();
+    // Chrome на Android в непрерывном режиме повторяет в каждом куске весь текст с начала — склеиваем без повторов.
+    const parts: string[] = [];
+    for (const r of Array.from(e.results as ArrayLike<Rec>)) {
+      const t = String(r[0].transcript).trim();
+      const prev = parts[parts.length - 1];
+      if (prev && t.toLowerCase().startsWith(prev.toLowerCase())) parts[parts.length - 1] = t;
+      else if (t) parts.push(t);
+    }
+    text = parts.join(' ').replace(/\s+/g, ' ').trim();
     h.onText(text);
   };
   rec.onerror = (e: Rec) => {

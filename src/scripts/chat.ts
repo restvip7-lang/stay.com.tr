@@ -218,6 +218,7 @@ export async function initChat() {
     input.placeholder = on ? T.listening : placeholder;
   };
   const stopMic = () => { rec?.abort(); rec = null; micState(false); };
+  let byVoice = false;
   if (recognitionSupported()) {
     mic.hidden = false;
     mic.addEventListener('click', () => {
@@ -229,14 +230,16 @@ export async function initChat() {
       try {
         rec = listen(lang, {
           onText: (t) => { input.value = before ? `${before} ${t}` : t; },
+          // Текст остаётся в поле: человек сам правит его и отправляет. Ответ на такой вопрос Доми озвучит.
           onDone: (t) => {
             rec = null;
             micState(false);
-            const q = (before ? `${before} ${t}` : t).trim();
             if (!t) return;
-            input.value = '';
-            input.style.height = '';
-            ask(q, true);
+            input.value = (before ? `${before} ${t}` : t).trim();
+            input.dispatchEvent(new Event('input'));
+            byVoice = true;
+            input.focus();
+            input.setSelectionRange(input.value.length, input.value.length);
           },
           onError: (code) => { if (code === 'not-allowed' || code === 'service-not-allowed' || code === 'audio-capture') showErr(T.micDenied); },
         });
@@ -277,8 +280,9 @@ export async function initChat() {
     input.value = '';
     input.style.height = '';
     if (rec) stopMic();
-    if (voiceOn) unlockSpeech();
-    ask(t);
+    if (voiceOn || byVoice) unlockSpeech();
+    ask(t, byVoice);
+    byVoice = false;
   });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); form.requestSubmit(); }
