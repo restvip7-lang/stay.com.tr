@@ -7,6 +7,8 @@ import CategoryPage from '../../components/CategoryPage.astro';
 import ItemPage from '../../components/ItemPage.astro';
 import ComplexesPage from '../../components/ComplexesPage.astro';
 import ComplexPage from '../../components/ComplexPage.astro';
+import PickerPage from '../../components/PickerPage.astro';
+import { pickerFor } from '../../lib/pickers';
 import NotFound from '../../components/NotFound.astro';
 import { isLang } from '../../i18n/config';
 import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
@@ -16,7 +18,7 @@ const lang = Astro.params.lang;
 const segs = (Astro.params.path ?? '').split('/').filter(Boolean);
 const route = isLang(lang) ? await parseRoute(segs).catch(() => null) : null;
 
-let view: 'cat' | 'item' | 'complexes' | 'complex' | '404' | '410' = '404';
+let view: 'cat' | 'item' | 'complexes' | 'complex' | 'picker' | '404' | '410' = '404';
 let item: Item | null = null;
 let sold = false;
 let soldAt: string | null = null;
@@ -39,6 +41,14 @@ if (route && isLang(lang)) {
       const canon = complexUrl(lang, complex);
       if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
       view = 'complex';
+    }
+  } else if (route.kind === 'picker') {
+    // Подборщик квартир на рендере — только у ЖК, для которых он настроен (lib/pickers.ts).
+    complex = pickerFor(route.slug) ? (await getComplexes()).find((c) => c.slug === route.slug) ?? null : null;
+    if (complex) {
+      const canon = complexUrl(lang, complex) + '/picker/';
+      if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
+      view = 'picker';
     }
   } else if (route.kind === 'item') {
     item = await findItem(route.id);
@@ -71,6 +81,7 @@ if (route && isLang(lang)) {
 {view === 'cat' && route && (route.kind === 'hub' || route.kind === 'listing') && <CategoryPage cat={route.cat} page={route.kind === 'listing' ? route.page : 1} hub={route.kind === 'hub'} />}
 {view === 'complexes' && route?.kind === 'complexes' && <ComplexesPage cat={route.cat} page={route.page} />}
 {view === 'complex' && complex && <ComplexPage c={complex} />}
+{view === 'picker' && complex && <PickerPage c={complex} />}
 {view === 'item' && item && <ItemPage x={item} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
 {view === '404' && <NotFound />}
 {view === '410' && <NotFound gone />}

@@ -299,6 +299,7 @@ export type Route =
   | { kind: 'listing'; cat: Cat & { deal: Deal }; page: number }
   | { kind: 'complexes'; cat: Cat; page: number }
   | { kind: 'complex'; cat: Cat; slug: string }
+  | { kind: 'picker'; cat: Cat; slug: string }
   | { kind: 'item'; cat: Cat & { deal: Deal }; id: string };
 
 /** Разбирает путь после языка. null — такой страницы нет (404). */
@@ -334,6 +335,7 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
     if (deal !== 'sale') return null;
     delete cat.deal;
     if (!s.length) return { kind: 'complexes', cat, page };
+    if (!pm && s.length === 2 && s[1] === 'picker') return { kind: 'picker', cat, slug: s[0] };
     if (pm || s.length > 1) return null;
     return { kind: 'complex', cat, slug: s[0] };
   }

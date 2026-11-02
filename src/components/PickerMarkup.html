@@ -1,0 +1,80 @@
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow" data-i="eyebrow"></p>
+      <h1 id="title"></h1>
+      <p class="summary" id="summary" aria-live="polite"></p>
+    </div>
+    <div class="actions">
+      <div class="seg" id="fMode" hidden role="group" data-ia="modeGroup">
+        <button data-v="buyer" aria-pressed="true" data-i="modeBuyer"></button><button data-v="sales" aria-pressed="false" data-i="modeSales"></button>
+      </div>
+      <button class="btn" id="slBtn"><span data-i="shortlistBtn"></span> <span class="badge" id="slCount"></span></button>
+      <button class="btn" id="tourBtn" data-i="tourBtn"></button>
+    </div>
+  </header>
+
+  <section class="kpis" id="kpis" hidden data-ia="modeSales"></section>
+
+  <button class="btn fopen" id="fOpen" aria-controls="fbar" aria-expanded="false"><span data-i="filtersBtn"></span> <span class="badge" id="fCount"></span></button>
+  <div class="scrim" id="fScrim" hidden></div>
+  <section class="fbar" id="fbar" data-ia="filters">
+    <div class="fsheet-head"><b data-i="filters"></b><button class="btn" id="fClose" data-ia="closeFilters">✕</button></div>
+    <div class="fgroup"><span class="flabel" data-i="budget"></span>
+      <div class="budget" style="display:flex;gap:8px;align-items:center"><input id="fMin" inputmode="numeric" data-ip="from" data-ia="budgetFrom"><span aria-hidden="true">–</span><input id="fMax" inputmode="numeric" data-ip="to" data-ia="budgetTo"></div></div>
+    <div class="fgroup"><span class="flabel" data-i="layout"></span>
+      <div class="seg" id="fType" role="group" data-ia="layout"><button data-v="all" aria-pressed="true" data-i="all"></button><button data-v="1+1" aria-pressed="false">1+1</button><button data-v="2+1" aria-pressed="false">2+1</button><button data-v="3+1" aria-pressed="false">3+1</button></div></div>
+    <div class="fgroup"><label class="flabel" for="fB" data-i="building"></label><select id="fB"></select><label class="flabel" for="fF" data-i="floor"></label><select id="fF"></select></div>
+    <span class="spacer"></span>
+    <button class="btn link" id="fReset" data-i="reset"></button>
+    <div class="fsheet-foot"><button class="btn primary block" id="fApply"></button></div>
+  </section>
+
+  <nav class="crumbs" id="crumbs" data-ia="whereAmI"></nav>
+
+  <section id="picker" class="wrap" style="gap:12px">
+    <div class="main">
+      <div class="stage render" id="stage">
+        <div id="sceneHost" style="width:100%;height:100%"></div>
+        <div class="tip" id="tip" role="status"></div>
+        <div class="fsinfo" id="fsinfo"></div>
+        <div class="ctrls" id="ctrls">
+          <button class="ctrl" data-c="out" data-ia="zoomOut">−</button>
+          <button class="ctrl" data-c="in" data-ia="zoomIn">+</button>
+          <button class="ctrl txt" data-c="fit" data-ia="fitAll" data-i="fit"></button>
+          <button class="ctrl" data-c="fs" data-ia="fullscreen">⛶</button>
+        </div>
+        <div class="mkbar" id="mkBar" hidden></div>
+      </div>
+      <aside class="side" id="side" aria-live="polite"></aside>
+    </div>
+    <div class="below">
+      <div class="legend" id="legend">
+        <span><i class="dot" style="background:var(--free)"></i><span data-i="st_free"></span></span>
+        <span><i class="dot" style="background:var(--booked)"></i><span data-i="st_booked"></span></span>
+        <span><i class="dot" style="background:var(--sold)"></i><span data-i="st_sold"></span></span>
+      </div>
+      <div class="legend" id="heatLegend" hidden><span data-i="heatTitle"></span><span data-i="less"></span><i class="heatbar"></i><span data-i="more_"></span></div>
+      <div class="floorsw" id="floorsw"></div>
+      <span id="hint"></span>
+    </div>
+    <div class="mkexport" id="mkExport" hidden></div>
+
+    <section class="list" id="list" data-ia="listAria">
+      <div class="list-head">
+        <h2 id="listTitle"></h2>
+        <div class="ctx"><div class="ctx" id="ctxChips"></div><span class="count" id="count"></span>
+          <select id="fSort" data-ia="sort"><option value="price" data-i="sortPrice"></option><option value="-price" data-i="sortPriceDesc"></option><option value="area" data-i="sortArea"></option><option value="-floor" data-i="sortFloor"></option></select></div>
+      </div>
+      <div class="grid" id="grid"></div>
+      <button class="btn more" id="more" data-i="showMore"></button>
+    </section>
+  </section>
+
+  <section id="fpage" class="fpage" hidden></section>
+</div>
+
+<div class="tour" id="tour" hidden role="dialog" data-ia="tourBtn"><div class="st" id="tourStep"></div><p id="tourText"></p><div class="acts"><button class="btn" id="tourStop" data-i="tourEnd"></button><button class="btn primary" id="tourNext"></button></div></div>
+<div class="modal" id="modal" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div class="stickybuy" id="stickybuy" hidden></div>

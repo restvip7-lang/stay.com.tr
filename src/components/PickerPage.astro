@@ -1,0 +1,53 @@
+---
+/**
+ * Подборщик квартир ЖК на рендере: комплекс → корпус → фасад → план этажа → страница квартиры.
+ * Логика и разметка перенесены из repo apartment-picker (scripts/import-picker.py), экраны живут после #:
+ * …/picker/#/b/L/f/1, …/picker/#/flat/L-109. Данные пока тестовые, поэтому страница закрыта от индексации.
+ */
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import markup from './PickerMarkup.html?raw';
+import '../styles/picker.css';
+import { LANGS } from '../i18n/config';
+import { complexUrl, type Complex } from '../lib/catalog';
+import { catCrumbs } from '../lib/nav';
+import { PICKER_JS_V } from '../lib/pickerVersion';
+import { pickerFor, pickerLang, pickerReals, PICKER_LANGS, PICKER_TEXT } from '../lib/pickers';
+
+interface Props { c: Complex }
+const { c } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const conf = pickerFor(c.slug)!;
+const tx = PICKER_TEXT[lang];
+const self = complexUrl(lang, c);
+const url = `${self}/picker/`;
+const crumbs = catCrumbs(lang, { country: c.country, city: c.city, district: c.district ?? undefined, complexes: true }, c.title);
+crumbs[crumbs.length - 1].href = self;
+crumbs.push({ label: tx.crumb });
+// Адреса этой страницы на языках подборщика: по ним старые ссылки ?lang=en открывают нужную версию.
+const langUrl = Object.fromEntries(PICKER_LANGS.map((l) => [l, `${complexUrl(l, c)}/picker/`]));
+// Квартиры ЖК из базы, привязанные к квартирам подборщика (пример привязки, см. lib/pickers.ts).
+const real = await pickerReals(c.code, conf, lang).catch(() => []);
+const rt = PICKER_TEXT[pickerLang(lang)];
+const realText = { base: rt.base, fromBase: rt.fromBase('#'), card: rt.card, note: rt.note };
+const AP = { lang: pickerLang(lang), base: conf.base, name: c.title, langUrl, admin: false, real, realText };
+const alternates = Object.fromEntries(LANGS.map((l) => [l, `${complexUrl(l, c)}/picker/`]));
+---
+<Base system="new" title={tx.title(c.title)} description={tx.description(c.title)} canonical={url} robots="noindex,follow" alternates={alternates}>
+  <div class="container-n">
+    <div class="pt-5"><Breadcrumbs items={crumbs} /></div>
+    <div class="ap" set:html={markup} />
+  </div>
+  <script is:inline define:vars={{ AP }}>window.AP = AP;</script>
+  <script is:inline>
+    // Переключатель языка в шапке сайта сохраняет открытый экран подборщика (часть адреса после #).
+    document.addEventListener('click', (e) => {
+      const a = e.target.closest && e.target.closest('a[hreflang]');
+      if (!a || !location.hash) return;
+      const l = a.getAttribute('hreflang');
+      const to = ['ru', 'en', 'tr'].includes(l) ? l : 'en';
+      a.href = a.href.split('#')[0] + location.hash.replace(/([?&])lang=\w+/, '$1lang=' + to);
+    }, true);
+  </script>
+  <script is:inline src={`/picker/picker.js?v=${PICKER_JS_V}`} defer></script>
+</Base>
