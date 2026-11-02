@@ -15,7 +15,7 @@ export default defineConfig({
     imagesConfig: {
       sizes: [320, 640, 960, 1280, 1920],
       formats: ['image/avif', 'image/webp'],
-      domains: ['portfolio.stayrepo.com', 'cdn-ru.bitrix24.ru', 'stay.com.tr', 'dev.stayproperty.com', 'i.ytimg.com'],
+      domains: ['portfolio.stayrepo.com', 'cdn-ru.bitrix24.ru', 'stay.com.tr', 'dev.stayproperty.com', 'i.ytimg.com', 'eu2.contabostorage.com', 'admin.stayproperty.com'],
       minimumCacheTTL: 86400,
     },
   }),
