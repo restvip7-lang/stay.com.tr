@@ -1,0 +1,32 @@
+# Автовыкладка на свой сервер (VPS): после пуша в main GitHub заходит на сервер по SSH и запускает deploy/deploy.sh.
+# Нужны секреты репозитория (Settings → Secrets and variables → Actions):
+#   VPS_HOST — адрес сервера, VPS_USER — пользователь (stay), VPS_SSH_KEY — приватный SSH-ключ для входа.
+# Пока секретов нет, задача просто пропускается.
+name: Deploy to VPS
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check secrets
+        id: check
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+        run: echo "ready=$([ -n "$HOST" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+      - name: Deploy over SSH
+        if: steps.check.outputs.ready == 'yes'
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ secrets.VPS_USER }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_deploy "$USER@$HOST" "bash /home/stay/app/deploy/deploy.sh main"
