@@ -1,6 +1,7 @@
 ---
 import '../../styles/global.css';
-import { adminEnabled, isAdmin } from '../../lib/adminAuth';
+import { adminEnabled, allowed, currentUser, usersMode } from '../../lib/adminAuth';
+import { mailReady } from '../../lib/mail';
 import { getHomeConfig, storageReady } from '../../lib/homeConfig';
 import { getProjects } from '../../lib/api';
 import { ANTHROPIC_MODELS, DEFAULT_MODELS, chatAdminView, getChatSettings } from '../../lib/chatConfig';
@@ -13,14 +14,41 @@ export const prerender = false;
 
 Astro.response.headers.set('Cache-Control', 'no-store');
 const enabled = adminEnabled();
-const authed = isAdmin(Astro.cookies);
-const error = Astro.url.searchParams.has('error');
+const user = await currentUser(Astro.cookies);
+const authed = !!user;
+const can = (s: Parameters<typeof allowed>[1]) => allowed(user, s);
+const multi = usersMode();
+const step = Astro.url.searchParams.get('step');
+const errCode = Astro.url.searchParams.get('error');
+const ERRORS: Record<string, string> = {
+  '1': multi ? 'Неверный логин или пароль' : 'Неверный пароль',
+  locked: 'Слишком много попыток. Подождите 15 минут.',
+  code: 'Неверный код',
+  expired: 'Код устарел или попыток больше нет. Войдите заново.',
+  mail: 'Не удалось отправить письмо с кодом. Обратитесь к владельцу админки.',
+  weak: 'Пароль из ADMIN_PASSWORD слишком простой: нужно от 10 символов, буквы и цифры.',
+};
+const error = errCode ? ERRORS[errCode] ?? 'Ошибка входа' : '';
 
 let data: any = null;
 let thin: { url: string; n: number }[] = [];
 let chatUsedN = 0;
 let seoText = { redirects: '', overrides: '{}' };
-if (authed) {
+let users: any[] = [];
+let noUsersYet = false;
+if (!authed && multi) noUsersYet = (await import('../../lib/adminDb')).countUsers() === 0;
+let journal: any[] = [];
+let ROLE_LIST: { id: string; label: string; note: string }[] = [];
+if (authed && multi) {
+  const db = await import('../../lib/adminDb');
+  ROLE_LIST = db.ROLES;
+  if (can('users')) {
+    users = db.listUsers();
+    journal = db.listAudit(150);
+  }
+}
+const roleLabel = (r: string) => ROLE_LIST.find((x) => x.id === r)?.label ?? r;
+if (authed && can('seo')) {
   const [seo, counts] = await Promise.all([getSeoConfig(), categoryCounts()]);
   // Отчёт «категории вне индекса» (ТЗ 14): 1–2 объекта — noindex по порогу.
   thin = counts.filter((c) => c.n < INDEX_MIN).map((c) => ({ url: catUrl('ru', c.cat), n: c.n })).sort((a, b) => a.url.localeCompare(b.url));
@@ -28,13 +56,23 @@ if (authed) {
     redirects: seo.redirects.map((r) => (r.status === 410 ? `${r.from} 410` : `${r.from} ${r.to}`)).join('\n'),
     overrides: JSON.stringify(seo.overrides, null, 2),
   };
-  const [home, projects, chat, chatUsed] = await Promise.all([getHomeConfig(), getProjects(), getChatSettings(), usageFresh().catch(() => 0)]);
+}
+if (authed) {
+  const [home, projects, chat, chatUsed] = await Promise.all([
+    can('home') ? getHomeConfig() : null,
+    can('home') ? getProjects() : [],
+    can('chat') ? getChatSettings() : null,
+    can('chat') ? usageFresh().catch(() => 0) : 0,
+  ]);
   chatUsedN = chatUsed;
   data = {
     home,
-    chat: chatAdminView(chat),
+    chat: chat ? chatAdminView(chat) : null,
     storage: storageReady(),
     projects: projects.map((p) => ({ code: p.code, title: p.title, place: [p.city, p.area].filter(Boolean).join(', '), image: p.image, price: p.priceFromLabel ?? '' })),
+    users,
+    roles: ROLE_LIST,
+    me: user,
   };
 }
 ---
@@ -52,7 +90,11 @@ if (authed) {
       <div class="container-x flex h-16 items-center justify-between">
         <a href="/" class="font-medium">Stay Property · <span class="text-muted">админка</span></a>
         {authed && (
-          <form method="post" action="/api/admin/login"><button name="logout" value="1" class="text-sm text-muted hover:text-ink">Выйти</button></form>
+          <div class="flex items-center gap-4 text-sm">
+            {multi && <span class="text-muted">{user!.name || user!.login} · {roleLabel(user!.role)}</span>}
+            {multi && <a href="#me" class="text-muted hover:text-ink">Мой пароль</a>}
+            <form method="post" action="/api/admin/login"><button name="logout" value="1" class="text-muted hover:text-ink">Выйти</button></form>
+          </div>
         )}
       </div>
     </header>
@@ -68,18 +110,39 @@ if (authed) {
 
     {enabled && !authed && (
       <main class="container-x grid place-items-center py-24">
-        <form method="post" action="/api/admin/login" class="card w-full max-w-sm p-8">
-          <h1 class="display text-3xl">Вход</h1>
-          <label class="label mt-6" for="pw">Пароль</label>
-          <input id="pw" name="password" type="password" required autocomplete="current-password" class="field" autofocus />
-          {error && <p class="mt-3 text-sm text-red-600">Неверный пароль</p>}
-          <button class="btn btn-dark mt-6 w-full">Войти</button>
-        </form>
+        {step === 'code' ? (
+          <form method="post" action="/api/admin/login" class="card w-full max-w-sm p-8">
+            <input type="hidden" name="step" value="code" />
+            <h1 class="display text-3xl">Код из письма</h1>
+            <p class="mt-3 text-sm text-muted">Мы отправили 6 цифр на вашу почту. Код действует 10 минут.</p>
+            <label class="label mt-6" for="code">Код</label>
+            <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]{6,7}" maxlength="7" required class="field tracking-[0.3em]" autofocus />
+            {error && <p class="mt-3 text-sm text-red-600">{error}</p>}
+            <button class="btn btn-dark mt-6 w-full">Войти</button>
+            <a href="/admin/" class="mt-4 block text-center text-sm text-muted hover:text-ink">Начать заново</a>
+          </form>
+        ) : (
+          <form method="post" action="/api/admin/login" class="card w-full max-w-sm p-8">
+            <h1 class="display text-3xl">Вход</h1>
+            {multi && (
+              <>
+                <label class="label mt-6" for="login">Логин</label>
+                <input id="login" name="login" required autocomplete="username" autocapitalize="off" spellcheck="false" class="field" autofocus />
+              </>
+            )}
+            {noUsersYet && <p class="mt-3 rounded-2xl bg-peach px-4 py-3 text-sm">Первый вход: логин <b>admin</b> и пароль из ADMIN_PASSWORD на сервере. Так создаётся владелец, дальше он добавляет остальных.</p>}
+            <label class="label mt-4" for="pw">Пароль</label>
+            <input id="pw" name="password" type="password" required autocomplete="current-password" class="field" autofocus={!multi} />
+            {error && <p class="mt-3 text-sm text-red-600">{error}</p>}
+            <button class="btn btn-dark mt-6 w-full">Войти</button>
+          </form>
+        )}
       </main>
     )}
 
     {authed && (
       <main class="container-x py-10" id="app">
+        {can('home') && (<>
         <div class="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h1 class="display text-4xl">Главная страница</h1>
@@ -120,7 +183,9 @@ if (authed) {
             <div><label class="label">Текст</label><input data-online="text" class="field" /></div>
           </div>
         </section>
+        </>)}
 
+        {can('objects') && (<>
         <section class="card mt-6 p-6" id="objects">
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -132,7 +197,9 @@ if (authed) {
           <input data-o-search class="field mt-5" placeholder="Поиск: код объекта, id, название, район. Пусто — объекты с отметками" />
           <ul data-o-list class="mt-3 grid max-h-[75vh] gap-2 overflow-auto pr-1"></ul>
         </section>
+        </>)}
 
+        {can('chat') && (<>
         <section class="card mt-6 p-6" id="chat">
           <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -182,7 +249,9 @@ if (authed) {
           </div>
           <pre data-chat-out class="mt-4 hidden whitespace-pre-wrap rounded-2xl bg-page p-4 text-sm"></pre>
         </section>
+        </>)}
 
+        {can('seo') && (<>
         <section class="card mt-6 p-6" id="seo">
           <h2 class="text-xl font-medium">SEO</h2>
           <p class="mt-1 text-sm text-muted">Переопределения мета-тегов и текстов для любой страницы на любом языке, редиректы 301 и снятые страницы (410). Сохранение сбрасывает кэш сайта.</p>
@@ -207,6 +276,55 @@ if (authed) {
             <ul class="mt-3 max-h-96 overflow-auto text-sm">{thin.map((x) => <li class="flex justify-between gap-4 border-t border-line py-1.5"><a href={x.url} target="_blank" class="truncate hover:text-accent">{x.url}</a><span class="text-muted">{x.n}</span></li>)}</ul>
           </details>
         </section>
+        </>)}
+
+        {multi && (
+          <section class="card mt-6 p-6" id="me">
+            <h2 class="text-xl font-medium">Мой пароль</h2>
+            <p class="mt-1 text-sm text-muted">Не короче 10 символов, буквы и цифры. После смены другие ваши входы остаются, пока не истекут (12 часов).</p>
+            <form data-mypass class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
+              <input name="current" type="password" required autocomplete="current-password" placeholder="Текущий пароль" class="field" />
+              <input name="next" type="password" required minlength="10" autocomplete="new-password" placeholder="Новый пароль" class="field" />
+              <button class="btn btn-accent">Сменить</button>
+            </form>
+            <p data-mypass-status class="mt-2 text-sm text-muted"></p>
+          </section>
+        )}
+
+        {multi && can('users') && (
+          <section class="card mt-6 p-6" id="users">
+            <h2 class="text-xl font-medium">Пользователи</h2>
+            <p class="mt-1 max-w-3xl text-sm text-muted">
+              Роли: {ROLE_LIST.map((r, i) => <>{i > 0 && '; '}<b>{r.label}</b> — {r.note}</>)}.
+              {mailReady() ? ' При входе на почту пользователя приходит код.' : ' Почта для кодов входа не настроена (SMTP_* в настройках сервера), сейчас вход только по паролю.'}
+            </p>
+            <div class="mt-4 overflow-x-auto">
+              <table class="w-full min-w-[760px] text-sm">
+                <thead><tr class="text-left text-muted"><th class="py-2 pr-3 font-normal">Логин</th><th class="pr-3 font-normal">Имя</th><th class="pr-3 font-normal">Почта для кода</th><th class="pr-3 font-normal">Роль</th><th class="pr-3 font-normal">Последний вход</th><th class="font-normal"></th></tr></thead>
+                <tbody data-users></tbody>
+              </table>
+            </div>
+            <h3 class="mt-6 font-medium">Добавить пользователя</h3>
+            <form data-user-add class="mt-3 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+              <input name="login" required placeholder="Логин (латиница)" autocapitalize="off" class="field" />
+              <input name="name" placeholder="Имя" class="field" />
+              <input name="email" type="email" placeholder="Почта для кода" class="field" />
+              <select name="role" class="field">{ROLE_LIST.map((r) => <option value={r.id} selected={r.id === 'editor'}>{r.label}</option>)}</select>
+              <input name="password" type="text" required minlength="10" placeholder="Временный пароль" autocomplete="off" class="field" />
+              <button class="btn btn-accent">Добавить</button>
+            </form>
+            <p data-users-status class="mt-2 text-sm text-muted"></p>
+
+            <details class="mt-8">
+              <summary class="cursor-pointer font-medium">Журнал действий (последние {journal.length})</summary>
+              <div class="mt-3 max-h-[60vh] overflow-auto">
+                <table class="w-full min-w-[640px] text-sm">
+                  <tbody>{journal.map((j) => <tr class="border-t border-line align-top"><td class="whitespace-nowrap py-1.5 pr-3 text-muted">{j.at} UTC</td><td class="pr-3">{j.login ?? '—'}</td><td class="pr-3">{j.action}</td><td class="pr-3 break-all text-muted">{j.detail}</td><td class="whitespace-nowrap text-muted">{j.ip}</td></tr>)}</tbody>
+                </table>
+              </div>
+            </details>
+          </section>
+        )}
       </main>
     )}
 
@@ -227,8 +345,9 @@ if (authed) {
     {authed && <script type="application/json" id="admin-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />}
     <script>
       const el = document.getElementById('admin-data');
-      if (el) {
-        const { home, projects } = JSON.parse(el.textContent || '{}');
+      const parsed = el ? JSON.parse(el.textContent || '{}') : {};
+      if (el && parsed.home) {
+        const { home, projects } = parsed;
         const byCode = new Map(projects.map((p: any) => [p.code, p]));
         let selected: string[] = home.projects.filter((c: string) => byCode.has(c));
         const hero = new Set<string>(home.hero.map((h: any) => h.project));
@@ -317,8 +436,9 @@ if (authed) {
     </script>
     <script>
       const el2 = document.getElementById('admin-data');
-      if (el2) {
-        const { chat } = JSON.parse(el2.textContent || '{}');
+      const parsed2 = el2 ? JSON.parse(el2.textContent || '{}') : {};
+      if (el2 && parsed2.chat) {
+        const { chat } = parsed2;
         const q = (s: string) => document.querySelector(s) as HTMLInputElement;
         const st = q('[data-chat-status]');
         const out = q('[data-chat-out]') as unknown as HTMLElement;
@@ -448,6 +568,71 @@ if (authed) {
         let timer: number | undefined;
         input.addEventListener('input', () => { clearTimeout(timer); timer = window.setTimeout(load, 300); });
         load();
+      }
+    </script>
+    <script>
+      const post = async (body: unknown) => {
+        const res = await fetch('/api/admin/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        return res.json().catch(() => ({ ok: false, error: res.statusText }));
+      };
+      const myForm = document.querySelector<HTMLFormElement>('[data-mypass]');
+      myForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const st = document.querySelector<HTMLElement>('[data-mypass-status]')!;
+        const f = new FormData(myForm);
+        st.textContent = 'Сохраняю…';
+        const r = await post({ action: 'myPassword', current: f.get('current'), next: f.get('next') });
+        st.textContent = r.ok ? 'Пароль изменён.' : 'Ошибка: ' + r.error;
+        if (r.ok) myForm.reset();
+      });
+
+      const body = document.querySelector<HTMLElement>('[data-users]');
+      const dataEl = document.getElementById('admin-data');
+      if (body && dataEl) {
+        const { users: initial, roles, me } = JSON.parse(dataEl.textContent || '{}');
+        const st = document.querySelector<HTMLElement>('[data-users-status]')!;
+        const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+        const btn = 'h-9 rounded-full border border-line px-3 text-sm hover:border-ink';
+        const render = (list: any[]) => {
+          body.innerHTML = list.map((u) => `
+            <tr data-id="${u.id}" class="border-t border-line ${u.active ? '' : 'opacity-50'}">
+              <td class="py-2 pr-3 font-medium">${esc(u.login)}${u.id === me.id ? ' <span class="text-muted">(вы)</span>' : ''}</td>
+              <td class="pr-3"><input data-f="name" value="${esc(u.name)}" class="field h-9 px-3"></td>
+              <td class="pr-3"><input data-f="email" type="email" value="${esc(u.email)}" class="field h-9 px-3"></td>
+              <td class="pr-3"><select data-f="role" class="field h-9 px-3">${roles.map((r: any) => `<option value="${r.id}" ${r.id === u.role ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select></td>
+              <td class="whitespace-nowrap pr-3 text-muted">${u.last_login_at ? esc(u.last_login_at) + ' UTC' : '—'}</td>
+              <td class="whitespace-nowrap"><button data-a="save" class="${btn}">Сохранить</button>
+                <button data-a="pass" class="${btn}">Пароль</button>
+                <button data-a="toggle" class="${btn}">${u.active ? 'Отключить' : 'Включить'}</button>
+                ${u.id === me.id ? '' : `<button data-a="del" class="${btn} hover:border-red-600 hover:text-red-600">Удалить</button>`}</td>
+            </tr>`).join('');
+        };
+        let users = initial;
+        render(users);
+        const done = (r: any, ok: string) => { st.textContent = r.ok ? ok : 'Ошибка: ' + r.error; if (r.users) { users = r.users; render(users); } };
+        body.addEventListener('click', async (e) => {
+          const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-a]');
+          if (!b) return;
+          const tr = b.closest<HTMLElement>('tr')!;
+          const id = Number(tr.dataset.id);
+          const u = users.find((x: any) => x.id === id);
+          const val = (f: string) => tr.querySelector<HTMLInputElement>(`[data-f="${f}"]`)!.value;
+          if (b.dataset.a === 'save') done(await post({ action: 'update', id, name: val('name'), email: val('email'), role: val('role') }), 'Сохранено.');
+          if (b.dataset.a === 'toggle') done(await post({ action: 'update', id, active: !u.active }), u.active ? 'Отключён, его входы закрыты.' : 'Включён.');
+          if (b.dataset.a === 'pass') {
+            const pw = prompt(`Новый пароль для ${u.login} (от 10 символов, буквы и цифры):`);
+            if (pw) done(await post({ action: 'password', id, password: pw }), 'Пароль изменён, все входы этого пользователя закрыты.');
+          }
+          if (b.dataset.a === 'del' && confirm(`Удалить пользователя ${u.login}?`)) done(await post({ action: 'delete', id }), 'Удалён.');
+        });
+        const add = document.querySelector<HTMLFormElement>('[data-user-add]')!;
+        add.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const f = Object.fromEntries(new FormData(add));
+          const r = await post({ action: 'create', ...f });
+          done(r, `Добавлен ${f.login}. Передайте ему логин и временный пароль, пусть сменит его в разделе «Мой пароль».`);
+          if (r.ok) add.reset();
+        });
       }
     </script>
   </body>

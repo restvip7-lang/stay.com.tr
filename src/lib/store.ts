@@ -10,16 +10,17 @@ import path from 'node:path';
 
 const env = (k: string): string | undefined => process.env[k] || (import.meta.env as Record<string, string | undefined>)[k];
 
+export const dataDir = () => path.resolve(env('STAY_DATA_DIR') || 'data');
 export const blobToken = () => env('BLOB_READ_WRITE_TOKEN');
 
-function mode(): 'blob' | 'fs' {
+export function storeMode(): 'blob' | 'fs' {
   const m = env('STAY_STORAGE');
   if (m === 'fs' || m === 'blob') return m;
   if (blobToken()) return 'blob';
   return env('VERCEL') ? 'blob' : 'fs';
 }
 
-const dataDir = () => path.resolve(env('STAY_DATA_DIR') || 'data');
+
 /** Ключ вида config/home.json → путь внутри папки данных (без выхода за её пределы). */
 const fileOf = (key: string) => {
   const p = path.resolve(dataDir(), key);
@@ -29,12 +30,12 @@ const fileOf = (key: string) => {
 
 /** Можно ли сохранять настройки. */
 export function storeReady(): boolean {
-  return mode() === 'fs' || !!blobToken();
+  return storeMode() === 'fs' || !!blobToken();
 }
 
 export async function readJson<T = unknown>(key: string): Promise<T | null> {
   try {
-    if (mode() === 'fs') return JSON.parse(await readFile(fileOf(key), 'utf8')) as T;
+    if (storeMode() === 'fs') return JSON.parse(await readFile(fileOf(key), 'utf8')) as T;
     if (!blobToken()) return null;
     const { head } = await import('@vercel/blob');
     const meta = await head(key, { token: blobToken() });
@@ -47,7 +48,7 @@ export async function readJson<T = unknown>(key: string): Promise<T | null> {
 
 export async function writeJson(key: string, value: unknown, pretty = false): Promise<void> {
   const body = pretty ? JSON.stringify(value, null, 2) : JSON.stringify(value);
-  if (mode() === 'fs') {
+  if (storeMode() === 'fs') {
     const f = fileOf(key);
     await mkdir(path.dirname(f), { recursive: true });
     // Пишем во временный файл и переименовываем: файл не окажется недописанным при сбое.

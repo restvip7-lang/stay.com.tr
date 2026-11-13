@@ -1,5 +1,6 @@
 import type { APIRoute } from 'astro';
-import { isAdmin } from '../../../lib/adminAuth';
+import { badOrigin, ipOf, userCan } from '../../../lib/adminAuth';
+import { audit } from '../../../lib/adminAudit';
 import { getAllForAdmin, itemUrl, type Item } from '../../../lib/catalog';
 import { getMarks, setMark, type Marks } from '../../../lib/objectsConfig';
 import { cityBySlug, districtBySlug } from '../../../lib/geo';
@@ -28,7 +29,7 @@ const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е');
 
 /** Поиск объектов для раздела «Объекты»: по id, коду, названию, району. Пустой запрос — объекты с отметками. */
 export const GET: APIRoute = async ({ url, cookies }) => {
-  if (!isAdmin(cookies)) return new Response('Нужно войти', { status: 401 });
+  if (!(await userCan(cookies, 'objects'))) return new Response('Нет доступа', { status: 403 });
   const q = norm((url.searchParams.get('q') || '').trim());
   const [all, marks] = await Promise.all([getAllForAdmin(), getMarks()]);
   let list: Item[];
@@ -48,13 +49,14 @@ export const GET: APIRoute = async ({ url, cookies }) => {
 };
 
 /** Сохранить отметку одного объекта: { id, mark: { hidden?, label?, pinned? } }. */
-export const POST: APIRoute = async ({ request, cookies }) => {
-  if (!isAdmin(cookies)) return new Response('Нужно войти', { status: 401 });
-  const origin = new URL(request.url).origin;
-  if (request.headers.get('origin') && request.headers.get('origin') !== origin) return new Response('Bad origin', { status: 403 });
+export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
+  const user = await userCan(cookies, 'objects');
+  if (!user) return new Response('Нет доступа', { status: 403 });
+  if (badOrigin(request)) return new Response('Bad origin', { status: 403 });
   try {
     const body = await request.json();
     const marks = await setMark(String(body?.id ?? ''), body?.mark);
+    await audit(user, 'objects.mark', `${body?.id}: ${JSON.stringify(body?.mark ?? null)}`, ipOf(request, clientAddress));
     await purge(['site']);
     return Response.json({ ok: true, mark: marks[String(body.id)] ?? {} });
   } catch (e) {

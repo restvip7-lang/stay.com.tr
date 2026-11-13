@@ -41,7 +41,7 @@ export const GET: APIRoute = async ({ url, request }) => {
   const headers = { 'content-type': TYPES[fmt], 'cache-control': 'public, max-age=2592000, stale-while-revalidate=86400', vary: 'Accept' };
 
   try {
-    return new Response(await readFile(file), { headers: { ...headers, 'x-stay-img': 'HIT' } });
+    return new Response(new Uint8Array(await readFile(file)), { headers: { ...headers, 'x-stay-img': 'HIT' } });
   } catch { /* ещё не сжимали */ }
 
   const r = await fetch(src, { signal: AbortSignal.timeout(15000), redirect: 'follow' }).catch(() => null);
@@ -64,5 +64,5 @@ export const GET: APIRoute = async ({ url, request }) => {
     await writeFile(tmp, out);
     await rename(tmp, file);
   } catch { /* не записали — отдадим без кэша */ }
-  return new Response(out, { headers: { ...headers, 'x-stay-img': 'MISS' } });
+  return new Response(new Uint8Array(out), { headers: { ...headers, 'x-stay-img': 'MISS' } });
 };
