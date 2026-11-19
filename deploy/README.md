@@ -9,7 +9,7 @@
 |---|---|---|
 | Запуск | функции Vercel | `node dist/server/entry.mjs` под pm2 (1 процесс) |
 | Настройки из админки (главная, SEO, объекты, ИИ-помощник, счётчики) | Vercel Blob | JSON-файлы в `STAY_DATA_DIR` (`src/lib/store.ts`) |
-| Сжатие картинок | `/_vercel/image` | `/img` (sharp, кэш на диске, `src/pages/img.ts`) |
+| Сжатие картинок | `/_vercel/image` | `/img` (sharp, кэш на диске, `src/pages/img.ts`); оригиналы с чужих сайтов сохраняются в `STAY_DATA_DIR/media-src` |
 | Кэш страниц, 10 минут | CDN Vercel, сброс по тегам | в памяти процесса, сброс тем же `purge()` (`src/lib/pageCache.ts`) |
 | Ночной сброс кэша 03:00 | Vercel Cron | cron пользователя `stay` |
 | Выкладка | пуш в GitHub | пуш в `main` → GitHub Actions → SSH → `deploy/deploy.sh` |
@@ -58,6 +58,15 @@ Ubuntu 24.04, 2 ядра, 4 ГБ памяти, 40 ГБ диска. Сборка 
 Настройки из админки (главная, SEO, отметки объектов) лежат в Vercel Blob. Перед переездом их можно скачать
 и положить в `/home/stay/data/config/` с теми же именами файлов: `home.json`, `seo.json`, `objects.json`.
 Ключ ИИ-помощника заново ввести в /admin: на сервере он шифруется другим секретом (`STAY_SECRET`).
+
+## Картинки
+
+- Свои картинки лежат в `public/media` (перенесены со старого stay.com.tr скриптом `node scripts/import-media.mjs`, ужаты до 1920 px).
+  Сайт отдаёт их уменьшенными копиями (320–1920 px, AVIF/WebP) через `/img` на своём сервере и `/_vercel/image` на Vercel.
+- Фото с чужих сайтов (объекты, новости с dev.stayproperty.com и т. д.) при первом показе сохраняются в `STAY_DATA_DIR/media-src`,
+  дальше берутся с диска. Готовые уменьшенные копии — в `STAY_DATA_DIR/img-cache`.
+- API dev.stayproperty.com пока отдаёт часть картинок с адресов `https://stay.com.tr/upload/...` и `/local/...`. После переключения
+  домена на новый сайт эти пути должен отдавать nginx из папки старого сайта (или из её копии), пока картинки не переедут.
 
 ## Полезное
 
