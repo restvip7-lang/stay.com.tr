@@ -1,7 +1,7 @@
 /**
  * Сжатие картинок на своём сервере (VPS) — замена /_vercel/image.
  * GET /img?url=<https-адрес или /media/...>&w=<ширина>&q=<качество> → AVIF или WebP нужной ширины.
- * Берём только с разрешённых сайтов (IMAGE_DOMAINS в astro.config.mjs) или свои файлы из public/media, и только ширины из списка.
+ * Берём только с разрешённых сайтов (IMAGE_DOMAINS в astro.config.mjs) или свои файлы из public/media и public/hero, и только ширины из списка.
  * Оригиналы с чужих сайтов при первом запросе сохраняем у себя (STAY_DATA_DIR/media-src) и дальше берём с диска,
  * так что сайт не зависит от того, жив ли источник. Готовые копии кладём в STAY_DATA_DIR/img-cache, повторно не пересжимаем.
  */
@@ -20,7 +20,7 @@ const cacheDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'img-ca
 const originalsDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'media-src');
 /** Свои картинки: после сборки они в dist/client, при `astro dev` — в public. */
 const PUBLIC_DIRS = ['dist/client', 'public'].map((d) => path.resolve(d));
-const LOCAL = /^\/media\/[\w\-./]+\.(?:jpe?g|png|webp|avif)$/i;
+const LOCAL = /^\/(?:media|hero)\/[\w\-./]+\.(?:jpe?g|png|webp|avif)$/i;
 const TYPES = { avif: 'image/avif', webp: 'image/webp' } as const;
 
 const bad = (msg: string, status = 400) => new Response(msg, { status, headers: { 'cache-control': 'no-store' } });
