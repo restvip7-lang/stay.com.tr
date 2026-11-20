@@ -27,6 +27,7 @@ const ERRORS: Record<string, string> = {
   expired: 'Код устарел или попыток больше нет. Войдите заново.',
   mail: 'Не удалось отправить письмо с кодом. Обратитесь к владельцу админки.',
   weak: 'Пароль из ADMIN_PASSWORD слишком простой: нужно от 10 символов, буквы и цифры.',
+  noemail: 'Для входа нужен код с почты, а у вас не указана почта. Попросите владельца админки её добавить.',
 };
 const error = errCode ? ERRORS[errCode] ?? 'Ошибка входа' : '';
 
@@ -281,7 +282,9 @@ if (authed) {
         {multi && (
           <section class="card mt-6 p-6" id="me">
             <h2 class="text-xl font-medium">Мой пароль</h2>
-            <p class="mt-1 text-sm text-muted">Не короче 10 символов, буквы и цифры. После смены другие ваши входы остаются, пока не истекут (12 часов).</p>
+            {user!.mustChange && <p class="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Перед работой задайте свой пароль: этот был выдан временно (первый вход или сброс владельцем). Разделы админки откроются после смены.</p>}
+            {user!.role === 'owner' && !user!.email && !user!.mustChange && <p class="mt-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Укажите свою почту в разделе «Пользователи»: на неё будет приходить код входа.</p>}
+            <p class="mt-1 text-sm text-muted">Не короче 10 символов, буквы и цифры. После смены все другие ваши входы закрываются.</p>
             <form data-mypass class="mt-4 grid gap-3 md:grid-cols-[1fr_1fr_auto]">
               <input name="current" type="password" required autocomplete="current-password" placeholder="Текущий пароль" class="field" />
               <input name="next" type="password" required minlength="10" autocomplete="new-password" placeholder="Новый пароль" class="field" />
@@ -584,6 +587,7 @@ if (authed) {
         const r = await post({ action: 'myPassword', current: f.get('current'), next: f.get('next') });
         st.textContent = r.ok ? 'Пароль изменён.' : 'Ошибка: ' + r.error;
         if (r.ok) myForm.reset();
+        if (r.ok && r.reload) location.reload();
       });
 
       const body = document.querySelector<HTMLElement>('[data-users]');

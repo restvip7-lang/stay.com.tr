@@ -18,7 +18,7 @@ export const ROLES: { id: Role; label: string; note: string }[] = [
 ];
 export const isRole = (r: unknown): r is Role => ROLES.some((x) => x.id === r);
 
-export interface UserRow { id: number; login: string; name: string; email: string; role: Role; active: number; created_at: string; last_login_at: string | null }
+export interface UserRow { id: number; login: string; name: string; email: string; role: Role; active: number; must_change: number; created_at: string; last_login_at: string | null }
 
 const SESSION_HOURS = 12;
 const CODE_MINUTES = 10;
@@ -71,6 +71,8 @@ function open(): Db {
       user_id INTEGER, login TEXT, action TEXT NOT NULL, detail TEXT, ip TEXT
     );
   `);
+  // Миграция: «сменить пароль при следующем входе» (первый владелец, сброс пароля владельцем).
+  try { db.exec('ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0'); } catch { /* колонка уже есть */ }
   return db;
 }
 
@@ -104,19 +106,19 @@ export function passwordProblem(pw: string): string | null {
 
 /* ---------- Пользователи ---------- */
 
-const COLS = 'id, login, name, email, role, active, created_at, last_login_at';
+const COLS = 'id, login, name, email, role, active, must_change, created_at, last_login_at';
 export const countUsers = (): number => open().prepare('SELECT COUNT(*) n FROM users').get().n;
 export const listUsers = (): UserRow[] => open().prepare(`SELECT ${COLS} FROM users ORDER BY active DESC, login`).all();
 export const getUser = (id: number): UserRow | null => open().prepare(`SELECT ${COLS} FROM users WHERE id = ?`).get(id) ?? null;
 export const userWithHash = (login: string): (UserRow & { pass_hash: string }) | null => open().prepare(`SELECT ${COLS}, pass_hash FROM users WHERE login = ?`).get(login) ?? null;
 const owners = (): number => open().prepare("SELECT COUNT(*) n FROM users WHERE role = 'owner' AND active = 1").get().n;
 
-export function createUser(u: { login: string; name: string; email: string; role: Role; password: string }): number {
+export function createUser(u: { login: string; name: string; email: string; role: Role; password: string; mustChange?: boolean }): number {
   if (!/^[a-z0-9._-]{3,32}$/i.test(u.login)) throw new Error('Логин: 3–32 символа, латиница, цифры, точка, дефис');
   const p = passwordProblem(u.password);
   if (p) throw new Error(p);
   if (userWithHash(u.login)) throw new Error('Такой логин уже есть');
-  const r = open().prepare('INSERT INTO users (login, name, email, role, pass_hash) VALUES (?, ?, ?, ?, ?)').run(u.login, u.name.slice(0, 80), u.email.slice(0, 120), u.role, hashPassword(u.password));
+  const r = open().prepare('INSERT INTO users (login, name, email, role, pass_hash, must_change) VALUES (?, ?, ?, ?, ?, ?)').run(u.login, u.name.slice(0, 80), u.email.slice(0, 120), u.role, hashPassword(u.password), u.mustChange ? 1 : 0);
   return Number(r.lastInsertRowid);
 }
 
@@ -131,10 +133,11 @@ export function updateUser(id: number, ch: { name?: string; email?: string; role
   if (ch.active === false || (ch.role && ch.role !== cur.role)) endUserSessions(id);
 }
 
-export function setPassword(id: number, pw: string) {
+/** mustChange — пользователь обязан сменить пароль при следующем входе (так после сброса владельцем). */
+export function setPassword(id: number, pw: string, mustChange = false) {
   const p = passwordProblem(pw);
   if (p) throw new Error(p);
-  open().prepare('UPDATE users SET pass_hash = ? WHERE id = ?').run(hashPassword(pw), id);
+  open().prepare('UPDATE users SET pass_hash = ?, must_change = ? WHERE id = ?').run(hashPassword(pw), mustChange ? 1 : 0, id);
 }
 
 export function deleteUser(id: number) {
@@ -157,7 +160,7 @@ export const SESSION_MAX_AGE = SESSION_HOURS * 3600;
 
 export function sessionUser(token: string): UserRow | null {
   if (!token) return null;
-  const row = open().prepare(`SELECT u.id, u.login, u.name, u.email, u.role, u.active, u.created_at, u.last_login_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ? AND u.active = 1`).get(sha(token), now());
+  const row = open().prepare(`SELECT u.id, u.login, u.name, u.email, u.role, u.active, u.must_change, u.created_at, u.last_login_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ? AND s.expires_at > ? AND u.active = 1`).get(sha(token), now());
   return row ?? null;
 }
 export const endSessionToken = (token: string) => open().prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha(token));

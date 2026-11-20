@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { badOrigin, checkPassword, endSession, ipOf, setUserSession, startSession, usersMode } from '../../../lib/adminAuth';
+import { badOrigin, checkPassword, codeRequired, endSession, ipOf, setUserSession, startSession, usersMode } from '../../../lib/adminAuth';
 import { mailReady, sendMail } from '../../../lib/mail';
 
 export const prerender = false;
@@ -68,7 +68,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
   if (db.countUsers() === 0) {
     if (login === 'admin' && checkPassword(pw)) {
       try {
-        const id = db.createUser({ login: 'admin', name: 'Владелец', email: '', role: 'owner', password: pw });
+        const id = db.createUser({ login: 'admin', name: 'Владелец', email: '', role: 'owner', password: pw, mustChange: true });
         db.audit({ id, login: 'admin' }, 'bootstrap', 'создан первый владелец', ip);
         return enter({ id, login: 'admin' });
       } catch {
@@ -91,6 +91,14 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
     return redirect('/admin/?error=1', 303);
   }
   db.clearAttempts(kUser);
+
+  // Обязательный код с почты: без почты у пользователя не пускаем. Исключение — владелец без почты,
+  // иначе админку некому было бы настроить: он войдёт и увидит требование указать почту.
+  if (codeRequired() && mailReady() && !u.email && u.role !== 'owner') {
+    db.audit(u, 'login.no_email', '', ip);
+    await wait();
+    return redirect('/admin/?error=noemail', 303);
+  }
 
   if (mailReady() && u.email) {
     const { ticket, code } = db.createLoginCode(u.id);

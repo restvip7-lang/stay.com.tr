@@ -11,10 +11,22 @@ import { DEFAULT_LANG, isLang, type Lang } from './i18n/config';
 import { legacyRedirect } from './lib/legacy';
 import { redirectFor } from './lib/seoConfig';
 import { cachedPage, pageCacheOn } from './lib/pageCache';
+import { adminIpAllowed, ipOf } from './lib/adminAuth';
 
 const STATIC = /^\/(_astro|_vercel|img$|favicon|mascot|hero\/|services\/|fonts|images|api|admin|robots\.txt|sitemap|llms\.txt|og\/|og-default|logo\.png)/;
 /** Карточка объекта или ЖК — адрес без слеша на конце. */
 const CARD = /\/(id\w+|complexes\/(?!page-\d+\/?$)[a-z0-9-]+)\/?$/;
+
+const ADMIN = /^\/(admin|api\/admin)(\/|$)/;
+/** Заголовки защиты для админки: не кэшировать, не встраивать в чужие страницы, не индексировать. */
+const ADMIN_HEADERS: Record<string, string> = {
+  'cache-control': 'no-store',
+  'x-frame-options': 'DENY',
+  'content-security-policy': "frame-ancestors 'none'",
+  'referrer-policy': 'same-origin',
+  'x-content-type-options': 'nosniff',
+  'x-robots-tag': 'noindex, nofollow',
+};
 
 const redirect = (to: string, status = 301) => new Response(null, { status, headers: { location: to, 'cache-control': 'public, max-age=3600' } });
 
@@ -24,6 +36,18 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   if (host.startsWith('www.')) return redirect(`https://${host.slice(4)}${url.pathname}${url.search}`);
 
   let path = url.pathname;
+
+  // Админка: только по HTTPS (за nginx), только с разрешённых адресов (ADMIN_ALLOW_IPS), с заголовками защиты.
+  if (ADMIN.test(path)) {
+    if (import.meta.env.PROD && ctx.request.headers.get('x-forwarded-proto') === 'http') return redirect(`https://${host}${path}${url.search}`, 308);
+    let addr: string | undefined;
+    try { addr = ctx.clientAddress; } catch { /* при сборке адреса нет */ }
+    if (!adminIpAllowed(ipOf(ctx.request, addr))) return new Response('Not found', { status: 404, headers: ADMIN_HEADERS });
+    const res = await next();
+    for (const [k, v] of Object.entries(ADMIN_HEADERS)) res.headers.set(k, v);
+    return res;
+  }
+
   if (path === '/' || /^\/index\.(php|html?)$/i.test(path)) return redirect(`/${DEFAULT_LANG}/${url.search}`, path === '/' ? 308 : 301);
 
   const first = path.split('/')[1] ?? '';

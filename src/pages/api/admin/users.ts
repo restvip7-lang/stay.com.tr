@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { allowed, badOrigin, currentUser, ipOf, usersMode } from '../../../lib/adminAuth';
+import { allowed, badOrigin, currentUser, ipOf, setUserSession, usersMode } from '../../../lib/adminAuth';
 
 export const prerender = false;
 
@@ -24,9 +24,13 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
     if (b.action === 'myPassword') {
       const row = db.userWithHash(me.login);
       if (!row || !db.verifyPassword(String(b.current ?? ''), row.pass_hash)) return json({ ok: false, error: 'Текущий пароль неверный' }, 400);
+      if (String(b.next ?? '') === String(b.current ?? '')) return json({ ok: false, error: 'Новый пароль должен отличаться от текущего' }, 400);
       db.setPassword(me.id, String(b.next ?? ''));
+      // Остальные входы с этим паролем закрываем, текущий — заменяем новым.
+      db.endUserSessions(me.id);
+      setUserSession(cookies, db.createSession(me.id, ip, request.headers.get('user-agent') ?? ''), db.SESSION_MAX_AGE);
       db.audit(me, 'user.my_password', '', ip);
-      return json({ ok: true });
+      return json({ ok: true, reload: me.mustChange });
     }
     if (!allowed(me, 'users')) return json({ ok: false, error: 'Нет доступа' }, 403);
     const role = b.role === undefined ? undefined : db.isRole(b.role) ? b.role : null;
@@ -44,7 +48,8 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
         return json({ ok: true, users: db.listUsers() });
       }
       case 'password': {
-        db.setPassword(id, String(b.password ?? ''));
+        // Временный пароль от владельца: при входе пользователь обязан задать свой.
+        db.setPassword(id, String(b.password ?? ''), id !== me.id);
         db.endUserSessions(id);
         db.audit(me, 'user.password_reset', who(), ip);
         return json({ ok: true });

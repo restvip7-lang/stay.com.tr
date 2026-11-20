@@ -18,7 +18,7 @@ const ACCESS: Record<Section, Role[]> = {
   seo: ['owner', 'admin', 'seo'],
   users: ['owner'],
 };
-export interface AdminUser { id: number; login: string; name: string; email: string; role: Role }
+export interface AdminUser { id: number; login: string; name: string; email: string; role: Role; mustChange: boolean }
 
 const COOKIE = 'stay_admin';
 const SESSION_COOKIE = 'stay_admin_s';
@@ -67,18 +67,19 @@ function passwordSessionOk(cookies: AstroCookies) {
 
 /* ---------- Общее ---------- */
 
-const toUser = (u: UserRow): AdminUser => ({ id: u.id, login: u.login, name: u.name, email: u.email, role: u.role });
+const toUser = (u: UserRow): AdminUser => ({ id: u.id, login: u.login, name: u.name, email: u.email, role: u.role, mustChange: !!u.must_change });
 
 /** Кто вошёл (или null). */
 export async function currentUser(cookies: AstroCookies): Promise<AdminUser | null> {
-  if (!usersMode()) return passwordSessionOk(cookies) ? { id: 0, login: 'admin', name: 'Админ', email: '', role: 'owner' } : null;
+  if (!usersMode()) return passwordSessionOk(cookies) ? { id: 0, login: 'admin', name: 'Админ', email: '', role: 'owner', mustChange: false } : null;
   const token = cookies.get(SESSION_COOKIE)?.value ?? '';
   if (!token) return null;
   const u = (await db()).sessionUser(token);
   return u ? toUser(u) : null;
 }
 
-export const allowed = (u: AdminUser | null, s: Section) => !!u && ACCESS[s].includes(u.role);
+/** Доступ к разделу. Пока пароль не сменён (первый вход, сброс владельцем) — никаких разделов, только «Мой пароль». */
+export const allowed = (u: AdminUser | null, s: Section) => !!u && !u.mustChange && ACCESS[s].includes(u.role);
 
 /** Пользователь с доступом к разделу (или null). */
 export async function userCan(cookies: AstroCookies, s: Section): Promise<AdminUser | null> {
@@ -106,6 +107,31 @@ export function ipOf(request: Request, clientAddress?: string) {
   const local = !clientAddress || clientAddress === '127.0.0.1' || clientAddress === '::1' || clientAddress === '::ffff:127.0.0.1';
   return (local && request.headers.get('x-real-ip')) || clientAddress || '';
 }
+
+/**
+ * Доступ к админке только с разрешённых адресов: ADMIN_ALLOW_IPS="1.2.3.4, 5.6.7.0/24, 2a01:db8::1".
+ * Пусто — без ограничения. IPv4 — точный адрес или подсеть /N, IPv6 — точный адрес.
+ */
+export function adminIpAllowed(ip: string): boolean {
+  const list = (process.env.ADMIN_ALLOW_IPS || '').split(',').map((s) => s.trim()).filter(Boolean);
+  if (!list.length) return true;
+  const v4 = (a: string) => {
+    const m = a.replace(/^::ffff:/, '').match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+    return m ? m.slice(1).reduce((n, x) => n * 256 + Number(x), 0) : null;
+  };
+  const me = v4(ip);
+  return list.some((rule) => {
+    const [base, bits] = rule.split('/');
+    const b = v4(base);
+    if (b === null || me === null) return rule.toLowerCase() === ip.toLowerCase();
+    const n = bits === undefined ? 32 : Math.max(0, Math.min(32, Number(bits)));
+    const mask = n === 0 ? 0 : (0xffffffff << (32 - n)) >>> 0;
+    return ((me & mask) >>> 0) === ((b & mask) >>> 0);
+  });
+}
+
+/** ADMIN_REQUIRE_CODE=1 — без кода с почты не пускать (кроме владельца без почты: он должен её указать). */
+export const codeRequired = () => process.env.ADMIN_REQUIRE_CODE === '1';
 
 /** Запрос с чужого сайта не принимаем (защита от подделки запросов). */
 export function badOrigin(request: Request) {
