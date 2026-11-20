@@ -4,6 +4,7 @@
 
 import { areaRu, cityRu, COUNTRY_BY_CITY, typeInfo, type TypeGroup } from './dict';
 
+import mediaManifest from '../content/media-manifest.json';
 import fxHeaderMenu from '../content/fixtures/header-menu.json';
 import fxHomeSections from '../content/fixtures/home-sections.json';
 import fxNews from '../content/fixtures/news.json';
@@ -12,6 +13,8 @@ import fxSale from '../content/fixtures/sale.json';
 import fxRental from '../content/fixtures/rental.json';
 import fxUnits from '../content/fixtures/units.json';
 import fxUnitsCitizenship from '../content/fixtures/units-citizenship.json';
+
+const MEDIA = new Set<string>(mediaManifest);
 
 const BASE = (import.meta.env.STAY_API_BASE as string | undefined) || 'https://dev.stayproperty.com';
 const TTL = 10 * 60 * 1000;
@@ -172,7 +175,20 @@ function toListing(x: RawListing): Listing {
 
 export function fixImage(u?: string | null): string | null {
   if (!u) return null;
-  return u.replace(/([^:])\/\/+/g, '$1/');
+  return ownImage(u.replace(/([^:])\/\/+/g, '$1/'));
+}
+
+/**
+ * Картинки старого сайта (https://stay.com.tr/upload/..., /local/...), которые ещё отдаёт API dev:
+ * если файл уже перенесён к нам (scripts/import-media.mjs → public/media, список в media-manifest.json),
+ * отдаём свою копию /media/..., иначе оставляем старый адрес.
+ */
+const OLD_SITE = /^https?:\/\/(?:www\.)?stay\.com\.tr\/(upload|local)\/([^?#]+)/i;
+export function ownImage(u: string): string {
+  const m = OLD_SITE.exec(u);
+  if (!m) return u;
+  const rel = (m[1].toLowerCase() === 'local' ? 'local/' : '') + decodeURI(m[2]);
+  return MEDIA.has(rel) ? `/media/${rel}` : u;
 }
 
 function parseEuro(label?: string | null): number | null {
@@ -246,7 +262,12 @@ export interface HomeSections {
 }
 
 export async function getHomeSections(): Promise<HomeSections> {
-  return cached('home-sections', () => getJson<HomeSections>('/api/home-sections?lang=ru'), () => fxHomeSections as any);
+  const d: HomeSections = await cached('home-sections', () => getJson<HomeSections>('/api/home-sections?lang=ru'), () => fxHomeSections as any);
+  return {
+    ...d,
+    buyVariants: d.buyVariants.map((v) => ({ ...v, imageUrl: fixImage(v.imageUrl) })),
+    company: { ...d.company, imageUrls: d.company.imageUrls.map((u) => fixImage(u)!).filter(Boolean) },
+  };
 }
 
 export async function getProjects(): Promise<Project[]> {
