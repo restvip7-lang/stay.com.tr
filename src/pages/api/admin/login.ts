@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { badOrigin, checkPassword, codeRequired, endSession, ipOf, setUserSession, startSession, usersMode } from '../../../lib/adminAuth';
+import { badOrigin, checkPassword, codeRequired, endSession, ipOf, setUserSession, startSession, usersMode, validEmail } from '../../../lib/adminAuth';
 import { mailReady, sendMail } from '../../../lib/mail';
 
 export const prerender = false;
@@ -64,21 +64,24 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
     return redirect('/admin/?error=locked', 303);
   }
 
-  // Первый запуск: пользователей ещё нет — входим как admin с паролем из ADMIN_PASSWORD, он становится владельцем.
+  // Первый запуск: пользователей ещё нет — admin с паролем из ADMIN_PASSWORD становится владельцем,
+  // его почта — из ADMIN_EMAIL (на неё придёт код уже при этом первом входе). Пароль он сразу сменит.
   if (db.countUsers() === 0) {
     if (login === 'admin' && checkPassword(pw)) {
+      const email = (process.env.ADMIN_EMAIL || '').trim();
+      if (codeRequired() && !validEmail(email)) return redirect('/admin/?error=adminemail', 303);
       try {
-        const id = db.createUser({ login: 'admin', name: 'Владелец', email: '', role: 'owner', password: pw, mustChange: true });
+        const id = db.createUser({ login: 'admin', name: 'Владелец', email, role: 'owner', password: pw, mustChange: true });
         db.audit({ id, login: 'admin' }, 'bootstrap', 'создан первый владелец', ip);
-        return enter({ id, login: 'admin' });
       } catch {
         return redirect('/admin/?error=weak', 303);
       }
+    } else {
+      db.addAttempt(kUser);
+      db.addAttempt(kIp);
+      await wait();
+      return redirect('/admin/?error=1', 303);
     }
-    db.addAttempt(kUser);
-    db.addAttempt(kIp);
-    await wait();
-    return redirect('/admin/?error=1', 303);
   }
 
   const u = db.userWithHash(login);
@@ -92,12 +95,11 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
   }
   db.clearAttempts(kUser);
 
-  // Обязательный код с почты: без почты у пользователя не пускаем. Исключение — владелец без почты,
-  // иначе админку некому было бы настроить: он войдёт и увидит требование указать почту.
-  if (codeRequired() && mailReady() && !u.email && u.role !== 'owner') {
-    db.audit(u, 'login.no_email', '', ip);
+  // Код из письма обязателен для всех: без настроенной почты или без адреса у пользователя не пускаем.
+  if (codeRequired() && (!mailReady() || !validEmail(u.email))) {
+    db.audit(u, mailReady() ? 'login.no_email' : 'login.no_mail', '', ip);
     await wait();
-    return redirect('/admin/?error=noemail', 303);
+    return redirect(`/admin/?error=${mailReady() ? 'noemail' : 'nomail'}`, 303);
   }
 
   if (mailReady() && u.email) {

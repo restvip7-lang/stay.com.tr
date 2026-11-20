@@ -130,8 +130,12 @@ export function adminIpAllowed(ip: string): boolean {
   });
 }
 
-/** ADMIN_REQUIRE_CODE=1 — без кода с почты не пускать (кроме владельца без почты: он должен её указать). */
-export const codeRequired = () => process.env.ADMIN_REQUIRE_CODE === '1';
+/**
+ * Вход только с кодом из письма — для всех, включая владельца. Включено по умолчанию;
+ * ADMIN_REQUIRE_CODE=0 — аварийно выключить (например, если сломалась почта), затем перезапустить сайт.
+ */
+export const codeRequired = () => process.env.ADMIN_REQUIRE_CODE !== '0';
+export const validEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
 
 /** Запрос с чужого сайта не принимаем (защита от подделки запросов). */
 export function badOrigin(request: Request) {

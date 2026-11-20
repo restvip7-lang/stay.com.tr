@@ -1,5 +1,5 @@
 import type { APIRoute } from 'astro';
-import { allowed, badOrigin, currentUser, ipOf, setUserSession, usersMode } from '../../../lib/adminAuth';
+import { allowed, badOrigin, codeRequired, currentUser, ipOf, setUserSession, usersMode, validEmail } from '../../../lib/adminAuth';
 
 export const prerender = false;
 
@@ -36,6 +36,10 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
     const role = b.role === undefined ? undefined : db.isRole(b.role) ? b.role : null;
     if (role === null) return json({ ok: false, error: 'Неизвестная роль' }, 400);
     const who = () => db.getUser(id)?.login ?? String(id);
+    // Вход только по коду из письма — без почты пользователь не сможет войти.
+    const needEmail = (e: unknown) => codeRequired() && !validEmail(String(e ?? '').trim());
+    if (b.action === 'create' && needEmail(b.email)) return json({ ok: false, error: 'Укажите почту: вход в админку только с кодом из письма' }, 400);
+    if (b.action === 'update' && b.email !== undefined && needEmail(b.email)) return json({ ok: false, error: 'Почту нельзя оставить пустой: вход только с кодом из письма' }, 400);
     switch (b.action) {
       case 'create': {
         const nid = db.createUser({ login: String(b.login ?? '').trim(), name: String(b.name ?? ''), email: String(b.email ?? '').trim(), role: role ?? 'editor', password: String(b.password ?? '') });
