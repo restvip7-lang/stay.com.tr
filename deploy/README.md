@@ -46,12 +46,39 @@ Ubuntu 24.04, 2 ядра, 4 ГБ памяти, 40 ГБ диска. Сборка 
 
 ## Автовыкладка из GitHub
 
-В репозитории в Settings → Secrets and variables → Actions добавить:
-- `VPS_HOST` — IP или домен сервера;
-- `VPS_USER` — `stay`;
-- `VPS_SSH_KEY` — приватный ключ, публичная часть которого лежит на сервере в `/home/stay/.ssh/authorized_keys`.
+Сайт собирается в GitHub Actions (на сервере мало памяти для сборки), на сервер уходит только готовый архив
+(`.github/workflows/deploy-vps.yml` → `deploy/ssh-gate.sh` → `deploy/release.sh`). Скрипт выкладки подменяет версию,
+проверяет `/ru/`, при сбое сам возвращает прежнюю (вместе с зависимостями), прогревает кэш, хранит 3 последних архива.
 
-После этого каждый пуш в `main` сам обновляет сайт (`.github/workflows/deploy-vps.yml`). Пока секретов нет, задача пропускается и ничего не ломает.
+Настройка один раз:
+1. На своём компьютере создать ключ только для выкладки: `ssh-keygen -t ed25519 -f stay-deploy -N "" -C github-deploy`.
+2. На сервере (под root):
+   ```
+   install -d -o stay -g stay -m 700 /home/stay/bin /home/stay/.ssh /home/stay/releases
+   install -o stay -g stay -m 755 /home/stay/app/deploy/ssh-gate.sh /home/stay/bin/ssh-gate.sh
+   echo 'command="/home/stay/bin/ssh-gate.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty <содержимое stay-deploy.pub>' >> /home/stay/.ssh/authorized_keys
+   chown stay:stay /home/stay/.ssh/authorized_keys && chmod 600 /home/stay/.ssh/authorized_keys
+   ```
+   С таким ключом можно только передать архив и выложить его: ни оболочки, ни других команд.
+3. В репозитории, Settings → Secrets and variables → Actions:
+   - секреты: `VPS_HOST` (IP сервера), `VPS_SSH_KEY` (содержимое файла `stay-deploy`),
+     `VPS_KNOWN_HOSTS` (вывод `ssh-keyscan -t ed25519 <IP>` — отпечаток сервера);
+   - переменные: `VPS_DEPLOY_BRANCH` — ветка, пуш в которую выкладывает сайт; `STAY_NOINDEX` — `1`/`0`
+     (закрыт/открыт для поисковиков, по умолчанию `1`); при необходимости `STAY_API_BASE`, `STAY_CONTENT_API`, `STAY_DOMAINS`.
+4. Файл `stay-deploy` после этого удалить с компьютера.
+
+Пока секретов или `VPS_DEPLOY_BRANCH` нет, выкладка пропускается. Вручную — Actions → Deploy to VPS → Run workflow.
+`deploy/deploy.sh` (сборка на самом сервере) оставлен как запасной ручной способ: ему нужно ~1,5 ГБ свободной памяти.
+
+## Защита админки
+
+- Пароли — хэш scrypt, от 10 символов, буквы и цифры; сессия 12 часов; 5 неверных паролей на логин или 20 с адреса за 15 минут — блокировка.
+- Первый владелец входит паролем из `ADMIN_PASSWORD` и обязан сразу задать свой; после сброса пароля владельцем
+  пользователь тоже задаёт свой при входе. До этого разделы админки и их API закрыты.
+- Смена своего пароля закрывает все другие входы этого пользователя.
+- `ADMIN_ALLOW_IPS` — админка открывается только с перечисленных адресов (остальным 404).
+- `ADMIN_REQUIRE_CODE=1` и почта `SMTP_*` — без кода из письма не войти (у пользователя должен быть e-mail).
+- `/admin` и `/api/admin` — только по HTTPS, не кэшируются, не встраиваются в чужие страницы, закрыты от поисковиков.
 
 ## Перенос настроек с Vercel
 
