@@ -22,6 +22,8 @@ export function orgLd(lang: Lang) {
     telephone: '+905301782916',
     email: site.email,
     address: { '@type': 'PostalAddress', streetAddress: 'Oba Mah., Mesut Cd., No: 54/A', addressLocality: 'Alanya', addressRegion: 'Antalya', postalCode: '07400', addressCountry: 'TR' },
+    geo: { '@type': 'GeoCoordinates', latitude: 36.5381797, longitude: 32.0393043 },
+    hasMap: 'https://maps.app.goo.gl/uRdjXBaUqdnRZMLA7',
     sameAs: site.socials.map((s) => s.href),
     areaServed: [
       { '@type': 'Country', name: 'Turkey' },
