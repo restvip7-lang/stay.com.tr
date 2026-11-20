@@ -111,10 +111,24 @@ export const countUsers = (): number => open().prepare('SELECT COUNT(*) n FROM u
 export const listUsers = (): UserRow[] => open().prepare(`SELECT ${COLS} FROM users ORDER BY active DESC, login`).all();
 export const getUser = (id: number): UserRow | null => open().prepare(`SELECT ${COLS} FROM users WHERE id = ?`).get(id) ?? null;
 export const userWithHash = (login: string): (UserRow & { pass_hash: string }) | null => open().prepare(`SELECT ${COLS}, pass_hash FROM users WHERE login = ?`).get(login) ?? null;
+/** Вход по логину или по почте (почта у пользователей уникальна). */
+export function userForLogin(x: string): (UserRow & { pass_hash: string }) | null {
+  const byLogin = userWithHash(x);
+  if (byLogin || !x.includes('@')) return byLogin;
+  const rows = open().prepare(`SELECT ${COLS}, pass_hash FROM users WHERE email = ? COLLATE NOCASE`).all(x);
+  return rows.length === 1 ? rows[0] : null;
+}
+const emailTaken = (email: string, exceptId = 0): boolean =>
+  !!email && !!open().prepare('SELECT 1 FROM users WHERE email = ? COLLATE NOCASE AND id != ?').get(email, exceptId);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const owners = (): number => open().prepare("SELECT COUNT(*) n FROM users WHERE role = 'owner' AND active = 1").get().n;
 
 export function createUser(u: { login: string; name: string; email: string; role: Role; password: string; mustChange?: boolean }): number {
-  if (!/^[a-z0-9._-]{3,32}$/i.test(u.login)) throw new Error('Логин: 3–32 символа, латиница, цифры, точка, дефис');
+  u = { ...u, email: u.email.trim().toLowerCase(), login: (u.login.trim() || u.email.trim()).toLowerCase() };
+  // Логин — латиница (3–32) или сама почта: тогда входить можно просто по адресу.
+  const okLogin = /^[a-z0-9._-]{3,32}$/.test(u.login) || (EMAIL_RE.test(u.login) && u.login.length <= 120);
+  if (!okLogin) throw new Error('Логин: почта или 3–32 символа латиницей (цифры, точка, дефис)');
+  if (emailTaken(u.email)) throw new Error('Пользователь с такой почтой уже есть');
   const p = passwordProblem(u.password);
   if (p) throw new Error(p);
   if (userWithHash(u.login)) throw new Error('Такой логин уже есть');
@@ -125,10 +139,11 @@ export function createUser(u: { login: string; name: string; email: string; role
 export function updateUser(id: number, ch: { name?: string; email?: string; role?: Role; active?: boolean }) {
   const cur = getUser(id);
   if (!cur) throw new Error('Пользователь не найден');
+  if (ch.email !== undefined && emailTaken(ch.email.trim(), id)) throw new Error('Пользователь с такой почтой уже есть');
   const losesOwner = cur.role === 'owner' && cur.active && ((ch.role && ch.role !== 'owner') || ch.active === false);
   if (losesOwner && owners() <= 1) throw new Error('Нельзя убрать последнего владельца');
   open().prepare('UPDATE users SET name = ?, email = ?, role = ?, active = ? WHERE id = ?').run(
-    (ch.name ?? cur.name).slice(0, 80), (ch.email ?? cur.email).slice(0, 120), ch.role ?? cur.role, ch.active === undefined ? cur.active : ch.active ? 1 : 0, id,
+    (ch.name ?? cur.name).slice(0, 80), (ch.email === undefined ? cur.email : ch.email.trim().toLowerCase()).slice(0, 120), ch.role ?? cur.role, ch.active === undefined ? cur.active : ch.active ? 1 : 0, id,
   );
   if (ch.active === false || (ch.role && ch.role !== cur.role)) endUserSessions(id);
 }

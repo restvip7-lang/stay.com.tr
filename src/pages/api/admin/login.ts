@@ -54,7 +54,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
   }
 
   // Первый шаг: логин и пароль.
-  const login = String(form.get('login') ?? '').trim().toLowerCase().slice(0, 64);
+  const login = String(form.get('login') ?? '').trim().toLowerCase().slice(0, 120);
   const pw = String(form.get('password') ?? '');
   const kUser = `u:${login}`;
   const kIp = `ip:${ip}`;
@@ -84,7 +84,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
     }
   }
 
-  const u = db.userWithHash(login);
+  const u = db.userForLogin(login);
   const ok = u ? u.active === 1 && db.verifyPassword(pw, u.pass_hash) : (db.dummyVerify(pw), false);
   if (!u || !ok) {
     db.addAttempt(kUser);

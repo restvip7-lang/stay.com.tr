@@ -21,7 +21,7 @@ const multi = usersMode();
 const step = Astro.url.searchParams.get('step');
 const errCode = Astro.url.searchParams.get('error');
 const ERRORS: Record<string, string> = {
-  '1': multi ? 'Неверный логин или пароль' : 'Неверный пароль',
+  '1': multi ? 'Неверная почта (логин) или пароль' : 'Неверный пароль',
   locked: 'Слишком много попыток. Подождите 15 минут.',
   code: 'Неверный код',
   expired: 'Код устарел или попыток больше нет. Войдите заново.',
@@ -129,7 +129,7 @@ if (authed) {
             <h1 class="display text-3xl">Вход</h1>
             {multi && (
               <>
-                <label class="label mt-6" for="login">Логин</label>
+                <label class="label mt-6" for="login">Почта или логин</label>
                 <input id="login" name="login" required autocomplete="username" autocapitalize="off" spellcheck="false" class="field" autofocus />
               </>
             )}
@@ -313,7 +313,7 @@ if (authed) {
             </div>
             <h3 class="mt-6 font-medium">Добавить пользователя</h3>
             <form data-user-add class="mt-3 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-              <input name="login" required placeholder="Логин (латиница)" autocapitalize="off" class="field" />
+              <input name="login" placeholder="Логин (необяз., иначе — почта)" autocapitalize="off" class="field" />
               <input name="name" placeholder="Имя" class="field" />
               <input name="email" type="email" required={codeRequired()} placeholder="Почта для кода" class="field" />
               <select name="role" class="field">{ROLE_LIST.map((r) => <option value={r.id} selected={r.id === 'editor'}>{r.label}</option>)}</select>
@@ -638,7 +638,8 @@ if (authed) {
           e.preventDefault();
           const f = Object.fromEntries(new FormData(add));
           const r = await post({ action: 'create', ...f });
-          done(r, `Добавлен ${f.login}. Передайте ему логин и временный пароль, пусть сменит его в разделе «Мой пароль».`);
+          const who = String(f.login || f.email);
+          done(r, `Добавлен ${who}. Передайте ему адрес для входа (${who}) и временный пароль: при входе придёт код на почту, затем он задаст свой пароль.`);
           if (r.ok) add.reset();
         });
       }

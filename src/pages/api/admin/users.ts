@@ -42,8 +42,8 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
     if (b.action === 'update' && b.email !== undefined && needEmail(b.email)) return json({ ok: false, error: 'Почту нельзя оставить пустой: вход только с кодом из письма' }, 400);
     switch (b.action) {
       case 'create': {
-        const nid = db.createUser({ login: String(b.login ?? '').trim(), name: String(b.name ?? ''), email: String(b.email ?? '').trim(), role: role ?? 'editor', password: String(b.password ?? '') });
-        db.audit(me, 'user.create', `${b.login} (${role ?? 'editor'})`, ip);
+        const nid = db.createUser({ login: String(b.login ?? '').trim(), name: String(b.name ?? ''), email: String(b.email ?? '').trim(), role: role ?? 'editor', password: String(b.password ?? ''), mustChange: true });
+        db.audit(me, 'user.create', `${b.login || b.email} (${role ?? 'editor'})`, ip);
         return json({ ok: true, id: nid, users: db.listUsers() });
       }
       case 'update': {
