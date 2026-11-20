@@ -82,8 +82,32 @@ export function guideLead(lang: L2, g: Guide): string {
   return g.text[lang][0] ?? '';
 }
 
+/**
+ * Обложка гайда — фото жилого комплекса из каталога в этом районе (в городе — для гайда по городу):
+ * берём ЖК с наибольшим числом квартир, чтобы фото было «лицом» района. Нет ЖК с фото — null (заглушка).
+ */
+export async function guideImage(g: Guide): Promise<string | null> {
+  try {
+    const { getComplexes } = await import('./catalog');
+    const all = (await getComplexes()).filter((c) => c.image && !c.isPrivate && c.city === g.city);
+    // Для гайда по городу берём ЖК из района без своего гайда — чтобы фото не повторяло обложку гайда района.
+    const guided = new Set(GUIDES.filter((x) => x.city === g.city && x.district).map((x) => x.district));
+    const cityPool = all.filter((c) => !c.district || !guided.has(c.district));
+    let pool = g.district ? all.filter((c) => c.district === g.district) : cityPool.length ? cityPool : all;
+    // Район записан в каталоге иначе (или ЖК закрытый) — ищем ЖК с названием района в имени.
+    if (!pool.length && g.district) pool = (await getComplexes()).filter((c) => c.image && c.slug.includes(g.district!));
+    const best = (pool.length ? pool : []).sort((a, b) => b.project.units.length - a.project.units.length || a.title.localeCompare(b.title))[0];
+    return best?.image ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function postsOf(lang: L2, cat: BlogCat): Promise<Post[]> {
   if (cat === 'laws') return lawsOf(lang).map((a) => ({ cat, slug: a.slug, href: blogUrl(lang, cat, a.slug), title: a.tr[lang]!.title, description: a.tr[lang]!.description, image: a.image, date: a.published, updated: a.updated }));
-  if (cat === 'area-guides') return GUIDES.map((g) => ({ cat, slug: g.slug, href: blogUrl(lang, cat, g.slug), title: guideTitle(lang, g), description: strip(guideLead(lang, g), 160), image: null, date: GUIDE_DATE, updated: GUIDE_DATE }));
+  if (cat === 'area-guides') {
+    const images = await Promise.all(GUIDES.map(guideImage));
+    return GUIDES.map((g, i) => ({ cat, slug: g.slug, href: blogUrl(lang, cat, g.slug), title: guideTitle(lang, g), description: strip(guideLead(lang, g), 160), image: images[i], date: GUIDE_DATE, updated: GUIDE_DATE }));
+  }
   return (await getNewsL(lang)).map((n) => ({ cat, slug: n.slug, href: blogUrl(lang, 'news', n.slug), title: n.title, description: n.seoDescription || strip(n.excerpt || n.content, 160), image: n.image, date: n.date, updated: n.updated }));
 }
