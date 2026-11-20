@@ -73,6 +73,8 @@ function open(): Db {
   `);
   // Миграция: «сменить пароль при следующем входе» (первый владелец, сброс пароля владельцем).
   try { db.exec('ALTER TABLE users ADD COLUMN must_change INTEGER NOT NULL DEFAULT 0'); } catch { /* колонка уже есть */ }
+  // Ссылки «Забыли пароль?»: в базе только хэш токена, живут 30 минут, одноразовые.
+  db.exec('CREATE TABLE IF NOT EXISTS reset_tokens (token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)');
   return db;
 }
 
@@ -111,11 +113,10 @@ export const countUsers = (): number => open().prepare('SELECT COUNT(*) n FROM u
 export const listUsers = (): UserRow[] => open().prepare(`SELECT ${COLS} FROM users ORDER BY active DESC, login`).all();
 export const getUser = (id: number): UserRow | null => open().prepare(`SELECT ${COLS} FROM users WHERE id = ?`).get(id) ?? null;
 export const userWithHash = (login: string): (UserRow & { pass_hash: string }) | null => open().prepare(`SELECT ${COLS}, pass_hash FROM users WHERE login = ?`).get(login) ?? null;
-/** Вход по логину или по почте (почта у пользователей уникальна). */
-export function userForLogin(x: string): (UserRow & { pass_hash: string }) | null {
-  const byLogin = userWithHash(x);
-  if (byLogin || !x.includes('@')) return byLogin;
-  const rows = open().prepare(`SELECT ${COLS}, pass_hash FROM users WHERE email = ? COLLATE NOCASE`).all(x);
+/** Пользователь по почте (вход в админку — только по почте; почта у пользователей уникальна). */
+export function userByEmail(email: string): (UserRow & { pass_hash: string }) | null {
+  if (!email.includes('@')) return null;
+  const rows = open().prepare(`SELECT ${COLS}, pass_hash FROM users WHERE email = ? COLLATE NOCASE`).all(email.trim());
   return rows.length === 1 ? rows[0] : null;
 }
 const emailTaken = (email: string, exceptId = 0): boolean =>
@@ -208,6 +209,23 @@ export function checkLoginCode(ticket: string, code: string): number | 'retry' |
   return row.user_id;
 }
 export const ticketAlive = (ticket: string): boolean => !!open().prepare('SELECT 1 FROM login_codes WHERE ticket_hash = ? AND expires_at > ? AND tries < 5').get(sha(ticket), now());
+
+/* ---------- Восстановление пароля ---------- */
+
+export const RESET_TTL_MIN = 30;
+export function createResetToken(userId: number): string {
+  const token = randomBytes(32).toString('base64url');
+  open().prepare('DELETE FROM reset_tokens WHERE user_id = ? OR expires_at < ?').run(userId, now());
+  open().prepare('INSERT INTO reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha(token), userId, now() + RESET_TTL_MIN * 60_000);
+  return token;
+}
+/** Пользователь по живой ссылке (не гасит её). */
+export function resetUser(token: string): number | null {
+  if (!token) return null;
+  const row = open().prepare('SELECT user_id FROM reset_tokens WHERE token_hash = ? AND expires_at > ?').get(sha(token), now());
+  return row ? row.user_id : null;
+}
+export const dropResetTokens = (userId: number) => open().prepare('DELETE FROM reset_tokens WHERE user_id = ?').run(userId);
 
 /* ---------- Защита от подбора ---------- */
 

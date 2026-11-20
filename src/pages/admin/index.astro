@@ -21,7 +21,10 @@ const multi = usersMode();
 const step = Astro.url.searchParams.get('step');
 const errCode = Astro.url.searchParams.get('error');
 const ERRORS: Record<string, string> = {
-  '1': multi ? 'Неверная почта (логин) или пароль' : 'Неверный пароль',
+  '1': multi ? 'Неверная почта или пароль' : 'Неверный пароль',
+  resetexpired: 'Ссылка для восстановления устарела или уже использована. Запросите новую.',
+  mismatch: 'Пароли не совпадают.',
+  weakpw: 'Пароль слишком простой: нужно от 10 символов, буквы и цифры.',
   locked: 'Слишком много попыток. Подождите 15 минут.',
   code: 'Неверный код',
   expired: 'Код устарел или попыток больше нет. Войдите заново.',
@@ -40,6 +43,12 @@ let seoText = { redirects: '', overrides: '{}' };
 let users: any[] = [];
 let noUsersYet = false;
 if (!authed && multi) noUsersYet = (await import('../../lib/adminDb')).countUsers() === 0;
+// «Забыли пароль?»: ?forgot=1 — форма почты, ?sent=1 — письмо отправлено, ?reset=<токен> — новый пароль, ?reset=done — готово.
+const forgot = Astro.url.searchParams.has('forgot');
+const sent = Astro.url.searchParams.has('sent');
+const resetToken = Astro.url.searchParams.get('reset') ?? '';
+const resetDone = resetToken === 'done';
+const resetOk = !authed && multi && !!resetToken && !resetDone && !!(await import('../../lib/adminDb')).resetUser(resetToken);
 let journal: any[] = [];
 let ROLE_LIST: { id: string; label: string; note: string }[] = [];
 if (authed && multi) {
@@ -113,7 +122,40 @@ if (authed) {
 
     {enabled && !authed && (
       <main class="container-x grid place-items-center py-24">
-        {step === 'code' ? (
+        {multi && resetToken && !resetDone ? (
+          resetOk ? (
+            <form method="post" action="/api/admin/reset" class="card w-full max-w-sm p-8">
+              <input type="hidden" name="step" value="set" />
+              <input type="hidden" name="token" value={resetToken} />
+              <h1 class="display text-3xl">Новый пароль</h1>
+              <p class="mt-3 text-sm text-muted">Не короче 10 символов, буквы и цифры. После смены все ваши входы закроются, войдите заново с кодом из письма.</p>
+              <label class="label mt-6" for="np">Новый пароль</label>
+              <input id="np" name="password" type="password" required minlength="10" autocomplete="new-password" class="field" autofocus />
+              <label class="label mt-4" for="np2">Ещё раз</label>
+              <input id="np2" name="password2" type="password" required minlength="10" autocomplete="new-password" class="field" />
+              {error && <p class="mt-3 text-sm text-red-600">{error}</p>}
+              <button class="btn btn-dark mt-6 w-full">Сохранить</button>
+            </form>
+          ) : (
+            <div class="card w-full max-w-sm p-8">
+              <h1 class="display text-3xl">Ссылка устарела</h1>
+              <p class="mt-3 text-sm text-muted">{ERRORS.resetexpired}</p>
+              <a href="/admin/?forgot=1" class="btn btn-dark mt-6 w-full">Запросить снова</a>
+            </div>
+          )
+        ) : multi && (forgot || sent) ? (
+          <form method="post" action="/api/admin/reset" class="card w-full max-w-sm p-8">
+            <input type="hidden" name="step" value="request" />
+            <h1 class="display text-3xl">Забыли пароль?</h1>
+            {sent
+              ? <p class="mt-4 rounded-2xl bg-peach px-4 py-3 text-sm">Если такой адрес есть в админке, мы отправили на него письмо со ссылкой. Она действует 30 минут. Проверьте и папку «Спам».</p>
+              : <p class="mt-3 text-sm text-muted">Укажите почту, с которой входите в админку. Пришлём ссылку, чтобы задать новый пароль.</p>}
+            <label class="label mt-6" for="femail">Почта</label>
+            <input id="femail" name="email" type="email" required autocomplete="email" autocapitalize="off" spellcheck="false" class="field" autofocus={!sent} />
+            <button class="btn btn-dark mt-6 w-full">{sent ? 'Отправить ещё раз' : 'Прислать ссылку'}</button>
+            <a href="/admin/" class="mt-4 block text-center text-sm text-muted hover:text-ink">Вернуться ко входу</a>
+          </form>
+        ) : step === 'code' ? (
           <form method="post" action="/api/admin/login" class="card w-full max-w-sm p-8">
             <input type="hidden" name="step" value="code" />
             <h1 class="display text-3xl">Код из письма</h1>
@@ -129,15 +171,17 @@ if (authed) {
             <h1 class="display text-3xl">Вход</h1>
             {multi && (
               <>
-                <label class="label mt-6" for="login">Почта или логин</label>
-                <input id="login" name="login" required autocomplete="username" autocapitalize="off" spellcheck="false" class="field" autofocus />
+                {resetDone && <p class="mt-4 rounded-2xl bg-peach px-4 py-3 text-sm">Пароль изменён. Войдите с новым паролем, код придёт на почту.</p>}
+                <label class="label mt-6" for="login">Почта</label>
+                <input id="login" name="login" type="email" required autocomplete="username" autocapitalize="off" spellcheck="false" class="field" autofocus />
               </>
             )}
-            {noUsersYet && <p class="mt-3 rounded-2xl bg-peach px-4 py-3 text-sm">Первый вход: логин <b>admin</b> и пароль из ADMIN_PASSWORD на сервере, код придёт на почту из ADMIN_EMAIL. Так создаётся владелец, дальше он добавляет остальных.</p>}
+            {noUsersYet && <p class="mt-3 rounded-2xl bg-peach px-4 py-3 text-sm">Первый вход: почта из ADMIN_EMAIL и пароль из ADMIN_PASSWORD на сервере, код придёт на эту почту. Так создаётся владелец, дальше он добавляет остальных.</p>}
             <label class="label mt-4" for="pw">Пароль</label>
             <input id="pw" name="password" type="password" required autocomplete="current-password" class="field" autofocus={!multi} />
             {error && <p class="mt-3 text-sm text-red-600">{error}</p>}
             <button class="btn btn-dark mt-6 w-full">Войти</button>
+            {multi && <a href="/admin/?forgot=1" class="mt-4 block text-center text-sm text-muted hover:text-ink">Забыли пароль?</a>}
           </form>
         )}
       </main>
@@ -312,8 +356,7 @@ if (authed) {
               </table>
             </div>
             <h3 class="mt-6 font-medium">Добавить пользователя</h3>
-            <form data-user-add class="mt-3 grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-              <input name="login" placeholder="Логин (необяз., иначе — почта)" autocapitalize="off" class="field" />
+            <form data-user-add class="mt-3 grid gap-3 md:grid-cols-3 lg:grid-cols-5">
               <input name="name" placeholder="Имя" class="field" />
               <input name="email" type="email" required={codeRequired()} placeholder="Почта для кода" class="field" />
               <select name="role" class="field">{ROLE_LIST.map((r) => <option value={r.id} selected={r.id === 'editor'}>{r.label}</option>)}</select>
@@ -638,8 +681,7 @@ if (authed) {
           e.preventDefault();
           const f = Object.fromEntries(new FormData(add));
           const r = await post({ action: 'create', ...f });
-          const who = String(f.login || f.email);
-          done(r, `Добавлен ${who}. Передайте ему адрес для входа (${who}) и временный пароль: при входе придёт код на почту, затем он задаст свой пароль.`);
+          done(r, `Добавлен ${f.email}. Передайте ему временный пароль: он входит по своей почте, получает код и задаёт свой пароль.`);
           if (r.ok) add.reset();
         });
       }

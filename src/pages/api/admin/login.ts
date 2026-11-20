@@ -64,15 +64,15 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
     return redirect('/admin/?error=locked', 303);
   }
 
-  // Первый запуск: пользователей ещё нет — admin с паролем из ADMIN_PASSWORD становится владельцем,
-  // его почта — из ADMIN_EMAIL (на неё придёт код уже при этом первом входе). Пароль он сразу сменит.
+  // Первый запуск: пользователей ещё нет — почта из ADMIN_EMAIL с паролем из ADMIN_PASSWORD становится владельцем
+  // (на эту почту придёт код уже при первом входе). Пароль он сразу сменит.
   if (db.countUsers() === 0) {
-    if (login === 'admin' && checkPassword(pw)) {
-      const email = (process.env.ADMIN_EMAIL || '').trim();
-      if (codeRequired() && !validEmail(email)) return redirect('/admin/?error=adminemail', 303);
+    const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+    if (codeRequired() && !validEmail(email)) return redirect('/admin/?error=adminemail', 303);
+    if (login === email && checkPassword(pw)) {
       try {
-        const id = db.createUser({ login: 'admin', name: 'Владелец', email, role: 'owner', password: pw, mustChange: true });
-        db.audit({ id, login: 'admin' }, 'bootstrap', 'создан первый владелец', ip);
+        const id = db.createUser({ login: email, name: 'Владелец', email, role: 'owner', password: pw, mustChange: true });
+        db.audit({ id, login: email }, 'bootstrap', 'создан первый владелец', ip);
       } catch {
         return redirect('/admin/?error=weak', 303);
       }
@@ -84,7 +84,7 @@ export const POST: APIRoute = async ({ request, cookies, redirect, clientAddress
     }
   }
 
-  const u = db.userForLogin(login);
+  const u = db.userByEmail(login);
   const ok = u ? u.active === 1 && db.verifyPassword(pw, u.pass_hash) : (db.dummyVerify(pw), false);
   if (!u || !ok) {
     db.addAttempt(kUser);
