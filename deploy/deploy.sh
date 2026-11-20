@@ -16,7 +16,11 @@ main() {
   pm2 save
   # Проверка, что сайт отвечает.
   for i in $(seq 1 20); do
-    if curl -fsS -o /dev/null "http://127.0.0.1:${PORT:-4321}/ru/"; then echo "OK: $(git log -1 --format='%h %s')"; exit 0; fi
+    if curl -fsS -o /dev/null "http://127.0.0.1:${PORT:-4321}/ru/"; then
+      # Прогрев кэша страниц: после перезапуска он пустой, первые посетители ждали бы сборку.
+      for p in /en/ /tr/ /ru/turkey/sale/ /en/turkey/sale/ /ru/turkey/rent/ /ru/about/; do curl -fsS -o /dev/null "http://127.0.0.1:${PORT:-4321}$p" || true; done
+      echo "OK: $(git log -1 --format='%h %s')"; exit 0
+    fi
     sleep 2
   done
   echo "Сайт не ответил после выкладки" >&2

@@ -66,7 +66,7 @@ export const onRequest = defineMiddleware(async (ctx, next) => {
   };
   // На своём сервере (VPS) CDN нет — страницы кэширует сам сайт (src/lib/pageCache.ts).
   const res = pageCacheOn() && ctx.request.method === 'GET' && isLang(first)
-    ? await cachedPage(url.pathname + url.search, ['site', `lang-${lang}`], render)
+    ? await cachedPage(url.pathname + url.search, ['site', `lang-${lang}`], render, ctx.request)
     : await render();
 
   // Пока сайт не открыт для индексации, закрываем его заголовком (staging-защита, ТЗ 15 п. 18).
