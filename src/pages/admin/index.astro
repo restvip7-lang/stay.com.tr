@@ -6,6 +6,7 @@ import { getHomeConfig, storageReady } from '../../lib/homeConfig';
 import { getProjects } from '../../lib/api';
 import { ANTHROPIC_MODELS, DEFAULT_MODELS, chatAdminView, getChatSettings } from '../../lib/chatConfig';
 import { usageFresh } from '../../lib/chatUsage';
+import { lastAiError } from '../../lib/chatError';
 import { getSeoConfig } from '../../lib/seoConfig';
 import { categoryCounts } from '../../lib/sitemap';
 import { catUrl, INDEX_MIN } from '../../lib/catalog';
@@ -70,16 +71,17 @@ if (authed && can('seo')) {
   };
 }
 if (authed) {
-  const [home, projects, chat, chatUsed] = await Promise.all([
+  const [home, projects, chat, chatUsed, chatErr] = await Promise.all([
     can('home') ? getHomeConfig() : null,
     can('home') ? getProjects() : [],
     can('chat') ? getChatSettings() : null,
     can('chat') ? usageFresh().catch(() => 0) : 0,
+    can('chat') ? lastAiError() : null,
   ]);
   chatUsedN = chatUsed;
   data = {
     home,
-    chat: chat ? chatAdminView(chat) : null,
+    chat: chat ? { ...chatAdminView(chat), lastError: chatErr } : null,
     storage: storageReady(),
     projects: projects.map((p) => ({ code: p.code, title: p.title, place: [p.city, p.area].filter(Boolean).join(', '), image: p.image, price: p.priceFromLabel ?? '' })),
     users,
@@ -269,6 +271,7 @@ if (authed) {
               <label class="label" for="c-key">API-ключ</label>
               <input id="c-key" data-key type="password" autocomplete="off" class="field" />
               <p data-key-state class="mt-2 text-xs text-muted"></p>
+              <p data-chat-err class="mt-2 hidden text-xs text-[#c0392b]"></p>
             </div>
             <div><label class="label" for="c-name">Имя талисмана</label><input id="c-name" data-c="name" class="field" /></div>
             <div class="md:col-span-2"><label class="label" for="c-greet">Приветствие</label><input id="c-greet" data-c="greeting" class="field" /></div>
@@ -547,6 +550,11 @@ if (authed) {
           st.textContent = r.ok ? `Работает, ответ за ${(r.ms / 1000).toFixed(1)} с, карточек: ${r.cards}` : 'Не работает: ' + r.error;
           if (r.ok) { out.textContent = r.text; out.classList.remove('hidden'); }
         });
+        if (chat.lastError?.text) {
+          const errEl = q('[data-chat-err]');
+          errEl.textContent = `Последний сбой ИИ (${new Date(chat.lastError.at).toLocaleString('ru-RU')}): ${chat.lastError.text}. Пока ИИ не отвечает, посетители видят демо-режим.`;
+          errEl.classList.remove('hidden');
+        }
         fill(chat);
       }
     </script>
