@@ -3,6 +3,8 @@
  * Рисуем через @vercel/og (satori), отдаём JPEG через sharp, чтобы уложиться в 300 КБ.
  */
 import { ImageResponse } from '@vercel/og';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
 import sharp from 'sharp';
 import cyr400 from '../assets/og/inter-cyrillic-400-normal.woff?inline';
 import cyr600 from '../assets/og/inter-cyrillic-600-normal.woff?inline';
@@ -10,6 +12,8 @@ import lat400 from '../assets/og/inter-latin-400-normal.woff?inline';
 import lat600 from '../assets/og/inter-latin-600-normal.woff?inline';
 import ext400 from '../assets/og/inter-latin-ext-400-normal.woff?inline';
 import ext600 from '../assets/og/inter-latin-ext-600-normal.woff?inline';
+
+const SITE_URL = import.meta.env.SITE || 'https://stay.com.tr';
 
 const buf = (dataUrl: string) => {
   const b = Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
@@ -31,13 +35,27 @@ const LOGO = `data:image/svg+xml;base64,${Buffer.from('<svg xmlns="http://www.w3
 type El = { type: string; props: Record<string, unknown> };
 const h = (type: string, style: Record<string, unknown>, children?: unknown, extra: Record<string, unknown> = {}): El => ({ type, props: { style, children, ...extra } });
 
+async function remoteFile(src: string): Promise<Buffer | null> {
+  const res = await fetch(src, { signal: AbortSignal.timeout(6000) });
+  return res.ok ? Buffer.from(await res.arrayBuffer()) : null;
+}
+
+/** Своя картинка из public/media: с диска (свой сервер), иначе по адресу сайта (Vercel). */
+async function localFile(src: string): Promise<Buffer | null> {
+  if (src.includes('..')) return null;
+  for (const dir of ['dist/client', 'public']) {
+    try { return await readFile(path.resolve(dir) + src); } catch { /* нет здесь */ }
+  }
+  return remoteFile(new URL(src, SITE_URL).href).catch(() => null);
+}
+
 /** Фото может не загрузиться — тогда фон бренда. */
 async function photoDataUrl(src: string | null): Promise<string | null> {
   if (!src) return null;
   try {
-    const res = await fetch(src, { signal: AbortSignal.timeout(6000) });
-    if (!res.ok) return null;
-    const jpg = await sharp(Buffer.from(await res.arrayBuffer())).resize(1200, 630, { fit: 'cover' }).jpeg({ quality: 78 }).toBuffer();
+    const input = src.startsWith('/') ? await localFile(src) : await remoteFile(src);
+    if (!input) return null;
+    const jpg = await sharp(input).resize(1200, 630, { fit: 'cover' }).jpeg({ quality: 78 }).toBuffer();
     return `data:image/jpeg;base64,${jpg.toString('base64')}`;
   } catch {
     return null;

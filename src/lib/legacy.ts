@@ -25,6 +25,9 @@ const SIMPLE: Record<string, string> = {
   '/search': '/ru/search/',
   '/privacy-policy': '/ru/privacy-policy/',
   '/news': '/ru/blog/news/',
+  '/novosti': '/ru/blog/news/',
+  '/reviews': '/ru/reviews/',
+  '/team': '/ru/team/',
   '/ru/news': '/ru/blog/news/',
   '/contacts': '/ru/contacts/',
 };
@@ -51,6 +54,13 @@ export async function legacyRedirect(path: string, sp: URLSearchParams): Promise
   if (m) return `/ru/services/${SERVICE_SLUGS[m[1]] ?? ''}${SERVICE_SLUGS[m[1]] ? '/' : ''}`;
   m = p.match(/^\/(?:ru\/)?news\/([\w-]+)$/);
   if (m) return `/ru/blog/news/${m[1]}/`;
+  // Новости старого сайта stay.com.tr (/novosti/код/): если такая новость есть — на неё, иначе на список.
+  m = p.match(/^\/novosti\/([\w-]+)$/);
+  if (m) {
+    const { getNewsItemL } = await import('./api');
+    const n = await getNewsItemL('ru', m[1]).catch(() => null);
+    return n ? `/ru/blog/news/${n.slug}/` : SIMPLE['/novosti'];
+  }
   return null;
 }
 

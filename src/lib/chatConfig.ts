@@ -1,5 +1,5 @@
 /**
- * Настройки ИИ-помощника на сайте. Правятся в /admin, хранятся в Vercel Blob
+ * Настройки ИИ-помощника на сайте. Правятся в /admin, хранятся в хранилище сайта (store.ts)
  * (config/chat.json). Хранилище публичное по ссылке, поэтому API-ключ лежит
  * там только в зашифрованном виде (AES-256-GCM, ключ шифрования выводится из
  * секретного токена хранилища и наружу не попадает).
@@ -53,12 +53,10 @@ const DEFAULTS: ChatSettings = {
 const KEY = 'config/chat.json';
 let memo: { at: number; value: ChatSettings } | null = null;
 
-function blobToken() {
-  return process.env.BLOB_READ_WRITE_TOKEN || import.meta.env.BLOB_READ_WRITE_TOKEN;
-}
+import { blobToken, readJson, storeReady, writeJson } from './store';
 
 function secret(): Buffer {
-  const t = blobToken() || process.env.ADMIN_PASSWORD || import.meta.env.ADMIN_PASSWORD;
+  const t = process.env.STAY_SECRET || blobToken() || process.env.ADMIN_PASSWORD || import.meta.env.ADMIN_PASSWORD;
   if (!t) throw new Error('Нет секрета для шифрования ключа');
   return createHash('sha256').update('chat-key:' + t).digest();
 }
@@ -108,16 +106,8 @@ function normalize(x: any): ChatSettings {
 export async function getChatSettings(): Promise<ChatSettings> {
   if (memo && Date.now() - memo.at < 30_000) return memo.value;
   let value = normalize(null);
-  if (blobToken()) {
-    try {
-      const { head } = await import('@vercel/blob');
-      const meta = await head(KEY, { token: blobToken() });
-      const res = await fetch(`${meta.url}?v=${meta.uploadedAt.valueOf()}`, { cache: 'no-store' });
-      if (res.ok) value = normalize(await res.json());
-    } catch {
-      /* ещё не сохраняли — значения по умолчанию */
-    }
-  }
+  const saved = await readJson(KEY);
+  if (saved) value = normalize(saved);
   memo = { at: Date.now(), value };
   return value;
 }
@@ -136,7 +126,7 @@ export function chatReady(s: ChatSettings) {
 
 /** Сохраняет настройки. apiKey: строка — заменить, '' или undefined — оставить, null — удалить. */
 export async function saveChatSettings(input: any, apiKey?: string | null): Promise<ChatSettings> {
-  if (!blobToken()) throw new Error('Хранилище не подключено');
+  if (!storeReady()) throw new Error('Хранилище не подключено');
   const prev = await getChatSettings();
   const next = normalize({ ...prev, ...input, apiKeyEnc: prev.apiKeyEnc, apiKeyHint: prev.apiKeyHint });
   if (input?.provider && input.provider !== prev.provider && !input.model) next.model = DEFAULT_MODELS[next.provider];
@@ -148,15 +138,7 @@ export async function saveChatSettings(input: any, apiKey?: string | null): Prom
     next.apiKeyEnc = encrypt(k);
     next.apiKeyHint = '…' + k.slice(-4);
   }
-  const { put } = await import('@vercel/blob');
-  await put(KEY, JSON.stringify(next), {
-    access: 'public',
-    token: blobToken(),
-    contentType: 'application/json',
-    addRandomSuffix: false,
-    allowOverwrite: true,
-    cacheControlMaxAge: 60,
-  });
+  await writeJson(KEY, next);
   memo = { at: Date.now(), value: next };
   return next;
 }

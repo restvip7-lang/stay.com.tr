@@ -1,7 +1,7 @@
 /**
  * SEO-надстройка админки (ТЗ 14): переопределения title/description/H1/SEO-текста и index/noindex
  * для любой страницы на любом языке, менеджер редиректов 301/410 с проверкой циклов.
- * Хранится в Vercel Blob (config/seo.json).
+ * Хранится в хранилище сайта (store.ts) (config/seo.json).
  */
 import type { Robots } from './page';
 
@@ -13,7 +13,7 @@ const KEY = 'config/seo.json';
 const EMPTY: SeoConfig = { overrides: {}, redirects: [] };
 let memo: { at: number; value: SeoConfig } | null = null;
 
-const token = () => process.env.BLOB_READ_WRITE_TOKEN || import.meta.env.BLOB_READ_WRITE_TOKEN;
+import { readJson, storeReady, writeJson } from './store';
 
 /** Путь страницы в едином виде: /ru/…/ (разделы со слешем, карточки без). */
 export function normPath(p: string): string {
@@ -74,25 +74,18 @@ export function redirectErrors(rs: Redirect[]): string[] {
 export async function getSeoConfig(): Promise<SeoConfig> {
   if (memo && Date.now() - memo.at < 60_000) return memo.value;
   let value = EMPTY;
-  if (token()) {
-    try {
-      const { head } = await import('@vercel/blob');
-      const meta = await head(KEY, { token: token() });
-      const res = await fetch(`${meta.url}?v=${meta.uploadedAt.valueOf()}`, { cache: 'no-store' });
-      if (res.ok) value = normalize(await res.json());
-    } catch { /* файла ещё нет */ }
-  }
+  const saved = await readJson(KEY);
+  if (saved) value = normalize(saved);
   memo = { at: Date.now(), value };
   return value;
 }
 
 export async function saveSeoConfig(x: unknown): Promise<SeoConfig> {
-  if (!token()) throw new Error('Хранилище не подключено');
+  if (!storeReady()) throw new Error('Хранилище не подключено');
   const value = normalize(x);
   const errs = redirectErrors(value.redirects);
   if (errs.length) throw new Error(errs.join('; '));
-  const { put } = await import('@vercel/blob');
-  await put(KEY, JSON.stringify(value, null, 2), { access: 'public', token: token(), contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+  await writeJson(KEY, value, true);
   memo = { at: Date.now(), value };
   return value;
 }

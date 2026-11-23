@@ -18,8 +18,9 @@ const phones = [
   { label: d.footer.phoneTR, value: site.phones[0].label, href: 'tel:+905301782916' },
   { label: d.footer.phoneRU, value: site.phones[1].label, href: site.phones[1].href },
 ];
-// Офис в районе Оба (Алания): точка района, а не здания — точный адрес указан текстом.
-const office = { lat: 36.5530, lng: 32.0280 };
+// Офис: точка из карточки Stay Property в Google Картах.
+const office = { lat: 36.5381797, lng: 32.0393043 };
+const officeMap = 'https://maps.app.goo.gl/uRdjXBaUqdnRZMLA7';
 ---
 <Base title={`${p.contacts} Stay Property — ${d.footer.company}`} description={`${p.contactsLead} ${site.address}. ${site.phones[0].label}, ${site.email}.`} alternates={allLangs(url)}>
   <section class="container-x pt-6 md:pt-10">
@@ -28,7 +29,7 @@ const office = { lat: 36.5530, lng: 32.0280 };
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{p.contactsLead}</p>
     <div class="mt-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <address class="card space-y-6 p-6 not-italic">
-        <div><p class="text-sm text-muted">{p.office}</p><p class="mt-1 text-lg">{site.address}</p></div>
+        <div><p class="text-sm text-muted">{p.office}</p><p class="mt-1 text-lg">{site.address}</p><a href={officeMap} target="_blank" rel="noopener" class="mt-1 inline-block text-sm text-accent hover:underline">Google Maps →</a></div>
         <div><p class="text-sm text-muted">{p.phones}</p><ul class="mt-1 space-y-1">{phones.map((x) => <li><a href={x.href} class="text-lg hover:text-accent">{x.value}</a> <span class="text-sm text-muted">({x.label})</span></li>)}</ul></div>
         <div><p class="text-sm text-muted">{p.email}</p><a href={`mailto:${site.email}`} class="mt-1 block text-lg hover:text-accent">{site.email}</a></div>
         <div><p class="text-sm text-muted">{p.hours}</p><p class="mt-1 text-lg">{p.hoursValue}</p></div>
@@ -37,7 +38,7 @@ const office = { lat: 36.5530, lng: 32.0280 };
           {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" class="btn btn-ghost capitalize">{s.name}</a>)}
         </div>
       </address>
-      <div data-map data-zoom="13" data-points={JSON.stringify([{ t: 'Stay Property', u: '', lat: office.lat, lng: office.lng, a: site.address }])} class="min-h-[380px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
+      <div data-map data-zoom="16" data-points={JSON.stringify([{ t: 'Stay Property', u: '', lat: office.lat, lng: office.lng, a: site.address }])} class="min-h-[380px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
     </div>
   </section>
   <LeadSection context="contacts" />

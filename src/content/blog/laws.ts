@@ -12,7 +12,7 @@ export const LAWS: Article[] = [
     cat: 'laws',
     published: PUB,
     updated: PUB,
-    image: null,
+    image: '/media/iblock/ee0/40nx3q3rm2s1ql0rl53h73ajtk6u33hx/w4_min.jpg',
     tr: {
       ru: {
         title: 'Как иностранцу купить недвижимость в Турции: этапы и расходы',
@@ -136,7 +136,7 @@ export const LAWS: Article[] = [
     cat: 'laws',
     published: PUB,
     updated: PUB,
-    image: null,
+    image: '/media/iblock/711/1q5l0ixnixw7q5uie52z3kh84ypgchpl/w1_min.jpg',
     tr: {
       ru: {
         title: 'Гражданство Турции за покупку недвижимости: условия',
@@ -250,7 +250,7 @@ export const LAWS: Article[] = [
     cat: 'laws',
     published: PUB,
     updated: PUB,
-    image: null,
+    image: '/media/iblock/9ff/piu93j8ox05ld43m3bvxwwctrqqzgvgc/uslugi.jpg',
     tr: {
       ru: {
         title: 'ВНЖ в Турции на основании покупки недвижимости',

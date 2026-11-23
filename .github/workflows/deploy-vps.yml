@@ -1,0 +1,74 @@
+# Автовыкладка на свой сервер (VPS). Сайт собирается здесь, в GitHub (на сервере мало памяти),
+# на сервер уходит только готовый архив: ssh stay@сервер "release <коммит>" < site.tgz →
+# deploy/ssh-gate.sh → deploy/release.sh (подмена версии, проверка, откат при сбое, прогрев кэша).
+#
+# Что настроить в репозитории (Settings → Secrets and variables → Actions):
+#   секреты:    VPS_HOST — адрес сервера; VPS_SSH_KEY — приватный ключ ed25519 (его публичная часть — в
+#               /home/stay/.ssh/authorized_keys с command="/home/stay/bin/ssh-gate.sh", см. deploy/README.md);
+#               VPS_KNOWN_HOSTS — строка из `ssh-keyscan -t ed25519 <адрес>` (отпечаток сервера, защита от подмены).
+#   переменные: VPS_DEPLOY_BRANCH — ветка, пуш в которую выкладывает сайт (например vps или dev);
+#               STAY_NOINDEX — 1 закрыть от поисковиков / 0 открыть (по умолчанию 1);
+#               STAY_API_BASE, STAY_CONTENT_API, STAY_DOMAINS — если отличаются от умолчаний.
+# Пока секретов или VPS_DEPLOY_BRANCH нет, выкладка пропускается и ничего не ломает. Вручную — Run workflow.
+name: Deploy to VPS
+on:
+  push:
+  workflow_dispatch:
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+permissions:
+  contents: read
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.ref_name == vars.VPS_DEPLOY_BRANCH
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check secrets
+        id: check
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: echo "ready=$([ -n "$HOST" ] && [ -n "$KEY" ] && [ -n "$KNOWN" ] && echo yes || echo no)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ready == 'yes'
+
+      - uses: actions/setup-node@v4
+        if: steps.check.outputs.ready == 'yes'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build
+        if: steps.check.outputs.ready == 'yes'
+        env:
+          STAY_TARGET: node
+          STAY_NOINDEX: ${{ vars.STAY_NOINDEX || '1' }}
+          STAY_API_BASE: ${{ vars.STAY_API_BASE || 'https://dev.stayproperty.com' }}
+          STAY_CONTENT_API: ${{ vars.STAY_CONTENT_API || 'https://admin.stayproperty.com' }}
+          STAY_DOMAINS: ${{ vars.STAY_DOMAINS || 'stay.com.tr,www.stay.com.tr' }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          echo "${GITHUB_SHA::12} $(git log -1 --format=%s | cut -c1-80)" > dist/.release
+          tar -czf site.tgz dist deploy package.json package-lock.json
+
+      - name: Deploy
+        if: steps.check.outputs.ready == 'yes'
+        env:
+          HOST: ${{ secrets.VPS_HOST }}
+          USER: ${{ vars.VPS_USER || 'stay' }}
+          KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_deploy -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "release ${GITHUB_SHA::12}" < site.tgz
+
+      - name: Skipped
+        if: steps.check.outputs.ready != 'yes'
+        run: echo "Секреты VPS_HOST / VPS_SSH_KEY / VPS_KNOWN_HOSTS не заданы — выкладка пропущена."

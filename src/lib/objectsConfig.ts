@@ -1,6 +1,6 @@
 /**
  * Отметки объектов из админки поверх базы: скрыть с сайта, ярлык («Продано», «Срочно»…), закрепить вверху.
- * Сама база (Portfolio) не меняется. Хранится в Vercel Blob (config/objects.json): { id: { hidden, label, pinned } }.
+ * Сама база (Portfolio) не меняется. Хранится в хранилище сайта (store.ts) (config/objects.json): { id: { hidden, label, pinned } }.
  */
 import type { Lang } from '../i18n/config';
 
@@ -30,7 +30,7 @@ export type Marks = Record<string, Mark>;
 const KEY = 'config/objects.json';
 let memo: { at: number; value: Marks } | null = null;
 
-const token = () => process.env.BLOB_READ_WRITE_TOKEN || import.meta.env.BLOB_READ_WRITE_TOKEN;
+import { readJson, storeReady, writeJson } from './store';
 
 const ID = /^u?\d{1,12}$/;
 
@@ -57,29 +57,22 @@ function normalize(x: any): Marks {
 export async function getMarks(): Promise<Marks> {
   if (memo && Date.now() - memo.at < 30_000) return memo.value;
   let value: Marks = {};
-  if (token()) {
-    try {
-      const { head } = await import('@vercel/blob');
-      const meta = await head(KEY, { token: token() });
-      const res = await fetch(`${meta.url}?v=${meta.uploadedAt.valueOf()}`, { cache: 'no-store' });
-      if (res.ok) value = normalize(await res.json());
-    } catch { /* файла ещё нет */ }
-  }
+  const saved = await readJson(KEY);
+  if (saved) value = normalize(saved);
   memo = { at: Date.now(), value };
   return value;
 }
 
 /** Меняет отметку одного объекта (null — снять все отметки). */
 export async function setMark(id: string, mark: unknown): Promise<Marks> {
-  if (!token()) throw new Error('Хранилище не подключено');
+  if (!storeReady()) throw new Error('Хранилище не подключено');
   if (!ID.test(id)) throw new Error('Неверный id объекта');
   memo = null;
   const marks = { ...(await getMarks()) };
   const m = normalizeMark(mark);
   if (m) marks[id] = m;
   else delete marks[id];
-  const { put } = await import('@vercel/blob');
-  await put(KEY, JSON.stringify(marks, null, 2), { access: 'public', token: token(), contentType: 'application/json', addRandomSuffix: false, allowOverwrite: true, cacheControlMaxAge: 60 });
+  await writeJson(KEY, marks, true);
   memo = { at: Date.now(), value: marks };
   return marks;
 }

@@ -125,17 +125,18 @@ const groups = [
       <button type="button" data-menu-close class="icon-hover ml-auto" aria-label={d.closeMenu}><Icon name="close" class="size-5" /></button>
     </div>
 
-    <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_326px]">
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_326px]">
       <!-- Проекты Stay: миниатюры 44×44 со скруглением 8, название широким шрифтом 10/400 -->
       {menuProjects.length > 0 && (
-        <section class="order-1 lg:order-none lg:rounded-[15px] lg:bg-page lg:p-5">
+        <section class="order-1 min-w-0 lg:order-none lg:rounded-[15px] lg:bg-page lg:p-5">
           <p class="text-[14px] leading-[18px] tracking-[0.1px] lg:text-[16px] lg:leading-5">{d.nav.complexes}</p>
-          <ul class="scroll-x mt-4 flex gap-4 lg:grid lg:grid-cols-4 lg:gap-x-5 lg:gap-y-3">
+          <!-- На телефоне — по 3 карточки в ширину экрана, остальные листаются (карусель со снапом). -->
+          <ul class="scroll-x mt-4 flex snap-x snap-mandatory gap-3 lg:grid lg:snap-none lg:grid-cols-4 lg:gap-x-5 lg:gap-y-3">
             {menuProjects.map((c) => (
-              <li class="w-[120px] shrink-0 lg:w-auto">
-                <a href={complexUrl(lang, c)} class="group flex items-center gap-3">
-                  <span class="block size-11 shrink-0 overflow-hidden rounded-[8px]"><Img src={c.image} alt="" class="size-full" width={88} height={88} sizes="44px" /></span>
-                  <span class="font-display text-[10px] font-normal leading-3 tracking-[-0.3px] transition-colors group-hover:text-accent">{c.title}</span>
+              <li class="w-[calc((100%-24px)/3)] shrink-0 snap-start lg:w-auto">
+                <a href={complexUrl(lang, c)} class="group flex flex-col gap-2 lg:flex-row lg:items-center lg:gap-3">
+                  <span class="block h-[72px] w-full shrink-0 overflow-hidden rounded-[8px] lg:size-11"><Img src={c.image} alt="" class="size-full" width={220} height={144} sizes="(min-width: 1024px) 44px, 110px" /></span>
+                  <span class="min-w-0 font-display text-[10px] font-normal leading-3 tracking-[-0.3px] transition-colors group-hover:text-accent">{c.title}</span>
                 </a>
               </li>
             ))}

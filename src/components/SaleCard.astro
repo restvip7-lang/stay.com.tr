@@ -34,11 +34,12 @@ const sold = x.label === 'sold';
 <!-- Карточка объекта по эталону (каталог mr-group): белая, скругление 20, отступы 20; сверху заголовок 16/500 и район,
      в середине фото, бейджи капсом 11 px, внизу цена 22/500 и цена за м². По наведению — тень и «♡». -->
 <article class="sale-card group relative flex h-full flex-col rounded-[20px] bg-white p-4 transition-shadow duration-100 ease-in-out hover:shadow-[0_2px_12px_#1c1e261a,inset_3px_3px_.5px_-3.5px_#fff] lg:p-5">
-  <div class="sc-head min-h-[44px] pr-14">
-    <H class="text-[16px] font-medium leading-[22px] tracking-[0.2px]">
+  <!-- Высота шапки постоянная (1 строка заголовка + 2 строки района = 62 px), чтобы фото во всех карточках ряда стояли на одном уровне. -->
+  <div class="sc-head h-[62px] pr-14">
+    <H class="truncate text-[16px] font-medium leading-[22px] tracking-[0.2px]">
       <a href={url} class="sc-link after:absolute after:inset-0 after:rounded-[inherit] after:content-['']">{title}{area ? `, ${area}` : ''}</a>
     </H>
-    <p class="mt-0.5 text-[13px] leading-[18px] tracking-[0.1px] text-soft">{place}{x.sea ? ` · ${d.toSea(numL(lang, x.sea))}` : ''}</p>
+    <p class="mt-0.5 line-clamp-2 text-[13px] leading-[18px] tracking-[0.1px] text-soft">{place}{x.sea ? ` · ${d.toSea(numL(lang, x.sea))}` : ''}</p>
   </div>
   <div class="sc-img relative mt-4 aspect-[4/3] overflow-hidden rounded-[12px]">
     <Img src={x.image} alt={alt} class={`size-full transition-transform duration-700 group-hover:scale-[1.03]${sold ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
