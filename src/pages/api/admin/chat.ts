@@ -3,6 +3,7 @@ import { badOrigin, ipOf, userCan } from '../../../lib/adminAuth';
 import { audit } from '../../../lib/adminAudit';
 import { chatAdminView, getChatSettings, resolveApiKey, saveChatSettings } from '../../../lib/chatConfig';
 import { askAssistant } from '../../../lib/chatAgent';
+import { explainAiError, recordAiError } from '../../../lib/chatError';
 
 export const prerender = false;
 
@@ -17,7 +18,13 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
       const s = await getChatSettings();
       if (!resolveApiKey(s)) return Response.json({ ok: false, error: 'Ключ не задан' });
       const t = Date.now();
-      const r = await askAssistant(s, [{ role: 'user', content: 'Подбери 2 квартиры 1+1 в Аланье до 150 000 €' }]);
+      let r;
+      try {
+        r = await askAssistant(s, [{ role: 'user', content: 'Подбери 2 квартиры 1+1 в Аланье до 150 000 €' }]);
+      } catch (e) {
+        await recordAiError(e);
+        return Response.json({ ok: false, error: explainAiError(e) });
+      }
       return Response.json({ ok: true, ms: Date.now() - t, text: r.text.slice(0, 600), cards: r.cards.length });
     }
     const key = body?.deleteKey ? null : typeof body?.apiKey === 'string' ? body.apiKey : undefined;

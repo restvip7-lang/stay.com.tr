@@ -3,6 +3,7 @@ import { chatReady, getChatSettings, publicChat } from '../../lib/chatConfig';
 import { askAssistant, type ChatMsg } from '../../lib/chatAgent';
 import { demoReply } from '../../lib/chatDemo';
 import { addUsage, usageToday } from '../../lib/chatUsage';
+import { recordAiError } from '../../lib/chatError';
 import { CHAT_UI, chatGreeting, chatLang, chatName } from '../../lib/chatI18n';
 
 export const prerender = false;
@@ -75,7 +76,7 @@ export const POST: APIRoute = async ({ request, clientAddress }) => {
     if (useAi) await addUsage();
     return Response.json(reply, { headers: noStore });
   } catch (e) {
-    console.error('chat error', e);
+    await recordAiError(e);
     // ИИ не ответил (нет денег на счёте, лимит, сбой) — отвечаем в демо-режиме, чтобы чат не молчал.
     try { return Response.json(await demoReply(history[history.length - 1].content, lang), { headers: noStore }); } catch { /* ниже */ }
     return Response.json({ error: CHAT_UI[lang].unavailable }, { status: 502, headers: noStore });
