@@ -10,17 +10,12 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import sharp from 'sharp';
+import { IMAGE_DOMAINS as DOMAINS, LOCAL_IMAGE as LOCAL, readLocal, readRemote } from '../lib/imageSource';
 
 export const prerender = false;
 
 const WIDTHS = new Set([320, 640, 960, 1280, 1920]);
-const DOMAINS = new Set(String(import.meta.env.STAY_IMAGE_DOMAINS || '').split(',').filter(Boolean));
-const MAX_BYTES = 25 * 1024 * 1024;
 const cacheDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'img-cache');
-const originalsDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'media-src');
-/** Свои картинки: после сборки они в dist/client, при `astro dev` — в public. */
-const PUBLIC_DIRS = ['dist/client', 'public'].map((d) => path.resolve(d));
-const LOCAL = /^\/(?:media|hero)\/[\w\-./]+\.(?:jpe?g|png|webp|avif)$/i;
 const TYPES = { avif: 'image/avif', webp: 'image/webp' } as const;
 
 const bad = (msg: string, status = 400) => new Response(msg, { status, headers: { 'cache-control': 'no-store' } });
@@ -70,32 +65,3 @@ export const GET: APIRoute = async ({ url, request }) => {
   } catch { /* не записали — отдадим без кэша */ }
   return new Response(new Uint8Array(out), { headers: { ...headers, 'x-stay-img': 'MISS' } });
 };
-
-async function readLocal(src: string): Promise<Buffer | null> {
-  for (const dir of PUBLIC_DIRS) {
-    const file = path.join(dir, src);
-    if (!file.startsWith(dir + path.sep)) return null;
-    try { return await readFile(file); } catch { /* нет в этой папке */ }
-  }
-  return null;
-}
-
-/** Чужая картинка: сначала своя сохранённая копия оригинала, иначе скачиваем и сохраняем. */
-async function readRemote(src: string): Promise<Buffer | null | 'too large'> {
-  const name = createHash('sha1').update(src).digest('hex');
-  const file = path.join(originalsDir(), name.slice(0, 2), name);
-  try { return await readFile(file); } catch { /* ещё не сохраняли */ }
-
-  const r = await fetch(src, { signal: AbortSignal.timeout(15000), redirect: 'follow' }).catch(() => null);
-  if (!r || !r.ok || (r.headers.get('content-type') ?? '').startsWith('text/')) return null;
-  if (Number(r.headers.get('content-length') || 0) > MAX_BYTES) return 'too large';
-  const input = Buffer.from(await r.arrayBuffer());
-  if (input.length > MAX_BYTES) return 'too large';
-  try {
-    await mkdir(path.dirname(file), { recursive: true });
-    const tmp = `${file}.${process.pid}.tmp`;
-    await writeFile(tmp, input);
-    await rename(tmp, file);
-  } catch { /* не сохранили — в следующий раз скачаем снова */ }
-  return input;
-}
