@@ -1,7 +1,7 @@
 ---
 /**
  * Тизер объекта (ТЗ Б.2 п. 4, раздел 10): фото, тип + комнатность, район, площадь, цена, 2–3 чипса-фичи.
- * Вся карточка кликабельна через одну ссылку с полным текстом; заголовок — h3.
+ * Вся карточка кликабельна через одну ссылку с полным текстом (её ::after с z-index 1 лежит поверх фото и бейджей, «♡» с z-10 выше); заголовок — h3.
  */
 import Img from './Img.astro';
 import Icon from './Icon.astro';
@@ -37,7 +37,7 @@ const sold = x.label === 'sold';
   <!-- Высота шапки постоянная (1 строка заголовка + 2 строки района = 62 px), чтобы фото во всех карточках ряда стояли на одном уровне. -->
   <div class="sc-head h-[62px] pr-14">
     <H class="truncate text-[16px] font-medium leading-[22px] tracking-[0.2px]">
-      <a href={url} class="sc-link after:absolute after:inset-0 after:rounded-[inherit] after:content-['']">{title}{area ? `, ${area}` : ''}</a>
+      <a href={url} class="sc-link after:absolute after:inset-0 after:z-[1] after:rounded-[inherit] after:content-['']">{title}{area ? `, ${area}` : ''}</a>
     </H>
     <p class="mt-0.5 line-clamp-2 text-[13px] leading-[18px] tracking-[0.1px] text-soft">{place}{x.sea ? ` · ${d.toSea(numL(lang, x.sea))}` : ''}</p>
   </div>
