@@ -273,7 +273,8 @@ export async function initChat() {
   };
 
   log.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('[data-chat-pdf]')) printSelection(history, T);
+    const btn = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-chat-pdf]');
+    if (btn) downloadSelection(btn, history, T);
   });
   $('[data-chat-open]').addEventListener('click', open);
   hint.addEventListener('click', (e) => {
@@ -308,11 +309,8 @@ export async function initChat() {
   if (!seenHint) setTimeout(() => { if (panel.hidden) hint.hidden = false; }, 6000);
 }
 
-/**
- * «Скачать подборку (PDF)»: все варианты из разговора (последние сверху) на одной странице
- * с таблицей сравнения и фото. Открывается в новой вкладке, дальше — печать / «Сохранить как PDF».
- */
-function printSelection(history: Msg[], T: Texts) {
+/** Все варианты из разговора, последние сверху, без повторов (до 12). */
+function selectionCards(history: Msg[]): Card[] {
   const seen = new Set<string>();
   const cards: Card[] = [];
   for (const m of [...history].reverse()) {
@@ -321,8 +319,44 @@ function printSelection(history: Msg[], T: Texts) {
       if (!seen.has(k)) { seen.add(k); cards.push(c); }
     }
   }
-  if (!cards.length) return;
-  const list = cards.slice(0, 12);
+  return cards.slice(0, 12);
+}
+
+/**
+ * «Скачать подборку (PDF)»: сервер собирает готовый PDF-файл (шапка, таблица сравнения, карточки с фото),
+ * браузер сразу его скачивает. Если сервер не ответил — запасной вариант: страница для печати.
+ */
+async function downloadSelection(btn: HTMLButtonElement, history: Msg[], T: Texts) {
+  const list = selectionCards(history);
+  if (!list.length || btn.getAttribute('aria-busy') === 'true') return;
+  btn.setAttribute('aria-busy', 'true');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/selection-pdf', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ lang: T.lang, cards: list.map(({ title, subtitle, price, image, url, facts }) => ({ title, subtitle, price, image, url, facts })) }),
+    });
+    if (!r.ok || !(r.headers.get('content-type') ?? '').includes('pdf')) throw new Error(String(r.status));
+    const blob = await r.blob();
+    const name = /filename="([^"]+)"/.exec(r.headers.get('content-disposition') ?? '')?.[1] ?? 'stay-property.pdf';
+    const href = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement('a'), { href, download: name });
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 60_000);
+  } catch {
+    printSelection(list, T);
+  } finally {
+    btn.removeAttribute('aria-busy');
+    btn.disabled = false;
+  }
+}
+
+/** Запасной вариант: страница подборки в новой вкладке, дальше — печать / «Сохранить как PDF». */
+function printSelection(list: Card[], T: Texts) {
+  if (!list.length) return;
   const loc = T.lang === 'sr' ? 'sr-Latn' : T.lang;
   const num = (n: number) => n.toLocaleString(loc).replace(/\u00a0|\u202f/g, ' ');
   const eur = (n?: number) => (n ? `${num(n)} €` : '—');
