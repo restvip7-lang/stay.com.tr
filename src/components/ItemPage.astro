@@ -146,13 +146,12 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       <div class="space-y-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <div class="card-n p-5">
           {x.label && x.label !== 'sold' && <p class="mb-3"><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></p>}
-          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[.6px] text-ink-n', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''}>{price}</p>
-          {perM2 && <p class="mt-1 text-[14px] leading-[20px] text-soft">{moneyL(lang, perM2)} {ti.perM2}</p>}
+          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[.6px] text-ink-n', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''} data-price-suffix={x.deal === 'rent' ? d.perMonth : ''}>{price}</p>
+          {perM2 && <p class="mt-1 text-[14px] leading-[20px] text-soft"><span data-m2-eur={perM2}>{moneyL(lang, perM2)}</span> {ti.perM2}</p>}
           {x.price && (
             <div class="mt-3 flex flex-wrap items-center gap-1.5 text-sm" data-currency>
               <span class="sr-only">{ti.currency}</span>
               {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['cur-chip', c === 'EUR' && 'is-on']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}
-              <span data-cur-out class="text-soft"></span>
             </div>
           )}
           <div class="mt-4 flex flex-wrap gap-1.5">
@@ -268,22 +267,44 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       else { await navigator.clipboard.writeText(location.href); b.title = T().linkCopied; }
     } catch { /* отмена */ }
   }));
-  // Валюта: цена в HTML — в евро; пересчёт по курсу ЕЦБ только по клику.
+  // Валюта: цена в HTML — в евро. Курсы ЕЦБ подгружаем сразу, поэтому по клику цена
+  // и цена за м² пересчитываются мгновенно; выбор запоминается для других объектов.
   const box = document.querySelector<HTMLElement>('[data-currency]');
-  const eur = Number(document.querySelector<HTMLElement>('[data-price-eur]')?.dataset.priceEur || 0);
-  let rates: Record<string, number> | null = null;
-  box?.addEventListener('click', async (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cur]');
-    if (!b || !eur) return;
-    box.querySelectorAll('[data-cur]').forEach((x) => { x.setAttribute('aria-pressed', String(x === b)); x.classList.toggle('is-on', x === b); });
-    const out = box.querySelector<HTMLElement>('[data-cur-out]')!;
-    if (b.dataset.cur === 'EUR') { out.textContent = ''; return; }
-    try {
-      rates ??= (await (await fetch('/api/rates')).json()).rates;
-      const r = rates?.[b.dataset.cur!];
-      out.textContent = r ? `≈ ${Math.round(eur * r).toLocaleString(pageLocale(), { style: 'currency', currency: b.dataset.cur!, maximumFractionDigits: 0 })}` : '';
-    } catch { out.textContent = ''; }
-  });
+  const priceEl = document.querySelector<HTMLElement>('[data-price-eur]');
+  const m2El = document.querySelector<HTMLElement>('[data-m2-eur]');
+  const eur = Number(priceEl?.dataset.priceEur || 0);
+  if (box && priceEl && eur) {
+    const orig = { price: priceEl.textContent ?? '', m2: m2El?.textContent ?? '' };
+    const suffix = priceEl.dataset.priceSuffix ?? '';
+    const m2eur = Number(m2El?.dataset.m2Eur || 0);
+    let saved = 'EUR';
+    try { saved = localStorage.getItem('stay-cur') || 'EUR'; } catch { /* без хранилища */ }
+    const ratesP: Promise<Record<string, number>> = fetch('/api/rates').then((r) => r.json()).then((j) => j.rates ?? {}).catch(() => ({}));
+    let rates: Record<string, number> | null = null;
+    let want = saved;
+    ratesP.then((r) => { rates = r; });
+    const fmt = (n: number, cur: string) => Math.round(n).toLocaleString(pageLocale(), { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 });
+    const apply = (cur: string, r: Record<string, number> | null) => {
+      const k = cur === 'EUR' ? 1 : r?.[cur];
+      if (!k) return false;
+      box.querySelectorAll<HTMLElement>('[data-cur]').forEach((x) => { const on = x.dataset.cur === cur; x.setAttribute('aria-pressed', String(on)); x.classList.toggle('is-on', on); });
+      if (cur === 'EUR') { priceEl.textContent = orig.price; if (m2El) m2El.textContent = orig.m2; return true; }
+      priceEl.textContent = fmt(eur * k, cur) + suffix;
+      if (m2El && m2eur) m2El.textContent = fmt(m2eur * k, cur);
+      return true;
+    };
+    box.addEventListener('click', async (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cur]');
+      if (!b) return;
+      const cur = (want = b.dataset.cur!);
+      const r = rates ?? (cur === 'EUR' ? null : await ratesP);
+      if (cur !== want) return; // пока грузились курсы, выбрали другую валюту
+      if (apply(cur, r)) {
+        try { localStorage.setItem('stay-cur', cur); } catch { /* без хранилища */ }
+      }
+    });
+    if (saved !== 'EUR') ratesP.then((r) => { if (want === saved) apply(saved, r); });
+  }
   document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
     v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }));
