@@ -4,7 +4,7 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'prive', 'citizenship', 'f', 'sort'];
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -36,7 +36,7 @@ export function buildUrl(form: HTMLFormElement): string {
     const s = String(v).replace(/\s/g, '');
     if (s) sp.append(k, s);
   }
-  if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); }
+  if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); sp.delete('own'); }
 
   // Фича в адресе: сохранённая из текущего адреса, иначе — из сочетания полей (белый список).
   let feature = val('feature');

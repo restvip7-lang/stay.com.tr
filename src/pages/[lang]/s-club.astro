@@ -1,0 +1,54 @@
+---
+/**
+ * S-Club — заглушка «Скоро открытие» (правки руководства 24.11.2026: раздела ещё нет, в шапке он уже есть).
+ * Первый экран на всю высоту: фото проекта под тёмной фиолетовой вуалью, крупный знак S-CLUB, короткий текст и кнопки связи.
+ * Страница закрыта от индексации, пока раздел не заработает.
+ */
+import Base from '../../layouts/Base.astro';
+import Icon from '../../components/Icon.astro';
+import { isLang } from '../../i18n/config';
+import { site } from '../../lib/site';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const T = {
+  ru: { kicker: 'Скоро открытие', lead: 'Клуб для клиентов Stay Property: привилегии, сервис и закрытые предложения. Мы готовим запуск — следите за новостями.', write: 'Написать нам', home: 'На главную', soon: 'Раздел в разработке' },
+  en: { kicker: 'Coming soon', lead: 'A club for Stay Property clients: privileges, service and private offers. We are preparing the launch — stay tuned.', write: 'Message us', home: 'Back to home', soon: 'Section in development' },
+  tr: { kicker: 'Çok yakında', lead: 'Stay Property müşterileri için kulüp: ayrıcalıklar, hizmet ve özel teklifler. Lansmana hazırlanıyoruz — takipte kalın.', write: 'Bize yazın', home: 'Ana sayfa', soon: 'Bölüm hazırlanıyor' },
+  de: { kicker: 'Demnächst', lead: 'Ein Club für Kunden von Stay Property: Privilegien, Service und exklusive Angebote. Wir bereiten den Start vor — bleiben Sie dran.', write: 'Schreiben Sie uns', home: 'Zur Startseite', soon: 'Bereich in Arbeit' },
+  sr: { kicker: 'Uskoro', lead: 'Klub za klijente Stay Property: privilegije, usluga i zatvorene ponude. Pripremamo pokretanje — pratite novosti.', write: 'Pišite nam', home: 'Na početnu', soon: 'Odeljak u izradi' },
+}[lang];
+const wa = site.phones.find((p) => p.href.startsWith('https://wa.me/'))?.href ?? site.phone.href;
+---
+<Base title={`S-Club — ${T.kicker} | Stay Property`} description={T.lead} robots="noindex,follow" overlayHeader>
+  <section class="sclub relative isolate flex min-h-[100svh] items-center overflow-hidden text-white">
+    <img src="/hero/exodus_aqua_deluxe_konakli.webp" alt="" class="absolute inset-0 -z-20 size-full object-cover" fetchpriority="high" />
+    <div class="sclub-veil absolute inset-0 -z-10" aria-hidden="true"></div>
+    <div class="sclub-ring absolute -z-10" aria-hidden="true"></div>
+    <div class="container-x w-full py-32">
+      <p class="sclub-kicker inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[12px] uppercase tracking-[2px] backdrop-blur-md">
+        <span class="sclub-dot size-2 rounded-full bg-[#c9b6ff]" aria-hidden="true"></span>{T.kicker}
+      </p>
+      <h1 class="display sclub-title mt-6 text-[64px] leading-none sm:text-[110px] lg:text-[160px]">S-CLUB</h1>
+      <p class="mt-6 max-w-[560px] text-[16px] leading-[26px] text-white/80 lg:text-[18px] lg:leading-[28px]">{T.lead}</p>
+      <div class="mt-10 flex flex-wrap gap-3">
+        <a href={wa} target="_blank" rel="noopener" class="btn h-12 bg-white px-6 text-[12px] text-[#1c1e26] hover:bg-[#ede7ff]"><Icon name="arrowRight" class="size-4" />{T.write}</a>
+        <a href={`/${lang}/`} class="btn h-12 border-white/40 px-6 text-[12px] text-white hover:bg-white/10">{T.home}</a>
+      </div>
+      <p class="mt-16 text-[12px] uppercase tracking-[2px] text-white/45">{T.soon} · Stay Property</p>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .sclub-veil { background: linear-gradient(115deg, rgba(14, 10, 38, 0.94) 0%, rgba(38, 22, 92, 0.82) 45%, rgba(117, 75, 233, 0.35) 100%); }
+  .sclub-ring {
+    right: -18vmax; top: 50%; width: 70vmax; height: 70vmax; translate: 0 -50%;
+    border-radius: 50%; border: 1px solid rgba(201, 182, 255, 0.25);
+    box-shadow: 0 0 0 8vmax rgba(201, 182, 255, 0.05), 0 0 0 16vmax rgba(201, 182, 255, 0.03);
+  }
+  .sclub-title { background: linear-gradient(90deg, #fff 0%, #d9ccff 60%, #a98bff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -0.03em; }
+  .sclub-dot { animation: sclub-pulse 2s ease-in-out infinite; }
+  @keyframes sclub-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { .sclub-dot { animation: none; } }
+</style>

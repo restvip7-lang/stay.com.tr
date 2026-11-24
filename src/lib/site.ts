@@ -12,8 +12,8 @@ export const site = {
     { label: 'STAY PROJECTS', href: '/complex/' },
     { label: 'STAY PROPERTY', href: '/sale/' },
     { label: 'PRIVE', href: '/prive/' },
-    { label: 'RENTAL', href: '/rental/' },
     { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
+    { label: 'S-CLUB', href: '/s-club/' },
   ],
   socials: [
     { name: 'instagram', href: 'https://www.instagram.com/stayproperty/' },
