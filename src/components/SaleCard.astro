@@ -24,16 +24,27 @@ const place = [district?.name[lang], city.name[lang]].filter(Boolean).join(', ')
 const title = `${TYPE_WORDS[lang][x.type].one}${x.rooms ? ` ${x.rooms}` : ''}`;
 const area = x.area ? `${numL(lang, x.area)} ${d.m2}` : '';
 const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
-const chips = x.features.filter((f) => !/bedroom|price-to/.test(f)).slice(0, 3);
+// Гражданство и ВНЖ показаны бейджами на фото, в чипах их не повторяем.
+const chips = x.features.filter((f) => !/bedroom|price-to|citizenship|residence-permit/.test(f)).slice(0, 3);
 const alt = `${title}${district ? ` — ${district.name[lang]}` : ''}${area ? `, ${area}` : ''} — ${d.photo} 1`;
 const perM2 = x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };
 const H = headingLevel;
 const sold = x.label === 'sold';
+const own = !!x.own;
+// Бейджи на фото справа сверху: право на гражданство и ВНЖ (Турция, продажа; правила — фичи citizenship / residence-permit в segments.ts).
+const citizenship = !sold && x.features.includes('citizenship');
+const residence = !sold && x.features.includes('residence-permit');
+const RIGHTS: Record<string, { cit: string; res: string }> = {
+  ru: { cit: 'Гражданство', res: 'ВНЖ' }, en: { cit: 'Citizenship', res: 'Residence permit' }, tr: { cit: 'Vatandaşlık', res: 'Oturma izni' },
+  de: { cit: 'Staatsbürgerschaft', res: 'Aufenthaltstitel' }, sr: { cit: 'Državljanstvo', res: 'Boravišna dozvola' },
+};
+const rights = RIGHTS[lang] ?? RIGHTS.ru;
 ---
 <!-- Карточка объекта по эталону (каталог mr-group): белая, скругление 20, отступы 20; сверху заголовок 16/500 и район,
-     в середине фото, бейджи капсом 11 px, внизу цена 22/500 и цена за м². По наведению — тень и «♡». -->
-<article class="sale-card group relative flex h-full flex-col rounded-[20px] bg-white p-4 transition-shadow duration-100 ease-in-out hover:shadow-[0_2px_12px_#1c1e261a,inset_3px_3px_.5px_-3.5px_#fff] lg:p-5">
+     в середине фото, бейджи капсом 11 px, внизу цена 22/500 и цена за м². По наведению — тень и «♡».
+     Наш объект (отметка в админке) — светло-фиолетовая карточка с бейджем STAY, по образцу золотого PRIVE. -->
+<article class:list={['sale-card group relative flex h-full flex-col rounded-[20px] p-4 transition-shadow duration-100 ease-in-out hover:shadow-[0_2px_12px_#1c1e261a,inset_3px_3px_.5px_-3.5px_#fff] lg:p-5', own ? 'bg-[#f4f0fd] ring-1 ring-[#754be9]/25' : 'bg-white']}>
   <!-- Высота шапки постоянная (1 строка заголовка + 2 строки района = 62 px), чтобы фото во всех карточках ряда стояли на одном уровне. -->
   <div class="sc-head h-[62px] pr-14">
     <H class="truncate text-[16px] font-medium leading-[22px] tracking-[0.2px]">
@@ -43,11 +54,18 @@ const sold = x.label === 'sold';
   </div>
   <div class="sc-img relative mt-4 aspect-[4/3] overflow-hidden rounded-[12px]">
     <Img src={x.image} alt={alt} class={`size-full transition-transform duration-700 group-hover:scale-[1.03]${sold ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
+    {(citizenship || residence) && (
+      <ul class="sc-rights pointer-events-none absolute right-2.5 top-2.5 z-[2] flex gap-1.5">
+        {citizenship && <li class="sc-right sc-right-cit">{rights.cit}</li>}
+        {residence && <li class="sc-right sc-right-res">{rights.res}</li>}
+      </ul>
+    )}
   </div>
   <div class="sc-body flex flex-1 flex-col">
     <ul class="mt-4 flex flex-wrap gap-1.5">
       {x.label && <li><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></li>}
       {x.isPrivate && <li><span class="badge badge-solid" style="background:#bc906e">PRIVE</span></li>}
+      {own && <li><span class="badge badge-solid" style="background:#754be9">STAY</span></li>}
       <li><span class="badge">{x.deal === 'rent' ? d.rent : d.sale}</span></li>
       {chips.slice(0, 2).map((f) => <li><span class="badge">{FEATURE_LABEL[lang][f]}</span></li>)}
     </ul>

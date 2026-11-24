@@ -45,6 +45,8 @@
   --color-lime: #abf960;        /* «Скидка» */
   --color-peach: #ffd9c4;
   --color-prive: #bc906e;
+  /* Наши объекты (объекты компании) — фиолетовый, по образцу PRIVE. */
+  --color-own: #754be9;
 
   --font-sans: "Suisse Intl", "Inter", ui-sans-serif, system-ui, "Segoe UI", Arial, sans-serif;
   --font-display: "Grtsk Variable", "Grtsk Giga", "Stay Display", "Inter", Arial, sans-serif;
@@ -135,6 +137,10 @@
   .chip-n:hover { background: var(--color-line); }
   .badge { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 8px; border-radius: 1000px; border: .67px solid var(--color-line-2); color: var(--color-ink-n); font-size: 11px; font-weight: 500; line-height: 11px; letter-spacing: 1px; text-transform: uppercase; white-space: nowrap; }
   .badge-solid { border-color: transparent; color: #fff; }
+  /* Бейджи прав на фото карточки (справа сверху): «Гражданство» — красный, «ВНЖ» — цвет --color-res (выбирается). */
+  .sc-right { display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 500; line-height: 1; letter-spacing: .2px; white-space: nowrap; box-shadow: 0 1px 4px #0000002e; }
+  .sc-right-cit { background: #e5484d; }
+  .sc-right-res { background: var(--color-res, #1f3a68); }
 
   /* Карточки и панели */
   .card { background: var(--color-surface); border-radius: var(--radius-card); border: 1px solid transparent; }

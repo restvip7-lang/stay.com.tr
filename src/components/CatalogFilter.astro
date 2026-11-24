@@ -40,6 +40,8 @@ const homeTypes = (['apartments', 'villas', 'duplexes'] as const).filter((x) => 
 const homeType = (cat.type && (homeTypes as readonly string[]).includes(cat.type) ? cat.type : 'apartments') as (typeof homeTypes)[number];
 const nouns = Object.fromEntries(homeTypes.map((x) => [x, TYPE_WORDS[lang][x].n])) as Record<string, [string, string, string]>;
 const allW = ({ ru: 'Все', en: 'All', tr: 'Tümü', de: 'Alle', sr: 'Sve' } as Record<string, string>)[lang] ?? 'Все';
+/** Тумблер «наши объекты» (объекты компании). */
+const OWN_LABEL: Record<string, string> = { ru: 'Объекты Stay', en: 'Stay properties', tr: 'Stay ilanları', de: 'Stay-Objekte', sr: 'Stay nekretnine' };
 const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), prive: tf.onlyPrive, citizenship: tf.citizenship };
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
@@ -99,6 +101,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
         <span data-sale-only hidden={cat.deal !== 'sale'} class="contents">
           <label class="shrink-0 cursor-pointer"><input type="checkbox" name="prive" value="1" checked={f.prive} class="peer sr-only" /><span class="chip-n peer-checked:!bg-prive peer-checked:text-white">PRIVE</span></label>
           <label class="shrink-0 cursor-pointer"><input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} class="peer sr-only" /><span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white">{tf.citizenship}</span></label>
+          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="own" value="1" checked={f.own} class="peer sr-only" /><span class="chip-n peer-checked:!bg-own peer-checked:text-white">{OWN_LABEL[lang]}</span></label>
         </span>
         {hiddenFeature && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="feature" aria-label={tf.remove(FEATURE_LABEL[lang][hiddenFeature])}>{FEATURE_LABEL[lang][hiddenFeature]} <span aria-hidden="true">×</span></button>}
         {f.extra && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="f" aria-label={tf.remove(FEATURE_LABEL[lang][f.extra])}>{FEATURE_LABEL[lang][f.extra]} <span aria-hidden="true">×</span></button>}
