@@ -13,6 +13,7 @@ import fxSale from '../content/fixtures/sale.json';
 import fxRental from '../content/fixtures/rental.json';
 import fxUnits from '../content/fixtures/units.json';
 import fxUnitsCitizenship from '../content/fixtures/units-citizenship.json';
+import { devDisabled, snapshotDetail, snapshotList, snapshotTranslatedIds } from './portfolioSnapshot';
 
 const MEDIA = new Set<string>(mediaManifest);
 
@@ -285,6 +286,10 @@ export type { RawListing };
 
 /** Сырые записи API (все объекты сделки). */
 export async function rawListings(operation: 'sale' | 'rental'): Promise<RawListing[]> {
+  // Свой снимок Portfolio (scripts/portfolio-sync.mjs) — без dev.
+  const snap = snapshotList(operation);
+  if (snap) return snap as RawListing[];
+  if (devDisabled()) return (operation === 'sale' ? fxSale : fxRental) as RawListing[];
   return cached(
     `listings-${operation}`,
     async () => {
@@ -304,6 +309,9 @@ export async function rawListings(operation: 'sale' | 'rental'): Promise<RawList
 
 /** id объектов, у которых есть перевод на язык (непустой title в выдаче этого языка) — для sitemap. */
 export async function translatedIds(operation: 'sale' | 'rental', lang: string): Promise<Set<string>> {
+  const snap = snapshotTranslatedIds(operation, lang);
+  if (snap) return new Set(snap);
+  if (devDisabled()) return new Set(lang === 'ru' ? (await rawListings(operation)).filter((x) => String(x.title || '').trim()).map((x) => String(x.id)) : []);
   const list = await cached(`listings-${operation}-${lang}-ids`, async () => {
     const ids: string[] = [];
     let n = 0;
@@ -497,7 +505,26 @@ export async function getListing(id: string, operation: 'sale' | 'rental'): Prom
     const p = x.project ? await getProject(x.project.code.replace(/_/g, '-').replace(/-+$/, '').toLowerCase()) : null;
     return { ...x, images: x.image ? [x.image] : p?.image ? [p.image] : [], html: '', yearBuilt: null, region: null, infrastructure: [], pricePerSquare: x.price && x.totalArea ? Math.round(x.price / x.totalArea) : null };
   }
+  const snap = snapshotDetail(id, operation);
+  if (snap !== undefined) {
+    if (!snap) return null;
+    const x = snap.card as RawListing;
+    const det = snap.detail;
+    return {
+      ...toListing(x),
+      images: (det?.imageUrls?.length ? det.imageUrls : [x.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
+      html: det?.i18n?.ru?.content || '',
+      yearBuilt: det?.yearBuilt ?? null,
+      region: det?.regionName ?? null,
+      infrastructure: [],
+      pricePerSquare: det?.pricePerSquare ?? null,
+    };
+  }
   const key = `listing-${operation}-${id}`;
+  if (devDisabled()) {
+    const fromList = (await allListings(operation)).find((x) => x.id === id);
+    return fromList ? { ...fromList, images: fromList.image ? [fromList.image] : [], html: '', yearBuilt: null, region: null, infrastructure: [], pricePerSquare: null } : null;
+  }
   try {
     const d = await cached(key, () =>
       getJson<{ item: RawListing }>(`/api/sale/${encodeURIComponent(id)}?source=portfolio&language=ru&operation=${operation}`),
@@ -653,6 +680,23 @@ export interface DetailL {
 
 /** Описание объекта на языке lang; null — перевода нет (API отдаёт пустой заголовок). */
 export async function getDetailL(id: string, operation: 'sale' | 'rental', lang: string): Promise<DetailL | null> {
+  const snap = snapshotDetail(id, operation);
+  if (snap !== undefined || devDisabled()) {
+    const det = snap?.detail;
+    const tr = det?.i18n?.[lang];
+    if (!det || !tr?.title) return null;
+    return {
+      title: tr.title,
+      html: tr.content || '',
+      images: (det.imageUrls.length ? det.imageUrls : [snap!.card.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
+      yearBuilt: det.yearBuilt,
+      region: det.regionName,
+      infrastructure: [],
+      pricePerSquare: det.pricePerSquare,
+      video: det.videoUrl,
+      updated: det.modified,
+    };
+  }
   const key = `detail-${operation}-${id}-${lang}`;
   try {
     const d = await cached(key, () => getJson<{ item: RawListing }>(`/api/sale/${encodeURIComponent(id)}?source=portfolio&language=${lang}&operation=${operation}`, 2, 5_000));
