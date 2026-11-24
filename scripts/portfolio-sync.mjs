@@ -85,8 +85,18 @@ async function api(p, body, relogin = true) {
     if (r.status === 401 && relogin) { cookie = ''; await login(); return api(p, body, false); }
     if ([429, 502, 503, 504].includes(r.status) && attempt < 2) { await sleep(1000 * 2 ** attempt); continue; }
     if (!r.ok) throw Object.assign(new Error(`Portfolio ${p}: ${r.status}`), { status: r.status });
-    return r.json();
+    return parseLoose(await r.text(), p);
   }
+}
+
+/** Portfolio (PHP) иногда дописывает перед JSON предупреждения вида «<br /><b>Warning</b>…» — отрезаем их. */
+function parseLoose(t, p) {
+  try { return JSON.parse(t); } catch { /* ниже */ }
+  for (let i = t.indexOf('{'); i >= 0; i = t.indexOf('{', i + 1)) {
+    if (!/^\{\s*"/.test(t.slice(i))) continue;
+    try { return JSON.parse(t.slice(i)); } catch { /* следующий */ }
+  }
+  throw new Error(`Portfolio ${p}: ответ не JSON (${t.slice(0, 80).replace(/\s+/g, ' ')})`);
 }
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
