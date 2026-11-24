@@ -2,6 +2,8 @@
 // (API dev-сайта, свой API, CRM) — решается здесь. Когда придёт инструкция по
 // своему API, меняется только этот файл.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { areaRu, cityRu, COUNTRY_BY_CITY, typeInfo, type TypeGroup } from './dict';
 
 import mediaManifest from '../content/media-manifest.json';
@@ -21,7 +23,11 @@ const BASE = (import.meta.env.STAY_API_BASE as string | undefined) || 'https://d
 const TTL = 10 * 60 * 1000;
 const cache = new Map<string, { at: number; value: unknown }>();
 
+/** STAY_DEV_OFF=1 — к dev.stayproperty.com не ходим вообще, данные только из сохранённой копии (STAY_DATA_DIR/api-copy). */
+const devOff = () => ['1', 'true', 'yes'].includes(String(process.env.STAY_DEV_OFF || '').toLowerCase());
+
 export async function getJson<T>(path: string, tries = 3, timeout = 5_000): Promise<T> {
+  if (devOff()) throw new Error('dev отключён (STAY_DEV_OFF)');
   let last: unknown;
   for (let i = 0; i < tries; i++) {
     try {
@@ -39,7 +45,31 @@ export async function getJson<T>(path: string, tries = 3, timeout = 5_000): Prom
   throw last;
 }
 
-/** Берёт данные из API, при ошибке — из сохранённого снимка. */
+/* ---------- Копия ответов на диске ----------
+ * Каждый удачный ответ dev/бэкенда сохраняем в STAY_DATA_DIR/api-copy/<ключ>.json (не чаще раза в 10 минут на ключ).
+ * Если источник недоступен или закрыт (STAY_DEV_OFF=1), сайт берёт последнюю копию — так закрытие dev ничего не ломает.
+ * На Vercel диска нет — ошибки записи молча пропускаем. */
+const copyDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'api-copy');
+const copyFile = (key: string) => path.join(copyDir(), key.replace(/[^\w.-]+/g, '_').slice(0, 150) + '.json');
+const savedAt = new Map<string, number>();
+function saveCopy(key: string, value: unknown) {
+  if (Date.now() - (savedAt.get(key) ?? 0) < TTL) return;
+  savedAt.set(key, Date.now());
+  try {
+    fs.mkdirSync(copyDir(), { recursive: true });
+    const f = copyFile(key);
+    fs.writeFileSync(f + '.tmp', JSON.stringify(value));
+    fs.renameSync(f + '.tmp', f);
+  } catch { /* нет диска — не страшно */ }
+}
+function readCopy<T>(key: string): T | undefined {
+  try {
+    return JSON.parse(fs.readFileSync(copyFile(key), 'utf8')) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Сбросить данные в памяти (после вебхука revalidate). Последняя копия остаётся запасной на случай сбоя API. */
 export function expireCache() {
   for (const v of cache.values()) v.at = 0;
@@ -51,10 +81,17 @@ export async function cached<T>(key: string, load: () => Promise<T>, fallback?: 
   try {
     const value = await load();
     cache.set(key, { at: Date.now(), value });
+    saveCopy(key, value);
     return value;
   } catch (e) {
-    // API недоступен: отдаём последнюю удачную копию, потом снимок (не 404 при первом сбое — ТЗ 2.6 п. 7).
+    // API недоступен: отдаём последнюю удачную копию из памяти, потом с диска, потом встроенный снимок (ТЗ 2.6 п. 7).
+    if ((e as { notFound?: boolean }).notFound && !devOff()) throw e;
     if (hit) return hit.value as T;
+    const disk = readCopy<T>(key);
+    if (disk !== undefined) {
+      cache.set(key, { at: Date.now(), value: disk });
+      return disk;
+    }
     if (fallback) return fallback();
     throw e;
   }
