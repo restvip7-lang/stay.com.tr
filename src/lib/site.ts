@@ -2,8 +2,6 @@
 export const site = {
   name: 'Stay Property',
   phone: { label: '+90 530 178 29 16', href: 'tel:+905301782916' },
-  /** Куда ведёт S-Club в шапке. Временно — заглушка, адрес уточняется у Anuar. */
-  sclub: '#s-club',
   phones: [
     { country: 'Турция', label: '+90-530-178-29-16', href: 'https://wa.me/905301782916' },
     { country: 'Россия', label: '+7-499-350-8099', href: 'tel:+74993508099' },
@@ -14,8 +12,8 @@ export const site = {
     { label: 'STAY PROJECTS', href: '/complex/' },
     { label: 'STAY PROPERTY', href: '/sale/' },
     { label: 'PRIVE', href: '/prive/' },
-    { label: 'RENTAL', href: '/rental/' },
     { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
+    { label: 'S-CLUB', href: '/s-club/' },
   ],
   socials: [
     { name: 'instagram', href: 'https://www.instagram.com/stayproperty/' },

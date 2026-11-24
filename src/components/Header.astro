@@ -33,7 +33,7 @@ const brands = [
   { label: 'PRIVE', href: `/${lang}/prive/` },
   // RENTAL убран из шапки (правки руководства 24.11.2026): аренда остаётся в нижнем меню «Аренда».
   { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
-  { label: 'S-CLUB', href: site.sclub, external: /^https?:/.test(site.sclub) },
+  { label: 'S-CLUB', href: `/${lang}/s-club/` }, // пока заглушка «Скоро открытие»
 ];
 const nav = [
   { label: d.nav.rent, href: catUrl(lang, { country: 'turkey', deal: 'rent' }) },
@@ -49,7 +49,7 @@ const here = Astro.url.pathname;
 const langHref = (l: Lang) => alternates?.[l] ?? (/^\/(ru|en|tr|de|sr)\//.test(here) ? here.replace(/^\/(ru|en|tr|de|sr)\//, `/${l}/`) + Astro.url.search : `/${l}/`);
 const saleHref = catUrl(lang, { country: 'turkey', deal: 'sale' });
 const realty = [{ label: d.nav.sale, href: saleHref }, ...nav.slice(0, 2), { label: 'PRIVE', href: `/${lang}/prive/` }, { label: d.favorites, href: `/${lang}/favorites/` }];
-const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }, { label: 'S-Club', href: site.sclub }];
+const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }, { label: 'S-Club', href: `/${lang}/s-club/` }];
 const groups = [
   { title: d.nav.realty, links: realty },
   { title: d.nav.cities, links: cities.map((c) => ({ label: c.name, href: c.href })) },
