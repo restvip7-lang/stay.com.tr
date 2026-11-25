@@ -65,7 +65,7 @@ const stats = [
   ...(minPrice ? [{ v: moneyL(lang, minPrice), l: T.from }] : []),
 ];
 ---
-<Base title={meta.title} description={meta.description} canonical={base} alternates={allLangs(base)} robots={query ? 'noindex,follow' : 'index,follow'} overlayHeader bodyClass="theme-own mode-own" jsonLd={list.length ? itemListLd(list.map((x) => ({ url: SITE + complexUrl(lang, x), name: x.title }))) : undefined}>
+<Base title={meta.title} description={meta.description} canonical={base} alternates={allLangs(base)} robots={query ? 'noindex,follow' : 'index,follow'} overlayHeader bodyClass="theme-own" jsonLd={list.length ? itemListLd(list.map((x) => ({ url: SITE + complexUrl(lang, x), name: x.title }))) : undefined}>
   <div class="own-page">
     <HomeHero slides={hero} h1={meta.h1} lead={meta.lead} />
     <section class="container-x mt-10">
