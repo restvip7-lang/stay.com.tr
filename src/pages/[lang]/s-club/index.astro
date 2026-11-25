@@ -1,0 +1,214 @@
+---
+/**
+ * S-Club — программа привилегий для клиентов Stay (по образцу mr-group.ru/company/mrclub/, под Аланию).
+ * Цвета — от заглушки (тёмно-фиолетовая вуаль, градиентный знак S-CLUB): Anuar 25.11 «цветовую гамму оставляем».
+ * Блоки как у образца: первый экран + лента избранных партнёров, «Предложения» с категориями,
+ * «Всё, что нужно для новой жизни» + окно «Связаться с нами», вопросы и ответы.
+ * Партнёры — из админки (config/sclub.json); пока там пусто — тестовые данные с плашкой «Тест».
+ * Страница закрыта от индексации, пока данные тестовые.
+ */
+import Base from '../../../layouts/Base.astro';
+import Icon from '../../../components/Icon.astro';
+import SClubCard from '../../../components/SClubCard.astro';
+import { isLang } from '../../../i18n/config';
+import { site } from '../../../lib/site';
+import { getPartners, tx, sclubUrl, CATEGORIES, CATEGORY_LABEL, FAQ, UI } from '../../../lib/sclub';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const T = UI[lang];
+const partners = await getPartners();
+const featured = partners.filter((p) => p.featured);
+const cats = CATEGORIES.filter((c) => partners.some((p) => p.category === c));
+const hasNew = partners.some((p) => p.isNew);
+const hasTest = partners.some((p) => p.test);
+const faq = FAQ[lang === 'ru' ? 'ru' : 'en'];
+const FAQ_SHOW = 5;
+const wa = site.phones.find((p) => p.href.startsWith('https://wa.me/'))?.href ?? site.phone.href;
+---
+<Base title={`S-Club — ${T.kicker} | Stay Property`} description={T.lead} robots="noindex,follow" overlayHeader>
+  <section class="sclub relative isolate overflow-hidden pb-[120px] text-white lg:pb-[100px]">
+    <img src="/hero/exodus_aqua_deluxe_konakli.webp" alt="" class="absolute inset-0 -z-20 size-full object-cover" fetchpriority="high" />
+    <div class="sclub-veil absolute inset-0 -z-10" aria-hidden="true"></div>
+    <div class="sclub-ring absolute -z-10" aria-hidden="true"></div>
+    <div class="container-n flex min-h-[78svh] flex-col justify-center pb-10 pt-36 lg:min-h-[80svh] lg:pt-40">
+      <p class="sclub-kicker inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-2 text-[12px] uppercase tracking-[2px] backdrop-blur-md">
+        <span class="sclub-dot size-2 rounded-full bg-[#c9b6ff]" aria-hidden="true"></span>{T.kicker}
+      </p>
+      <h1 class="mt-6">
+        <span class="display sclub-title block text-[64px] leading-none sm:text-[110px] lg:text-[150px]">S-CLUB</span>
+        <span class="display mt-5 block max-w-[720px] text-[22px] leading-[28px] text-white lg:text-[32px] lg:leading-[40px]">{T.title}</span>
+      </h1>
+      <p class="mt-5 max-w-[560px] text-[16px] leading-[24px] text-white/75 lg:text-[18px] lg:leading-[28px]">{T.lead}</p>
+      <div class="mt-9 flex flex-wrap gap-3">
+        <a href="#offers" class="btn h-12 bg-white px-6 text-[12px] text-[#1c1e26] hover:bg-[#ede7ff]">{T.get}</a>
+        <a href="#faq" class="btn h-12 border-white/40 px-6 text-[12px] text-white hover:bg-white/10">{T.how}</a>
+      </div>
+      {hasTest && <p class="mt-8 inline-flex max-w-[640px] items-start gap-2 rounded-[12px] border border-[#ffd9c4]/40 bg-[#ffd9c4]/15 px-4 py-3 text-[13px] leading-[18px] text-[#ffe9dd]" data-sclub-test><span class="mt-px rounded-full bg-peach px-2 text-[11px] font-medium uppercase leading-[16px] tracking-[1px] text-ink-n">{T.test}</span>{T.testNote}</p>}
+    </div>
+  </section>
+
+  <div class="bg-page pb-20 lg:pb-28">
+    {featured.length > 0 && (
+      <section class="container-n relative z-10 -mt-[96px] flex items-stretch gap-3 lg:-mt-[72px]" aria-label="S-Club" data-sc-rail>
+        <div class="hidden shrink-0 flex-col justify-between gap-2 rounded-full bg-white/60 p-1.5 backdrop-blur-md lg:flex">
+          <button type="button" class="sc-arrow" data-sc-next aria-label={T.next}><Icon name="arrowRight" class="size-4" /></button>
+          <button type="button" class="sc-arrow" data-sc-prev aria-label={T.prev}><Icon name="arrowLeft" class="size-4" /></button>
+        </div>
+        <div class="sc-track flex min-w-0 flex-1 snap-x snap-mandatory gap-3 overflow-x-auto" data-sc-track>
+          {featured.map((p) => (
+            <a href={sclubUrl(lang, p.id)} class="sc-feat group relative flex h-[136px] w-[300px] shrink-0 snap-start overflow-hidden rounded-[16px] bg-white sm:w-[340px] lg:w-[calc((100%-24px)/3)]">
+              <span class="display relative z-10 w-[58%] p-4 text-[18px] leading-[22px] text-ink-n lg:p-5 lg:text-[22px] lg:leading-[26px]">{p.name}</span>
+              {p.image && <img src={p.image} alt="" loading="lazy" decoding="async" class="sc-skew absolute inset-y-0 right-0 h-full w-[48%] object-cover transition-transform duration-500 group-hover:scale-[1.04]" />}
+              {tx(p.badge, lang) && <span class="absolute bottom-3 right-3 z-10 rounded-full bg-peach px-2.5 py-1 text-[12px] leading-[14px] text-ink-n">{tx(p.badge, lang)}</span>}
+              {p.test && <span class="absolute bottom-3 left-4 z-10 rounded-full bg-[#1c1e26]/70 px-2.5 py-1 text-[11px] leading-[14px] text-white lg:left-5">{T.test}</span>}
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+
+    <section id="offers" class="container-n scroll-mt-28 pt-16 lg:pt-24">
+      <h2 class="display text-[32px] leading-[38px] text-ink-n lg:text-[44px] lg:leading-[52px]">{T.offers}</h2>
+      <div class="sc-chips -mx-5 mt-6 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0 lg:mt-8" role="toolbar" aria-label={T.offers} data-sc-chips>
+        <button type="button" class="sc-chip" aria-pressed="true" data-sc-cat="all">{CATEGORY_LABEL[lang].all}</button>
+        {hasNew && <button type="button" class="sc-chip" aria-pressed="false" data-sc-cat="new">{CATEGORY_LABEL[lang].new}</button>}
+        {cats.map((c) => <button type="button" class="sc-chip" aria-pressed="false" data-sc-cat={c}>{CATEGORY_LABEL[lang][c]}</button>)}
+      </div>
+      <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:mt-8 lg:grid-cols-3" data-sc-grid>
+        {partners.map((p) => <SClubCard p={p} lang={lang} />)}
+      </div>
+      <p class="mt-6 hidden text-soft" data-sc-empty>{T.empty}</p>
+    </section>
+
+    <section class="container-n mt-20 grid gap-8 lg:mt-28 lg:grid-cols-2 lg:gap-10">
+      <h2 class="display max-w-[560px] text-[30px] leading-[36px] text-ink-n lg:text-[40px] lg:leading-[48px]">{T.lifeTitle}</h2>
+      <div>
+        <p class="max-w-[600px] text-[16px] leading-[24px] text-ink-n">{T.lifeText}</p>
+        <button type="button" class="btn btn-ghost mt-7 h-12 px-7 text-[11px]" data-sc-contact-open>{T.contact}</button>
+      </div>
+    </section>
+  </div>
+
+  <section id="faq" class="scroll-mt-28 bg-white py-20 lg:py-24">
+    <div class="container-n">
+      <h2 class="display text-[32px] leading-[38px] text-ink-n lg:text-[44px] lg:leading-[52px]">{T.faq}</h2>
+      <div class="mt-8 flex flex-col gap-3" data-sc-faq>
+        {faq.map((x, i) => (
+          <details class:list={['sc-q group rounded-[16px] border border-line bg-white', i >= FAQ_SHOW && 'hidden']} data-sc-more-item={i >= FAQ_SHOW ? '' : undefined}>
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-5 text-[15px] font-medium leading-[20px] text-ink-n lg:px-6 lg:text-[16px]">
+              <span>{x.q}</span>
+              <span class="sc-pm grid size-10 shrink-0 place-items-center rounded-full border border-line" aria-hidden="true"><span class="sc-pm-h"></span><span class="sc-pm-v"></span></span>
+            </summary>
+            <p class="max-w-[760px] px-5 pb-6 text-[15px] leading-[24px] text-ink-n lg:px-6 lg:text-[16px]">{x.a}</p>
+          </details>
+        ))}
+      </div>
+      {faq.length > FAQ_SHOW && <div class="mt-8 flex justify-center"><button type="button" class="btn btn-ghost h-12 px-12 text-[11px]" data-sc-more>{T.more}</button></div>}
+    </div>
+  </section>
+
+  <dialog class="sc-drawer" data-sc-contact aria-labelledby="sc-contact-title">
+    <div class="flex h-full flex-col gap-5 p-6">
+      <div class="flex items-start justify-between gap-4">
+        <h2 id="sc-contact-title" class="display text-[22px] leading-[28px] text-ink-n">{T.contact}</h2>
+        <button type="button" class="btn-icon size-9 shrink-0" data-sc-contact-close aria-label={T.close}><Icon name="close" class="size-4" /></button>
+      </div>
+      <p class="text-[14px] leading-[20px] text-ink-2">{T.lifeText}</p>
+      <a href={site.phone.href} class="sc-row"><span class="sc-row-i"><Icon name="phone" class="size-5" /></span><span class="flex-1"><span class="block text-[12px] text-muted">{T.phone}</span>{site.phone.label}</span><Icon name="chevronRight" class="size-4" /></a>
+      <a href={wa} target="_blank" rel="noopener" class="sc-row"><span class="sc-row-i"><Icon name="whatsapp" class="size-5" /></span><span class="flex-1"><span class="block text-[12px] text-muted">{T.whatsapp}</span>{site.phone.label}</span><Icon name="chevronRight" class="size-4" /></a>
+      <a href={`mailto:${site.email}`} class="sc-row"><span class="sc-row-i"><Icon name="mail" class="size-5" /></span><span class="flex-1"><span class="block text-[12px] text-muted">{T.email}</span>{site.email}</span><Icon name="chevronRight" class="size-4" /></a>
+      <a href="#lead" data-lead-open class="btn btn-ghost h-12 w-full text-[11px]">{T.callback}</a>
+    </div>
+  </dialog>
+</Base>
+
+<style>
+  .sclub-veil { background: linear-gradient(115deg, rgba(14, 10, 38, 0.94) 0%, rgba(38, 22, 92, 0.82) 45%, rgba(117, 75, 233, 0.35) 100%); }
+  .sclub-ring {
+    right: -18vmax; top: 50%; width: 70vmax; height: 70vmax; translate: 0 -50%;
+    border-radius: 50%; border: 1px solid rgba(201, 182, 255, 0.25);
+    box-shadow: 0 0 0 8vmax rgba(201, 182, 255, 0.05), 0 0 0 16vmax rgba(201, 182, 255, 0.03);
+  }
+  .sclub-title { background: linear-gradient(90deg, #fff 0%, #d9ccff 60%, #a98bff 100%); -webkit-background-clip: text; background-clip: text; color: transparent; letter-spacing: -0.03em; }
+  .sclub-dot { animation: sclub-pulse 2s ease-in-out infinite; }
+  @keyframes sclub-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  @media (prefers-reduced-motion: reduce) { .sclub-dot { animation: none; } }
+
+  .sc-track { scrollbar-width: none; }
+  .sc-track::-webkit-scrollbar { display: none; }
+  /* Фото в карточке ленты срезано наискось, как у образца. */
+  .sc-skew { clip-path: polygon(28% 0, 100% 0, 100% 100%, 0 100%); }
+  .sc-arrow { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 999px; background: #fff; color: #1c1e26; transition: background-color .2s, color .2s; }
+  .sc-arrow:hover { background: #754be9; color: #fff; }
+  .sc-arrow:disabled { background: transparent; color: #8e9099; cursor: default; }
+
+  .sc-chips { scrollbar-width: none; }
+  .sc-chips::-webkit-scrollbar { display: none; }
+  .sc-chip { flex-shrink: 0; height: 40px; padding: 0 16px; border-radius: 12px; border: 1px solid #d0d1d7; background: transparent; font-size: 14px; color: #1c1e26; transition: background-color .2s, color .2s, border-color .2s; }
+  .sc-chip:hover { border-color: #754be9; }
+  .sc-chip[aria-pressed="true"] { background: #2a1a5e; border-color: #2a1a5e; color: #fff; }
+
+  .sc-pm { position: relative; }
+  .sc-pm-h, .sc-pm-v { position: absolute; width: 14px; height: 1.5px; background: #1c1e26; border-radius: 2px; transition: transform .2s; }
+  .sc-pm-v { transform: rotate(90deg); }
+  .sc-q[open] .sc-pm-v { transform: rotate(0deg); }
+  .sc-q summary::-webkit-details-marker { display: none; }
+
+  .sc-drawer { margin: 0 0 0 auto; height: 100dvh; max-height: 100dvh; width: min(420px, 100vw); max-width: 100vw; border: 0; padding: 0; background: #fff; }
+  .sc-drawer::backdrop { background: rgba(9, 7, 20, .45); }
+  .sc-drawer[open] { animation: sc-in .25s ease-out; }
+  @keyframes sc-in { from { transform: translateX(40px); opacity: 0; } }
+  @media (prefers-reduced-motion: reduce) { .sc-drawer[open] { animation: none; } }
+  .sc-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px 10px 10px; border-radius: 12px; background: #f0f1f6; font-size: 16px; color: #1c1e26; transition: background-color .2s; }
+  .sc-row:hover { background: #efedff; }
+  .sc-row-i { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px; background: #fff; color: #754be9; }
+</style>
+
+<script>
+  // Категории предложений: показываем карточки выбранной категории (или «Новое в клубе»).
+  const chips = document.querySelectorAll<HTMLButtonElement>('[data-sc-cat]');
+  const cards = document.querySelectorAll<HTMLElement>('[data-sc-grid] > [data-cat]');
+  const empty = document.querySelector<HTMLElement>('[data-sc-empty]');
+  chips.forEach((b) => b.addEventListener('click', () => {
+    const cat = b.dataset.scCat;
+    chips.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    let n = 0;
+    cards.forEach((c) => {
+      const show = cat === 'all' || (cat === 'new' ? c.dataset.new === '1' : c.dataset.cat === cat);
+      c.hidden = !show;
+      if (show) n++;
+    });
+    empty?.classList.toggle('hidden', n > 0);
+  }));
+
+  // Лента избранных партнёров: стрелки листают на одну карточку.
+  const track = document.querySelector<HTMLElement>('[data-sc-track]');
+  const prev = document.querySelector<HTMLButtonElement>('[data-sc-prev]');
+  const next = document.querySelector<HTMLButtonElement>('[data-sc-next]');
+  const step = () => (track?.firstElementChild as HTMLElement | null)?.offsetWidth ?? 300;
+  const arrows = () => {
+    if (!track || !prev || !next) return;
+    prev.disabled = track.scrollLeft <= 2;
+    next.disabled = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
+  };
+  prev?.addEventListener('click', () => track?.scrollBy({ left: -(step() + 12), behavior: 'smooth' }));
+  next?.addEventListener('click', () => track?.scrollBy({ left: step() + 12, behavior: 'smooth' }));
+  track?.addEventListener('scroll', arrows, { passive: true });
+  addEventListener('resize', arrows);
+  arrows();
+
+  // Вопросы: «Показать ещё» открывает остальные.
+  document.querySelector('[data-sc-more]')?.addEventListener('click', (e) => {
+    document.querySelectorAll('[data-sc-more-item]').forEach((x) => x.classList.remove('hidden'));
+    (e.currentTarget as HTMLElement).parentElement?.remove();
+  });
+
+  // Окно «Связаться с нами» справа; «Заказать обратный звонок» закрывает его и открывает общую форму.
+  const drawer = document.querySelector<HTMLDialogElement>('[data-sc-contact]');
+  document.querySelectorAll('[data-sc-contact-open]').forEach((b) => b.addEventListener('click', () => drawer?.showModal()));
+  drawer?.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    if (t === drawer || t.closest('[data-sc-contact-close]') || t.closest('[data-lead-open]')) drawer.close();
+  });
+</script>
