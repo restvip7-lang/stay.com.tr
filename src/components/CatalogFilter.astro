@@ -249,7 +249,7 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
       </div>
       <button type="button" data-adv-open class="btn-n btn-n-white mt-3 w-full lg:hidden"><Icon name="filter" class="size-5" />{tf.all}</button>
       <!-- Чипы: комнатность, PRIVE, гражданство, фичи из адреса -->
-      <div class="scroll-x relative -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
+      <div data-chips-row class="scroll-x relative -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
         {rooms.map((r) => (
           <label class="shrink-0 cursor-pointer">
             <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
@@ -547,6 +547,12 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
   .ptype-row input:checked + .ptype-round::after, .ptype-row[aria-pressed="true"] .ptype-round::after { left: 5px; top: 5px; width: 9px; height: 9px; border: 0; border-radius: 50%; background: #fff; transform: none; }
   .ptype-row input:focus-visible + .ptype-mark { outline: 2px solid var(--color-accent); outline-offset: 2px; }
   .ptype-hr { margin: 8px 22px; border: 0; border-top: 1px solid var(--color-line); }
+  /* Закреплённый при прокрутке фильтр каталога: белая полоса во всю ширину вверху экрана, поля по сетке страницы. */
+  .filter-n.is-stuck { position: fixed; top: 0; left: 0; right: 0; z-index: 45; padding: 12px 20px; background: var(--color-surface, #fff); box-shadow: 0 6px 24px #1c1e2614; animation: stick-in .25s ease; }
+  @media (min-width: 768px) { .filter-n.is-stuck { padding: 16px max(40px, calc((100% - 1312px) / 2)) 14px; } }
+  @media (max-width: 1023px) { .filter-n.is-stuck [data-chips-row] { display: none; } }
+  @keyframes stick-in { from { transform: translateY(-100%); } to { transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .filter-n.is-stuck { animation: none; } }
 </style>
 
 <script>

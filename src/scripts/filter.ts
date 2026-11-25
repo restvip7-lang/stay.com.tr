@@ -142,10 +142,11 @@ export function initFilters() {
       saleOnly.forEach((el) => (el.hidden = deal !== 'sale'));
       const prive = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=prive]')?.checked;
       const own = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=own]')?.checked;
-      // Маленький фильтр PRIVE / STAY PROJECTS не трогает тему своей страницы.
-      if (form.dataset.mode === 'prive') return;
+      // Шапку подсвечивает только тумблер PRIVE на главной (там он переключает блоки страницы).
+      // В каталоге (общий фильтр) и на страницах PRIVE / STAY PROJECTS шапку не трогаем (Anuar 25.11.2026).
+      if (form.dataset.mode !== 'home') return;
+      void own;
       document.body.classList.toggle('mode-prive', prive);
-      document.body.classList.toggle('mode-own', own && !prive);
     };
     syncDeal();
 
@@ -227,6 +228,23 @@ export function initFilters() {
       location.href = buildUrl(form);
     });
     if (catalog) addEventListener('popstate', () => location.reload());
+
+    // Каталог: при прокрутке фильтр закрепляется вверху экрана, шапка уезжает (как у образца mr-group.ru/flats/).
+    const holder = form.parentElement;
+    if (catalog && holder) {
+      let stuck = false;
+      const onScroll = () => {
+        const on = holder.getBoundingClientRect().top < 0;
+        if (on === stuck) return;
+        stuck = on;
+        holder.style.minHeight = on ? `${form.offsetHeight}px` : '';
+        form.classList.toggle('is-stuck', on);
+        document.body.classList.toggle('filter-stuck', on);
+      };
+      onScroll();
+      addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('resize', () => { if (stuck) { stuck = false; form.classList.remove('is-stuck'); holder.style.minHeight = ''; } onScroll(); });
+    }
     addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) { cascade(); syncDeal(); } });
 
     // Маленький фильтр: «Выбрать квартиру ˅» — список типов; выбор меняет слово в заголовке и пересчитывает лоты.

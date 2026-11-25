@@ -185,7 +185,7 @@ const groups = [
   /* Выпадающие окна по наведению: открываются сразу, закрываются с задержкой, чтобы успеть довести курсор. */
   .hover-pop { transition: opacity .15s ease .3s, visibility 0s linear .45s; }
   .group:hover > .hover-pop, .group:focus-within > .hover-pop { transition: opacity .15s ease, visibility 0s; }
-  .site-header { transition: background-color .3s, color .3s; }
+  .site-header { transition: transform .3s ease, background-color .3s, color .3s; }
   .site-header.is-solid { background: #fff; color: var(--color-ink); }
   .site-header.is-overlay { background: transparent; color: #fff; }
   .site-header .brand-sep { background: currentColor; opacity: .3; }
