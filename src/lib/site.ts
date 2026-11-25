@@ -9,7 +9,7 @@ export const site = {
   email: 'office@stayproperty.com',
   address: 'Oba Mah., Mesut Cd., No: 54/A – 07400 Alanya / Antalya / Turkey',
   brands: [
-    { label: 'STAY PROJECTS', href: '/complex/' },
+    { label: 'STAY PROJECTS', href: '/stay-projects/' },
     { label: 'STAY PROPERTY', href: '/sale/' },
     { label: 'PRIVE', href: '/prive/' },
     { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },

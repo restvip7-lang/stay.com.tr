@@ -19,7 +19,7 @@ import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import {
   catUrl, itemUrl, itemsOf, filtered, parseFilters, hasFilters, noFilters, stats, INDEX_MIN, PER_PAGE, SORTS,
-  featureCounts, typeCounts, childGeo, neighbours, countOf, getOurComplexes, matchComplex, type Cat, type Item,
+  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, type Cat, type Item,
 } from '../lib/catalog';
 import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
 import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '../lib/seo';
@@ -121,7 +121,7 @@ const popular = (await featureCounts({ country: cat.country, city: cat.city, dis
 const priceRows = (await Promise.all(types.map(async ([ty]) => ({ ty, s: stats(await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal, type: ty })) })))).filter((r) => r.s.n > 0);
 
 // Комплексы гео (для хаба и для текста).
-const complexes = (await getOurComplexes()).filter((x) => matchComplex(x, cat));
+const complexes = (await getComplexes()).filter((x) => matchComplex(x, cat));
 const cxMeta = complexes.length ? complexesMeta(lang, g, complexes.length, Math.min(...complexes.map((x) => x.priceFrom ?? Infinity).filter(Number.isFinite)) || null) : null;
 
 // SEO-текст, FAQ — только на первой странице.

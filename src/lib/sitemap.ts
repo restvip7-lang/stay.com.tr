@@ -132,9 +132,10 @@ export async function urlsOf(kind: Kind, lang: Lang): Promise<Url[]> {
   }
   // static
   const paths = [
-    `/${lang}/`, `/${lang}/about/`, `/${lang}/team/`, `/${lang}/reviews/`, `/${lang}/contacts/`, `/${lang}/prive/`, serviceUrl(lang),
+    `/${lang}/`, `/${lang}/about/`, `/${lang}/team/`, `/${lang}/reviews/`, `/${lang}/contacts/`, `/${lang}/prive/`, `/${lang}/stay-projects/`, serviceUrl(lang),
     ...(await allServices(lang)).map((s) => serviceUrl(lang, s.slug)),
     ...TEAM.map((m) => `/${lang}/team/${m.slug}/`), `/${lang}/team/${EDITORIAL.slug}/`,
+    ...[...new Set((await getOurComplexes()).map((c) => c.city))].map((c) => `/${lang}/stay-projects/${c}/`),
   ];
   return paths.map((loc) => ({ loc, lastmod: d, alts: allLangs(loc) }));
 }

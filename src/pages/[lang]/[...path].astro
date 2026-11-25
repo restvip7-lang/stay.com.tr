@@ -11,7 +11,7 @@ import PickerPage from '../../components/PickerPage.astro';
 import { pickerFor } from '../../lib/pickers';
 import NotFound from '../../components/NotFound.astro';
 import { isLang } from '../../i18n/config';
-import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, getOurComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
+import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
 import { findSeen, daysSince, SOLD_DAYS } from '../../lib/seen';
 
 const lang = Astro.params.lang;
@@ -33,7 +33,7 @@ if (route && isLang(lang)) {
     const n = route.page > 1 ? (await filtered(route.cat, parseFilters(Astro.url.searchParams))).length : 0;
     view = route.page > 1 && route.page > Math.ceil(n / PER_PAGE) ? '404' : 'cat';
   } else if (route.kind === 'complexes') {
-    const n = (await getOurComplexes()).filter((x) => matchComplex(x, route.cat)).length;
+    const n = (await getComplexes()).filter((x) => matchComplex(x, route.cat)).length;
     view = route.page > Math.max(1, Math.ceil(n / 24)) ? '404' : 'complexes';
   } else if (route.kind === 'complex') {
     complex = (await getComplexes()).find((c) => c.slug === route.slug) ?? null;

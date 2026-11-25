@@ -638,6 +638,29 @@ export function itemMeta(lang: Lang, x: { type: TypeSlug; rooms: string | null; 
 
 /* ---------- Комплексы ---------- */
 
+/** Страница STAY PROJECTS (/{lang}/stay-projects/): только собственные проекты компании — тексты об этом и о гарантии. */
+const PROJECT_WORDS: Record<Lang, [string, string, string]> = {
+  ru: ['проект', 'проекта', 'проектов'],
+  en: ['project', 'projects', 'projects'],
+  tr: ['projesi', 'projesi', 'projesi'],
+  de: ['Projekt', 'Projekte', 'Projekte'],
+  sr: ['projekat', 'projekta', 'projekata'],
+};
+
+export function projectsMeta(lang: Lang, g: Geo, n: number, minPrice: number | null): Meta {
+  const gin = geoIn(lang, g);
+  const nw = pluralL(lang, n, PROJECT_WORDS[lang]);
+  const min = moneyL(lang, minPrice);
+  const M: Record<Lang, Meta> = {
+    ru: { title: fit(`Проекты Stay ${gin} — новостройки компании с гарантией`, `Проекты Stay ${gin} — новостройки с гарантией`, `Проекты Stay ${gin}`), h1: `Проекты Stay ${gin}`, description: desc(`${n} ${nw} Stay ${gin}${min ? `, квартиры от ${min}` : ''}. Покупка напрямую у компании, без посредников.`, 'Гарантия Stay на сроки и качество, сопровождение сделки и после покупки.'), lead: `${n} ${nw} компании Stay ${gin}${min ? `, квартиры от ${min}` : ''}. Это наши собственные проекты, поэтому мы сами отвечаем за них и даём гарантию.` },
+    en: { title: fit(`Stay projects ${gin} — company-backed new developments`, `Stay projects ${gin} — with a guarantee`, `Stay projects ${gin}`), h1: `Stay projects ${gin}`, description: desc(`${n} Stay ${nw} ${gin}${min ? `, apartments from ${min}` : ''}. Buy directly from the company, with no intermediaries.`, 'Stay guarantee on timing and quality, support during and after the purchase.'), lead: `${n} Stay ${nw} ${gin}${min ? `, apartments from ${min}` : ''}. These are our own projects, so we take responsibility for them and back them with our guarantee.` },
+    tr: { title: fit(`${cap(gin)} Stay projeleri — garantili yeni konutlar`, `${cap(gin)} Stay projeleri`), h1: cap(`${gin} Stay projeleri`), description: desc(`${cap(gin)} Stay'in ${n} ${nw}${min ? `, daireler ${min}'dan başlıyor` : ''}. Aracısız, doğrudan şirketten satın alın.`, 'Süre ve kalite için Stay garantisi, satış öncesi ve sonrası destek.'), lead: `${cap(gin)} Stay'in ${n} ${nw}${min ? `, daireler ${min}'dan başlıyor` : ''}. Bunlar kendi projelerimiz; sorumluluğu biz alıyor ve garanti veriyoruz.` },
+    de: { title: fit(`Stay-Projekte ${gin} — Neubau mit Garantie des Unternehmens`, `Stay-Projekte ${gin} — mit Garantie`, `Stay-Projekte ${gin}`), h1: `Stay-Projekte ${gin}`, description: desc(`${n} ${nw} von Stay ${gin}${min ? `, Wohnungen ab ${min}` : ''}. Kauf direkt beim Unternehmen, ohne Vermittler.`, 'Stay-Garantie auf Termine und Qualität, Begleitung beim Kauf und danach.'), lead: `${n} ${nw} von Stay ${gin}${min ? `, Wohnungen ab ${min}` : ''}. Es sind unsere eigenen Projekte: Wir tragen selbst die Verantwortung und geben eine Garantie.` },
+    sr: { title: fit(`Stay projekti ${gin} — novogradnja sa garancijom kompanije`, `Stay projekti ${gin} — sa garancijom`, `Stay projekti ${gin}`), h1: `Stay projekti ${gin}`, description: desc(`${n} ${nw} kompanije Stay ${gin}${min ? `, stanovi od ${min}` : ''}. Kupovina direktno od kompanije, bez posrednika.`, 'Stay garancija na rokove i kvalitet, podrška pri kupovini i posle nje.'), lead: `${n} ${nw} kompanije Stay ${gin}${min ? `, stanovi od ${min}` : ''}. Ovo su naši sopstveni projekti: sami odgovaramo za njih i dajemo garanciju.` },
+  };
+  return M[lang];
+}
+
 export function complexesMeta(lang: Lang, g: Geo, n: number, minPrice: number | null, page = 1): Meta {
   const gin = geoIn(lang, g);
   const cw = COMPLEX_WORDS[lang];

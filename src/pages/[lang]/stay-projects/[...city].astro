@@ -1,0 +1,52 @@
+---
+/**
+ * STAY PROJECTS — собственные проекты компании (список OUR_PROJECTS в lib/catalog.ts).
+ * /{lang}/stay-projects/ — все, /{lang}/stay-projects/{город}/ — проекты города.
+ * «Новостройки» (…/sale/complexes/) — отдельно, там все ЖК (Anuar 25.11.2026).
+ */
+import Base from '../../../layouts/Base.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import ProjectsBlock from '../../../components/ProjectsBlock.astro';
+import LinkCloud from '../../../components/LinkCloud.astro';
+import StayGuarantee from '../../../components/StayGuarantee.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import { isLang, SITE } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { getOurComplexes, complexUrl } from '../../../lib/catalog';
+import { cityBySlug, COUNTRIES } from '../../../lib/geo';
+import { projectsMeta, geoOf, geoIn } from '../../../lib/seo';
+import { itemListLd } from '../../../lib/ld';
+import { allLangs } from '../../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const citySlug = (Astro.params.city ?? '').replace(/\/+$/, '');
+if (citySlug.includes('/')) return Astro.rewrite('/404');
+const d = t(lang);
+const ours = (await getOurComplexes()).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+const city = citySlug ? cityBySlug(citySlug) : null;
+if (citySlug && (!city || !ours.some((x) => x.city === citySlug))) return Astro.rewrite('/404');
+const country = city ? ours.find((x) => x.city === citySlug)!.country : (ours[0]?.country ?? COUNTRIES[0].slug);
+const list = city ? ours.filter((x) => x.city === citySlug) : ours;
+const prices = list.map((x) => x.priceFrom).filter((p): p is number => !!p);
+const meta = projectsMeta(lang, geoOf({ country, city: citySlug || null }), list.length, prices.length ? Math.min(...prices) : null);
+const root = `/${lang}/stay-projects/`;
+const base = city ? `${root}${citySlug}/` : root;
+
+const counts = new Map<string, number>();
+for (const x of ours) counts.set(x.city, (counts.get(x.city) ?? 0) + 1);
+const cityLinks = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => ({ href: `${root}${s}/`, text: cityBySlug(s)?.name[lang] ?? s, n, current: s === citySlug }));
+const crumbs: { label: string; href?: string }[] = [{ label: d.home, href: `/${lang}/` }, city ? { label: 'Stay Projects', href: root } : { label: 'Stay Projects' }];
+if (city) crumbs.push({ label: city.name[lang] });
+---
+<Base title={meta.title} description={meta.description} canonical={base} robots="index,follow" alternates={allLangs(base)} jsonLd={list.length ? itemListLd(list.map((x) => ({ url: SITE + complexUrl(lang, x), name: x.title }))) : undefined}>
+  <section class="container-x pt-6 md:pt-10">
+    <Breadcrumbs items={crumbs} />
+    <h1 class="display h-page mt-6">{meta.h1}</h1>
+    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{meta.lead}</p>
+    {cityLinks.length > 1 && <LinkCloud title={d.catalog.cities(geoIn(lang, geoOf({ country })))} links={[{ href: root, text: d.complex.all, n: ours.length, current: !city }, ...cityLinks]} />}
+  </section>
+  <ProjectsBlock projects={list} visible={list.length} tight />
+  <StayGuarantee />
+  <LeadSection context={`stay-projects-${base}`} title={d.catalog.ctaTitle} subtitle={d.catalog.ctaText} />
+</Base>
