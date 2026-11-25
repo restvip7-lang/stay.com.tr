@@ -579,6 +579,7 @@ if (authed) {
             <button data-o-own class="${btn} ${m.own ? 'bg-[#754be9] text-white border-[#754be9]' : ''}" title="Объект компании: фиолетовая карточка; в общем списке продажи виден только через фильтр">${m.own ? 'Наш объект ✓' : 'Наш объект'}</button>
             <button data-o-cit class="${btn} ${m.cit ? 'bg-[#e5484d] text-white border-[#e5484d]' : ''}" title="Бейдж «Гражданство» на фото карточки">${m.cit ? 'Гражданство ✓' : 'Гражданство'}</button>
             <button data-o-res class="${btn} ${m.res ? 'bg-[#1f3a68] text-white border-[#1f3a68]' : ''}" title="Бейдж «ВНЖ» на фото карточки">${m.res ? 'ВНЖ ✓' : 'ВНЖ'}</button>
+            <button data-o-prive class="${btn} ${m.prive ? 'bg-[#bc906e] text-white border-[#bc906e]' : ''}" title="Лот PRIVE: золотой бейдж, показывается в «Лотах PRIVE»">${m.prive ? 'PRIVE ✓' : 'PRIVE'}</button>
             <button data-o-hide class="${btn} ${m.hidden ? 'bg-ink text-white border-ink' : ''}">${m.hidden ? 'Скрыт — показать' : 'Скрыть'}</button>
             <span data-o-st class="w-24 text-xs text-muted"></span></li>`;
         }
@@ -625,6 +626,7 @@ if (authed) {
           else if (b.hasAttribute('data-o-own')) m.own = !m.own;
           else if (b.hasAttribute('data-o-cit')) m.cit = !m.cit;
           else if (b.hasAttribute('data-o-res')) m.res = !m.res;
+          else if (b.hasAttribute('data-o-prive')) m.prive = !m.prive;
           else if (b.hasAttribute('data-o-hide')) m.hidden = !m.hidden;
           else return;
           save(li, m);
