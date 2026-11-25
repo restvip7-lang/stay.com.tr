@@ -111,7 +111,7 @@ const classOpts = catalog && sale ? await Promise.all((['prive', 'own'] as const
 const typeName = cat.type ? TYPE_WORDS[lang][cat.type].pl : PT.anyType;
 const classNames = classOpts.filter((c) => c.on).map((c) => c.l);
 /** Сколько фильтров включено (город и район считаются, как «Проект» у образца; страна, сделка и тип — нет) — число на кнопке «Фильтры», как у образца. */
-const activeCount = [cat.city, cat.district, f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, f.projects.length, f.readyFrom || f.readyTo, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
+const activeCount = [cat.city, cat.district, f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, f.projects.length, f.blocks.length, f.readyFrom || f.readyTo, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
 // STAY PROJECTS: «Сбросить фильтры» — все наши квартиры (как /flats/ у образца), а не общий каталог.
 const resetHref = catalog && sale && f.own && !f.prive ? ownUrl(lang, cat.type ?? 'apartments') : `/${lang}/${[cat.country, cat.deal].filter(Boolean).join('/')}/`;
 const FR: Record<string, string> = { ru: 'Сбросить фильтры', en: 'Reset filters', tr: 'Filtreleri sıfırla', de: 'Filter zurücksetzen', sr: 'Poništi filtere' };
@@ -134,6 +134,15 @@ const ownRg = ownMode ? rangesOf(await filtered({ ...geoCat, type: cat.type }, {
 // Список «Проект» сужается по «Срок сдачи» (как у образца: «До конца года» — только проекты, которые сдаются до конца года).
 const years = ownMode ? await readyYears() : new Map<string, number | null>();
 const inRange = (y: number | null) => (!f.readyFrom && !f.readyTo) || (y != null && (!f.readyFrom || y >= f.readyFrom) && (!f.readyTo || y <= f.readyTo));
+// Один выбранный проект — поля «Корпус» и «Этаж» (как у образца: building-mir_3/floor-from-16-to-16).
+const oneProject = ownMode && f.projects.length === 1;
+const projItems = oneProject ? await filtered({ ...geoCat, type: cat.type }, { ...noFilters(), own: true, projects: f.projects }) : [];
+const blockOpts = [...projItems.reduce((m, x) => (x.block ? m.set(x.block, (m.get(x.block) ?? 0) + 1) : m), new Map<string, number>())].sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true }));
+const floorsList = projItems.map((x) => x.floor).filter((v): v is number => !!v);
+const floorRange: [number, number] = floorsList.length ? [Math.min(...floorsList), Math.max(...floorsList)] : [1, 1];
+const BL = ({ ru: { block: 'Корпус', blockW: 'Блок', floor: 'Этаж' }, en: { block: 'Building', blockW: 'Block', floor: 'Floor' }, tr: { block: 'Blok', blockW: 'Blok', floor: 'Kat' }, de: { block: 'Gebäude', blockW: 'Block', floor: 'Etage' }, sr: { block: 'Zgrada', blockW: 'Blok', floor: 'Sprat' } } as Record<string, Record<string, string>>)[lang] ?? { block: 'Корпус', blockW: 'Блок', floor: 'Этаж' };
+const blockLabel = f.blocks.map((b) => `${BL.blockW} ${b}`).join(', ');
+const floorLabel = f.floorFrom || f.floorTo ? (f.floorFrom && f.floorFrom === f.floorTo ? String(f.floorFrom) : [f.floorFrom && `${tf.fromW} ${f.floorFrom}`, f.floorTo && `${tf.toW} ${f.floorTo}`].filter(Boolean).join(' ')) : '';
 const projLabel = ourProjects.filter((c) => f.projects.includes(c.code)).map((c) => c.title).join(', ');
 const placeOf = (c: { city: string; district: string | null }) => [c.district && districtBySlug(c.city, c.district)?.name[lang], cityBySlug(c.city)?.name[lang]].filter(Boolean).join(', ');
 const roomsLabel = rooms.filter((r) => selRooms.has(r.v) || pathRooms === r.v).map((r) => r.l).join(', ');
@@ -329,6 +338,44 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
                 ))}
               </div>
             </div>
+            {oneProject && blockOpts.length > 0 && (
+              <div class="fsel ptype" data-drop>
+                <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                  {blockLabel ? <><em>{BL.block}</em><strong>{blockLabel}</strong></> : <strong class="ptype-ph">{BL.block}</strong>}
+                </button>
+                <Icon name="chevronDown" class="fsel-i ptype-i" />
+                <div class="ptype-list">
+                  {blockOpts.map(([b, n]) => (
+                    <label class="ptype-row">
+                      <span class="ptype-t">{BL.blockW} {b}</span>
+                      <span class="ptype-from">{numL(lang, n)}</span>
+                      <input type="checkbox" name="block" value={b} checked={f.blocks.includes(b)} class="peer sr-only" />
+                      <span class="ptype-mark" aria-hidden="true"></span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            {oneProject && floorsList.length > 0 && (
+              <div class="fsel ptype" data-drop>
+                <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                  {floorLabel ? <><em>{BL.floor}</em><strong>{floorLabel}</strong></> : <strong class="ptype-ph">{BL.floor}</strong>}
+                </button>
+                <Icon name="chevronDown" class="fsel-i ptype-i" />
+                <div class="ptype-list drop-range">
+                  <fieldset class="range min-w-0 px-4 pb-2 pt-1" data-range data-year data-min={floorRange[0]} data-max={floorRange[1]} data-step="1">
+                    <div class="grid grid-cols-2 gap-2">
+                      <label class="field fld"><span>{tf.fromW}</span><input name="floor_from" inputmode="numeric" maxlength="3" placeholder={`${floorRange[0]}`} value={f.floorFrom ?? ''} data-lo data-mirror aria-label={`${BL.floor} ${tf.fromW}`} /></label>
+                      <label class="field fld"><span>{tf.toW}</span><input name="floor_to" inputmode="numeric" maxlength="3" placeholder={`${floorRange[1]}`} value={f.floorTo ?? ''} data-hi data-mirror aria-label={`${BL.floor} ${tf.toW}`} /></label>
+                    </div>
+                    <div class="dual mt-4" aria-hidden="true">
+                      <input type="range" min={floorRange[0]} max={floorRange[1]} step="1" value={f.floorFrom ?? floorRange[0]} data-slo tabindex="-1" />
+                      <input type="range" min={floorRange[0]} max={floorRange[1]} step="1" value={f.floorTo ?? floorRange[1]} data-shi tabindex="-1" />
+                    </div>
+                  </fieldset>
+                </div>
+              </div>
+            )}
             <!-- «Срок сдачи» — диапазон «с … г / по … г», как у образца. -->
             {/* Как у образца: «Срок сдачи» — только когда выбраны все проекты; у одного проекта срок один, он в карточке ЖК. */}
             {f.projects.length === 0 && <div class="fsel ptype" data-drop>

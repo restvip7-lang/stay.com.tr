@@ -111,7 +111,7 @@ const flatGroups = [...grouped.entries()].map(([key, list], i) => {
     image: items.find((x) => x.image)?.image ?? null,
     count: `${items.length} ${pluralL(lang, items.length, tw.n)}`,
     // Наши проекты: карточка открывает каталог с галочкой «Объекты Stay», проектом и комнатностью (как у образца).
-    href: ours ? ownUrl(lang, x0.type, [c.slug], roomsKey(x0.rooms) ? [roomsKey(x0.rooms)!] : []) : items.length === 1 ? itemUrl(lang, x0) : null,
+    href: ours ? ownUrl(lang, x0.type, { projectSlugs: [c.slug], rooms: roomsKey(x0.rooms) ? [roomsKey(x0.rooms)!] : [] }) : items.length === 1 ? itemUrl(lang, x0) : null,
   };
 }).sort((a, b) => roomsN(a.rooms) - roomsN(b.rooms) || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
 const infra = p?.infrastructure ?? [];

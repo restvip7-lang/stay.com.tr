@@ -51,9 +51,8 @@ const PC = ({
   de: { or: 'oder', ready: 'Fertigstellung', block: 'Block', floor: (n: number) => `${n}. Etage` },
   sr: { or: 'ili', ready: 'Rok završetka', block: 'Blok', floor: (n: number) => `${n}. sprat` },
 } as Record<string, { or: string; ready: string; block: string; floor: (n: number) => string }>)[lang] ?? null;
-const blockM = project ? x.titleRu.match(/Блок\s*([A-Za-zА-Яа-я0-9]+)/) : null;
 const numM = project ? x.titleRu.match(/№\s*([0-9A-Za-z-]+)/) : null;
-const pLine = project && PC ? [blockM && `${PC.block} ${blockM[1]}${numM ? `, №${numM[1]}` : ''}`, x.floor ? PC.floor(x.floor) : ''].filter(Boolean).join(' · ') : '';
+const pLine = project && PC ? [x.block && `${PC.block} ${x.block}${numM ? `, №${numM[1]}` : ''}`, x.floor ? PC.floor(x.floor) : ''].filter(Boolean).join(' · ') : '';
 const readyText = project ? (lang === 'ru' ? project.ready : project.year ? String(project.year) : null) : null;
 const perM2Short = x.price && x.area && PC ? `${PC.or} ${moneyL(lang, Math.round(x.price / x.area))}/${d.m2}` : '';
 const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|residence-permit/.test(f)).slice(0, 2);

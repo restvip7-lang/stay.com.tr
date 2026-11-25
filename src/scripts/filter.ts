@@ -5,7 +5,7 @@ import { syncFavorites } from './client';
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
 const OWN_ROOM_SLUG: Record<string, string> = { studio: 'studio', '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'project', 'ready_from', 'ready_to', 'f', 'sort'];
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'project', 'block', 'ready_from', 'ready_to', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -40,6 +40,8 @@ export function buildUrl(form: HTMLFormElement): string {
   if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); sp.delete('own'); }
   // «Проект» и «Срок сдачи» — только для STAY PROJECTS (галочка «Объекты Stay»).
   if (!sp.has('own')) sp.delete('project');
+  // «Корпус» — только при одном выбранном проекте.
+  if (sp.getAll('project').length !== 1) { sp.delete('block'); if (sp.has('own')) { sp.delete('floor_from'); sp.delete('floor_to'); } }
   // «Срок сдачи» — только когда выбраны все проекты (как у образца).
   if (!sp.has('own') || sp.has('project')) { sp.delete('ready_from'); sp.delete('ready_to'); }
 
@@ -48,8 +50,11 @@ export function buildUrl(form: HTMLFormElement): string {
     const slugs = sp.getAll('project').map((c) => form.querySelector<HTMLInputElement>(`input[name=project][value="${CSS.escape(c)}"]`)?.dataset.slug).filter(Boolean);
     const ROOMS = ['studio', '1+1', '2+1', '3+1', '4+'];
     const rs = sp.getAll('rooms').filter((r) => ROOMS.includes(r)).sort((a, b) => ROOMS.indexOf(a) - ROOMS.indexOf(b)).map((r) => OWN_ROOM_SLUG[r]);
-    for (const k of ['own', 'project', 'rooms']) sp.delete(k);
-    const p2 = '/' + [lang, 'stay-projects', type || 'all', slugs.join('-or-'), rs.join('-or-')].filter(Boolean).join('/') + '/';
+    const blocks = sp.getAll('block').map((b) => `block-${b.toLowerCase()}`);
+    const fa = Number(sp.get('floor_from')) || 0, fb = Number(sp.get('floor_to')) || 0;
+    const floor = fa || fb ? ['floor', fa ? `from-${fa}` : '', fb ? `to-${fb}` : ''].filter(Boolean).join('-') : '';
+    for (const k of ['own', 'project', 'rooms', 'block', 'floor_from', 'floor_to']) sp.delete(k);
+    const p2 = '/' + [lang, 'stay-projects', type || 'all', slugs.join('-or-'), blocks.join('-or-'), rs.join('-or-'), floor].filter(Boolean).join('/') + '/';
     const q2 = sp.toString();
     return p2 + (q2 ? `?${q2}` : '');
   }
@@ -214,7 +219,9 @@ export function initFilters() {
     let seq = 0;
     let go: number | undefined;
     const isOwn = (u: URL) => u.searchParams.has('own') || /^\/[a-z]{2}\/stay-projects\/./.test(u.pathname);
-    const ownAtLoad = isOwn(new URL(location.href)), projAtLoad = new FormData(form).getAll('project').length > 0;
+    // Набор полей зависит от проектов: ни одного — «Срок сдачи», один — «Корпус» и «Этаж», несколько — без них.
+    const projKey = () => { const p = new FormData(form).getAll('project').map(String); return p.length === 1 ? p[0] : p.length ? '*' : ''; };
+    const ownAtLoad = isOwn(new URL(location.href)), projAtLoad = projKey();
     const apply = () => {
       clearTimeout(go);
       go = window.setTimeout(async () => {
@@ -223,7 +230,7 @@ export function initFilters() {
         // Галочка «Объекты Stay» меняет набор полей (фильтр STAY PROJECTS) — страницу перезагружаем целиком.
         // Внутри каталога STAY PROJECTS адрес меняется (проекты, комнатность — в пути), выдачу всё равно подменяем на месте;
         // перезагрузка — при входе/выходе из него и когда меняется «выбран ли проект» (поле «Срок сдачи»).
-        const ownNow = isOwn(next), projNow = new FormData(form).getAll('project').length > 0;
+        const ownNow = isOwn(next), projNow = projKey();
         const samePath = next.pathname === location.pathname || (ownNow && isOwn(new URL(location.href)));
         if (!samePath || ownNow !== ownAtLoad || projNow !== projAtLoad) { location.href = url; return; }
         const my = ++seq;

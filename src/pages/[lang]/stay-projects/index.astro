@@ -59,7 +59,7 @@ const blockList = query ? lots : all;
 const ranges = rangesOf(all);
 // Каталог STAY PROJECTS — короткие адреса /{lang}/stay-projects/{тип}/… (как /flats/ у образца).
 const rest = new URLSearchParams(sp); rest.delete('own'); rest.delete('rooms');
-const catalogHref = query ? ownUrl(lang, lotType, [], f.rooms, rest.toString()) : ownUrl(lang, 'all');
+const catalogHref = query ? ownUrl(lang, lotType, { rooms: f.rooms }, rest.toString()) : ownUrl(lang, 'all');
 const prices = list.map((x) => x.priceFrom).filter((p): p is number => !!p);
 const minPrice = prices.length ? Math.min(...prices) : null;
 const cities = new Set(list.map((x) => x.city)).size;

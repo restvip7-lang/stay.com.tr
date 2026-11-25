@@ -29,6 +29,8 @@ export interface Item {
   titleRu: string;
   /** Слаг ЖК, если объект в комплексе. */
   complex: string | null;
+  /** Корпус (блок) квартиры проекта — из названия лота («…, Блок C, …»), латиницей: A, B, C… */
+  block?: string | null;
   features: FeatureSlug[];
   /** Квартира из проектов Stay (Битрикс) — описаний и переводов нет. */
   unit: boolean;
@@ -57,6 +59,12 @@ function bedrooms(r: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** «…, Блок С, …» → «C»: кириллические буквы-двойники переводим в латиницу, чтобы «Блок А» и «Блок A» были одним корпусом. */
+const LOOK: Record<string, string> = { А: 'A', В: 'B', С: 'C', Е: 'E', Н: 'H', К: 'K', М: 'M', О: 'O', Р: 'P', Т: 'T', Х: 'X' };
+export function blockOf(title: string): string | null {
+  const m = title.match(/Блок\s*([A-Za-zА-Яа-я0-9]{1,4})/i);
+  return m ? m[1].toUpperCase().replace(/[А-Я]/g, (c) => LOOK[c] ?? c) : null;
+}
 const numOrNull = (v: unknown) => (v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 
 function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fallback?: { city: string; district: string | null }): Item | null {
@@ -87,6 +95,7 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
     image: fixImage(x.imageUrl),
     titleRu: String(x.title || '').trim(),
     complex: x.projectCode ? String(x.projectCode) : null,
+    block: unit ? blockOf(String(x.title || '')) : null,
     features: [],
     unit,
     citizenship,
@@ -456,7 +465,7 @@ export { CITIES };
 export type SortKey = 'new' | 'price-asc' | 'price-desc' | 'area-desc' | 'sea-asc';
 export const SORTS: SortKey[] = ['new', 'price-asc', 'price-desc', 'area-desc', 'sea-asc'];
 /** Параметры, которые считаются фильтром (страница с ними — noindex + canonical на чистый URL). */
-export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view', 'project', 'ready_from', 'ready_to'];
+export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view', 'project', 'block', 'ready_from', 'ready_to'];
 
 export interface Filters {
   priceFrom?: number;
@@ -477,6 +486,8 @@ export interface Filters {
   ref?: string;
   /** «Проект» (только STAY PROJECTS, как у образца): коды ЖК, ?project=…, можно несколько. */
   projects: string[];
+  /** «Корпус» (при одном выбранном проекте): ?block=C. */
+  blocks: string[];
   /** «Срок сдачи» диапазоном, как у образца («с 2027 г — по 2027 г»): год сдачи ЖК, ?ready_from=2026&ready_to=2027. */
   readyFrom?: number;
   readyTo?: number;
@@ -506,6 +517,7 @@ export function parseFilters(sp: URLSearchParams): Filters {
     own: sp.get('own') === '1',
     ref: sp.get('ref')?.trim() || undefined,
     projects: [...new Set(sp.getAll('project').flatMap((v) => v.split(',')).map((v) => v.trim()).filter(Boolean))],
+    blocks: [...new Set(sp.getAll('block').flatMap((v) => v.split(',')).map((v) => v.trim().toUpperCase()).filter(Boolean))],
     readyFrom: n('ready_from'),
     readyTo: n('ready_to'),
     extras: [...new Set(sp.getAll('f').flatMap((v) => v.split(',')).map((v) => featureDef(v)?.slug).filter((v): v is FeatureSlug => !!v))],
@@ -523,7 +535,7 @@ function roomsBucket(r: string | null): string | null {
 }
 
 /** Включён ли хоть один фильтр (сортировка не в счёт). */
-const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.areaFrom || f.areaTo || f.floorFrom || f.floorTo || f.prive || f.citizenship || f.own || f.ref || f.projects.length || f.readyFrom || f.readyTo || f.extras.length);
+const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.areaFrom || f.areaTo || f.floorFrom || f.floorTo || f.prive || f.citizenship || f.own || f.ref || f.projects.length || f.blocks.length || f.readyFrom || f.readyTo || f.extras.length);
 
 /** Список категории с учётом GET-фильтров и сортировки. */
 export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
@@ -555,6 +567,7 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   const readyOf = f.readyFrom || f.readyTo ? await readyYears() : null;
   let out = base.filter((x) => {
     if (f.projects.length && !f.projects.includes(x.complex ?? '')) return false;
+    if (f.blocks.length && !f.blocks.includes(x.block ?? '')) return false;
     if (readyOf) {
       const y = readyOf.get(x.complex ?? '') ?? null;
       if (y == null || (f.readyFrom && y < f.readyFrom) || (f.readyTo && y > f.readyTo)) return false;
