@@ -216,10 +216,19 @@ export function initFilters() {
       }, 450);
     };
 
-    form.addEventListener('change', () => { syncDeal(); if (catalog) apply(); else count(); });
+    // Счётчик на кнопке «Фильтры» и «Сбросить фильтры» (как у образца): сколько фильтров включено, кроме гео, сделки и типа.
+    const fcount = () => {
+      const fd = new FormData(form);
+      const has = (...k: string[]) => k.some((x) => fd.getAll(x).some((v) => String(v).trim()));
+      const n = [has('rooms'), has('prive'), has('own'), has('citizenship'), has('price_from', 'price_to'), has('area_from', 'area_to'), has('sea_from', 'sea_to'), has('floor_from', 'floor_to'), has('ref'), has('feature')].filter(Boolean).length
+        + new Set(fd.getAll('f').map(String).filter((x) => x !== String(fd.get('feature') ?? ''))).size;
+      form.querySelectorAll<HTMLElement>('[data-fcount]').forEach((el) => { el.textContent = String(n); el.hidden = !n; });
+      form.querySelectorAll<HTMLElement>('[data-freset]').forEach((el) => (el.hidden = !n));
+    };
+    form.addEventListener('change', () => { syncDeal(); if (catalog) { fcount(); apply(); } else count(); });
     form.addEventListener('input', (e) => {
       if (!(e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) return;
-      if (catalog) apply(); else count();
+      if (catalog) { fcount(); apply(); } else count();
     });
     form.addEventListener('submit', (e) => {
       e.preventDefault();

@@ -107,6 +107,10 @@ const classOpts = catalog && sale ? await Promise.all((['prive', 'own'] as const
 })) : [];
 const typeName = cat.type ? TYPE_WORDS[lang][cat.type].pl : PT.anyType;
 const classNames = classOpts.filter((c) => c.on).map((c) => c.l);
+/** Сколько фильтров включено (кроме гео, сделки и типа) — число на кнопке «Фильтры», как у образца. */
+const activeCount = [f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
+const resetHref = `/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`;
+const FR: Record<string, string> = { ru: 'Сбросить фильтры', en: 'Reset filters', tr: 'Filtreleri sıfırla', de: 'Filter zurücksetzen', sr: 'Poništi filtere' };
 const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : typeName;
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-lots={prive ? lots : undefined} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
@@ -176,8 +180,10 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
     </>
   ) : catalog ? (
     <>
-      <!-- Каталог (новая система образца): 6 полей 50 в ряд с подписью сверху + кнопка «Фильтры», ниже чипы. -->
-      <div class="scroll-x -mx-5 flex gap-2 px-5 lg:mx-0 lg:grid lg:grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,1fr)_auto] lg:overflow-visible lg:px-0">
+      <!-- Каталог (как у образца mr-group.ru/flats/): 6 полей в ряд, ниже «Фильтры» со счётчиком, чипы и «Сбросить фильтры».
+           При прокрутке ряд закрепляется вверху, а «Фильтры» сжимаются в квадратную кнопку слева от полей. -->
+      <div class="frow scroll-x -mx-5 flex gap-2 px-5 lg:mx-0 lg:overflow-visible lg:px-0">
+        <button type="button" data-adv-open class="fbtn-sq btn-n btn-n-white relative shrink-0" aria-label={tf.all}><Icon name="filter" class="size-5" /><span class="fbadge" data-fcount hidden={!activeCount}>{activeCount}</span></button>
         <label class="fsel" for="f-deal">
           <span>{tf.deal}</span>
           <select id="f-deal" name="deal">{(['sale', 'rent'] as Deal[]).map((x) => <option value={x} selected={cat.deal === x}>{DEAL_WORDS[lang][x].name}</option>)}</select>
@@ -245,11 +251,11 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
           <span>{tf.id}</span>
           <input id="f-ref" name="ref" placeholder={tf.idPh} maxlength="20" autocomplete="off" value={f.ref ?? ''} />
         </label>
-        <button type="button" data-adv-open class="btn-n btn-n-white hidden shrink-0 lg:inline-flex"><Icon name="filter" class="size-5" />{tf.all}</button>
       </div>
-      <button type="button" data-adv-open class="btn-n btn-n-white mt-3 w-full lg:hidden"><Icon name="filter" class="size-5" />{tf.all}</button>
-      <!-- Чипы: комнатность, PRIVE, гражданство, фичи из адреса -->
-      <div data-chips-row class="scroll-x relative -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
+      <!-- Второй ряд: «Фильтры» со счётчиком, чипы (комнатность, гражданство, фичи из адреса), справа «Сбросить фильтры». -->
+      <div data-chips-row class="scroll-x relative -mx-5 mt-4 flex items-center gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
+        <button type="button" data-adv-open class="fbtn btn-n btn-n-white relative shrink-0"><Icon name="filter" class="size-5" />{tf.all}<span class="fbadge" data-fcount hidden={!activeCount}>{activeCount}</span></button>
+        <span class="fsep mx-2 hidden h-8 w-px shrink-0 bg-line lg:block" aria-hidden="true"></span>
         {rooms.map((r) => (
           <label class="shrink-0 cursor-pointer">
             <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
@@ -262,6 +268,7 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
         </span>
         {hiddenFeature && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="feature" aria-label={tf.remove(FEATURE_LABEL[lang][hiddenFeature])}>{FEATURE_LABEL[lang][hiddenFeature]} <span aria-hidden="true">×</span></button>}
         {f.extras.filter((e) => e !== cat.feature).map((e) => <button type="button" class="chip-n shrink-0 !bg-lime" data-uncheck={e} aria-label={tf.remove(FEATURE_LABEL[lang][e])}>{FEATURE_LABEL[lang][e]} <span aria-hidden="true">×</span></button>)}
+        <a href={resetHref} data-freset hidden={!activeCount} class="ml-auto shrink-0 whitespace-nowrap pl-4 text-[15px] font-medium text-soft transition-colors hover:text-ink">{FR[lang] ?? FR.ru} ✕</a>
       </div>
 
       <!-- «Все фильтры»: окно на весь экран по образцу (mr-group.ru/flats/): «Основные» и «Расширенные» в три колонки, только наши поля.
@@ -362,7 +369,7 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
         </div>
         <div class="fixed inset-x-0 bottom-0 border-t border-line bg-white">
           <div class="mx-auto flex max-w-[1392px] items-center gap-3 px-4 pb-5 pt-4 lg:gap-6 lg:pb-6 lg:pt-5 lg:px-[42px]">
-            <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="order-first inline-flex h-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f0f1f4] px-5 text-[15px] font-medium lg:order-last lg:h-auto lg:bg-transparent lg:px-0 lg:hover:text-accent"><span class="lg:hidden">{A.reset}</span><span class="hidden lg:inline">{A.resetAll} ✕</span></a>
+            <a href={resetHref} class="order-first inline-flex h-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f0f1f4] px-5 text-[15px] font-medium lg:order-last lg:h-auto lg:bg-transparent lg:px-0 lg:hover:text-accent"><span class="lg:hidden">{A.reset}</span><span class="hidden lg:inline">{A.resetAll} ✕</span></a>
             <button type="button" data-adv-close class="btn-n btn-n-dark min-w-0 flex-1 !bg-ink-n lg:w-[360px] lg:flex-none"><span data-swap="count-btn">{tf.show}: {numL(lang, total)}</span></button>
           </div>
         </div>
@@ -553,6 +560,18 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
   @media (max-width: 1023px) { .filter-n.is-stuck [data-chips-row] { display: none; } }
   @keyframes stick-in { from { transform: translateY(-100%); } to { transform: none; } }
   @media (prefers-reduced-motion: reduce) { .filter-n.is-stuck { animation: none; } }
+  /* «Фильтры»: в обычном виде — кнопка с текстом во втором ряду; в закреплённом — квадрат слева от полей. */
+  @media (min-width: 1024px) { .frow > .fsel { flex: 1 1 0; min-width: 0; } }
+  .fbtn-sq { display: none; width: 56px; padding: 0; }
+  @media (min-width: 1024px) { .fbtn-sq { width: 50px; } }
+  .filter-n.is-stuck .fbtn-sq { display: inline-flex; }
+  .filter-n.is-stuck .fbtn, .filter-n.is-stuck .fsep { display: none; }
+  .filter-n.is-stuck [data-chips-row] { margin-top: 12px; }
+  .fbadge { position: absolute; top: -6px; right: -6px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--color-ink); color: #fff; font-size: 11px; font-weight: 600; line-height: 20px; text-align: center; }
+  .fbadge[hidden] { display: none; }
+  /* На телефоне ряд полей прокручивается вбок и обрезает выступающее — счётчик внутри угла кнопки. */
+  @media (max-width: 1023px) { .fbtn-sq .fbadge { top: 4px; right: 4px; } }
+  .fbtn .fbadge { position: static; margin-left: -2px; align-self: flex-start; margin-top: 8px; }
 </style>
 
 <script>
