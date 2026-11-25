@@ -416,16 +416,17 @@ const UNIT_WINDOWS: [number, number][] = [[0, 120000], [120001, 180000], [180001
 
 function toUnit(x: RawListing): Listing {
   const duplex = /дуплекс/i.test(x.objectType || '');
+  const villa = /вилл/i.test(x.objectType || '');
   const city = cityRu(x.city);
   const projectSlug = x.projectCode ? String(x.projectCode).replace(/_/g, '-').replace(/-+$/, '').toLowerCase() : null;
   return {
     id: `u${x.id}`,
     code: x.code ?? null,
-    title: (x.title || '').trim() || `${duplex ? 'Дуплекс' : 'Квартира'} ${x.roomLabel ?? ''}`.trim(),
+    title: (x.title || '').trim() || `${villa ? 'Вилла' : duplex ? 'Дуплекс' : 'Квартира'} ${x.roomLabel ?? ''}`.trim(),
     operation: 'sale',
     rooms: x.roomLabel ?? null,
-    typeLabel: duplex ? 'Дуплекс' : 'Квартира',
-    typeGroup: duplex ? 'duplexes' : 'apartments',
+    typeLabel: villa ? 'Вилла' : duplex ? 'Дуплекс' : 'Квартира',
+    typeGroup: villa ? 'villas' : duplex ? 'duplexes' : 'apartments',
     rawType: x.objectType ?? null,
     country: city ? COUNTRY_BY_CITY[city] ?? null : null,
     city,

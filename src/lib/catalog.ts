@@ -63,7 +63,9 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
   const geo = resolveGeo(x.city, x.area) ?? fallback ?? null;
   if (!geo) return null;
   const city = cityBySlug(geo.city)!;
-  const type: TypeSlug = unit ? (/дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
+  // Квартиры проектов: тип по полю базы; проекты вилл (VILLA_PROJECTS, отметка Anuar) — все лоты виллы.
+  const villaProject = unit && !!x.projectCode && VILLA_SLUGS.has(slugify(String(x.projectCode)));
+  const type: TypeSlug = unit ? (villaProject || /вилл/i.test(x.objectType || '') ? 'villas' : /дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
   const rooms = x.roomLabel ?? null;
   const it: Item = {
     id: unit ? `u${x.id}` : String(x.id),
@@ -322,6 +324,10 @@ const OUR_PROJECTS = [
   'Villa Rabbit Hill', // VL001 Bektaş
 ];
 const OUR_SLUGS = new Set(OUR_PROJECTS.map(slugify));
+/** Проекты вилл (Anuar 25.11.2026): их лоты — виллы, на карточке проекта метка «Виллы». */
+const VILLA_PROJECTS = ['Riva Port Villas Side', 'Villa Rabbit Hill'];
+const VILLA_SLUGS = new Set(VILLA_PROJECTS.map(slugify));
+export const isVillaComplex = (c: Pick<Complex, 'title' | 'code'>) => VILLA_SLUGS.has(slugify(c.title)) || VILLA_SLUGS.has(slugify(c.code));
 export const isOurComplex = (c: Pick<Complex, 'title' | 'code'>) => OUR_SLUGS.has(slugify(c.title)) || OUR_SLUGS.has(slugify(c.code));
 /** Комплексы для списков «Новостройки / STAY PROJECTS»: только наши проекты. */
 export async function getOurComplexes(): Promise<Complex[]> {
