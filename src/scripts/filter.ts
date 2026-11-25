@@ -4,7 +4,7 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -111,10 +111,12 @@ export function initFilters() {
     const catalog = form.dataset.mode === 'catalog';
 
     // Связанные списки: страна → город → район.
-    const country = form.querySelector<HTMLSelectElement>('[data-country]')!;
-    const city = form.querySelector<HTMLSelectElement>('[data-city]')!;
-    const district = form.querySelector<HTMLSelectElement>('[data-district]')!;
+    const country = form.querySelector<HTMLSelectElement>('[data-country]');
+    const city = form.querySelector<HTMLSelectElement>('[data-city]');
+    const district = form.querySelector<HTMLSelectElement>('[data-district]');
     const cascade = () => {
+      // Фильтр страницы PRIVE — без гео.
+      if (!country || !city || !district) return;
       city.querySelectorAll<HTMLOptionElement>('option[data-country]').forEach((o) => {
         o.hidden = !!country.value && o.dataset.country !== country.value;
         if (o.hidden && o.selected) city.value = '';
@@ -125,8 +127,8 @@ export function initFilters() {
       });
       district.disabled = !city.value;
     };
-    country.addEventListener('change', cascade);
-    city.addEventListener('change', cascade);
+    country?.addEventListener('change', cascade);
+    city?.addEventListener('change', cascade);
     cascade();
     initRanges(form, fmt);
 
@@ -160,7 +162,7 @@ export function initFilters() {
           form.querySelectorAll('[data-total]').forEach((el) => (el.textContent = fmt(total)));
           const btn = form.querySelector<HTMLElement>('[data-nouns]');
           const noun = form.querySelector('[data-noun]');
-          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type'))];
+          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type') ?? '')];
           if (noun && forms) noun.textContent = pluralW(form.dataset.lang || 'ru', total, forms);
         } catch { /* счётчик не критичен */ }
       }, 250);
@@ -196,7 +198,18 @@ export function initFilters() {
       if (!(e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) return;
       if (catalog) apply(); else count();
     });
-    form.addEventListener('submit', (e) => { e.preventDefault(); location.href = buildUrl(form); });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      // Страница PRIVE: выдача лотов на ней же, ниже проектов.
+      if (form.dataset.mode === 'prive') {
+        const sp = new URL(buildUrl(form), location.origin).searchParams;
+        sp.delete('prive');
+        const q = sp.toString();
+        location.href = `${location.pathname}${q ? `?${q}` : ''}#lots`;
+        return;
+      }
+      location.href = buildUrl(form);
+    });
     if (catalog) addEventListener('popstate', () => location.reload());
     addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) { cascade(); syncDeal(); } });
 

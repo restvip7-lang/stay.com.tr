@@ -12,8 +12,8 @@ import { geoOptions, allowedFeatureMap, type Cat, type Filters } from '../lib/ca
 import { DEAL_WORDS, FEATURE_LABEL, TYPES, TYPE_WORDS, type Deal } from '../lib/segments';
 import { numL, pluralL } from '../lib/format';
 
-interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home'; types?: string[] }
-const { cat, f, total, mode = 'catalog' } = Astro.props;
+interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: { price: [number, number]; area: [number, number] } }
+const { cat, f, total, mode = 'catalog', ranges } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const tf = d.filter;
@@ -25,6 +25,11 @@ const step = cat.deal === 'rent' ? 50 : 1000;
 const seaMin = 1;
 const seaMax = 1000;
 const catalog = mode === 'catalog';
+const prive = mode === 'prive';
+// Страница PRIVE: границы ползунков по самим PRIVE-лотам.
+const pPrice = ranges?.price ?? [priceMin, priceMax];
+const pArea = ranges?.area ?? [20, 500];
+const aptNouns = TYPE_WORDS[lang].apartments.n as [string, string, string];
 const rooms = [{ v: 'studio', l: tf.studio }, { v: '1+1', l: '1+1' }, { v: '2+1', l: '2+1' }, { v: '3+1', l: '3+1' }, { v: '4+', l: '4+' }];
 const selRooms = new Set(f.rooms);
 const allowed = allowedFeatureMap(cat.country);
@@ -45,7 +50,52 @@ const OWN_LABEL: Record<string, string> = { ru: 'Объекты Stay', en: 'Stay
 const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), prive: tf.onlyPrive, citizenship: tf.citizenship };
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
-  {catalog ? (
+  {prive ? (
+    <>
+      <!-- Страница PRIVE — уменьшенный фильтр по образцу (mr-group.ru/private/): стоимость, комнаты, площадь и «Показать N квартир».
+           Считает и показывает только PRIVE-лоты. -->
+      <input type="hidden" name="deal" value="sale" />
+      <input type="hidden" name="prive" value="1" />
+      <div class="grid items-start gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto]">
+        <fieldset class="range" data-range data-min={pPrice[0]} data-max={pPrice[1]} data-step="1000" aria-labelledby="p-price-l">
+          <span class="hlabel" id="p-price-l">{tf.price}</span>
+          <div class="hsplit">
+            <input name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, pPrice[0])}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
+            <input name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, pPrice[1])}`} value={f.priceTo ? numL(lang, f.priceTo) : ''} data-hi aria-label={tf.priceTo} />
+          </div>
+          <div class="dual dual-home -mt-[9px] px-4" aria-hidden="true">
+            <input type="range" min={pPrice[0]} max={pPrice[1]} step="1000" value={f.priceFrom ?? pPrice[0]} data-slo tabindex="-1" />
+            <input type="range" min={pPrice[0]} max={pPrice[1]} step="1000" value={f.priceTo ?? pPrice[1]} data-shi tabindex="-1" />
+          </div>
+        </fieldset>
+        <fieldset>
+          <legend class="hlabel">{tf.rooms}</legend>
+          <div class="flex flex-wrap gap-2">
+            {rooms.map((r) => (
+              <label class="cursor-pointer">
+                <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v)} class="peer sr-only" />
+                <span class="inline-flex h-[52px] min-w-[52px] items-center justify-center rounded-full bg-white px-3 text-[14px] transition-colors hover:bg-line peer-checked:bg-accent peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <fieldset class="range" data-range data-min={pArea[0]} data-max={pArea[1]} data-step="1" aria-labelledby="p-area-l">
+          <span class="hlabel" id="p-area-l">{d.item.area}, {d.m2}</span>
+          <div class="hsplit">
+            <input name="area_from" inputmode="numeric" placeholder={`${tf.fromW} ${pArea[0]}`} value={f.areaFrom ?? ''} data-lo aria-label={`${d.item.area} ${tf.fromW}`} />
+            <input name="area_to" inputmode="numeric" placeholder={`${tf.toW} ${pArea[1]}`} value={f.areaTo ?? ''} data-hi aria-label={`${d.item.area} ${tf.toW}`} />
+          </div>
+          <div class="dual dual-home -mt-[9px] px-4" aria-hidden="true">
+            <input type="range" min={pArea[0]} max={pArea[1]} step="1" value={f.areaFrom ?? pArea[0]} data-slo tabindex="-1" />
+            <input type="range" min={pArea[0]} max={pArea[1]} step="1" value={f.areaTo ?? pArea[1]} data-shi tabindex="-1" />
+          </div>
+        </fieldset>
+        <button type="submit" class="btn btn-accent h-[52px] whitespace-nowrap lg:mt-[28px]" data-nouns={JSON.stringify({ '': aptNouns })}>
+          <span>{tf.show} <span data-total>{numL(lang, total)}</span> <span data-noun>{pluralL(lang, total, aptNouns)}</span></span><Icon name="chevronRight" class="size-3.5" />
+        </button>
+      </div>
+    </>
+  ) : catalog ? (
     <>
       <!-- Каталог (новая система образца): 6 полей 50 в ряд с подписью сверху + кнопка «Фильтры», ниже чипы. -->
       <div class="scroll-x -mx-5 flex gap-2 px-5 lg:mx-0 lg:grid lg:grid-cols-[repeat(5,minmax(0,1fr))_minmax(0,1fr)_auto] lg:overflow-visible lg:px-0">

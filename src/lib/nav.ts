@@ -60,6 +60,7 @@ export async function footerColumns(lang: Lang) {
     { text: `${tw.duplexes.pl}`, href: catUrl(lang, { ...base, deal: 'sale', type: 'duplexes' }) },
     { text: `${tw.apartments.pl}: ${fl['near-sea'].toLocaleLowerCase()}`, href: catUrl(lang, { ...base, deal: 'sale', type: 'apartments', feature: 'near-sea' }) },
     { text: `${tw.apartments.pl}: ${fl.citizenship.toLocaleLowerCase()}`, href: catUrl(lang, { ...base, deal: 'sale', type: 'apartments', feature: 'citizenship' }) },
+    { text: `${tw.apartments.pl}: ${fl['residence-permit'].toLocaleLowerCase()}`, href: catUrl(lang, { ...base, deal: 'sale', type: 'apartments', feature: 'residence-permit' }) },
     { text: `${tw.apartments.pl}: ${fl.cheap.toLocaleLowerCase()}`, href: catUrl(lang, { ...base, deal: 'sale', type: 'apartments', feature: 'cheap' }) },
     { text: `${tw.apartments.pl}: ${fl.installment.toLocaleLowerCase()}`, href: catUrl(lang, { ...base, deal: 'sale', type: 'apartments', feature: 'installment' }) },
     { text: d.nav.complexes, href: catUrl(lang, base, { complexes: true }) },
