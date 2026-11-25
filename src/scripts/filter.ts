@@ -218,11 +218,14 @@ export function initFilters() {
     });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      // Страницы PRIVE и STAY PROJECTS: выдача лотов на ней же, ниже проектов.
-      if (form.dataset.mode === 'prive') {
+      // Страницы PRIVE и STAY PROJECTS: выдача лотов на ней же, ниже проектов (тип — параметром ?type=).
+      // «Новостройки»: маленький фильтр ведёт в каталог квартир в новостройках.
+      if (form.dataset.mode === 'prive' && form.dataset.lots !== 'new') {
         const sp = new URL(buildUrl(form), location.origin).searchParams;
         sp.delete('prive');
         sp.delete('own');
+        const type = String(new FormData(form).get('type') || '');
+        if (type && type !== 'apartments') sp.set('type', type);
         const q = sp.toString();
         location.href = `${location.pathname}${q ? `?${q}` : ''}#lots`;
         return;
@@ -231,6 +234,17 @@ export function initFilters() {
     });
     if (catalog) addEventListener('popstate', () => location.reload());
     addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) { cascade(); syncDeal(); } });
+
+    // Маленький фильтр: «Выбрать квартиру ˅» — список типов; выбор меняет слово в заголовке и пересчитывает лоты.
+    form.querySelectorAll<HTMLElement>('[data-tsel]').forEach((box) => {
+      const btn = box.querySelector<HTMLButtonElement>('[data-tsel-btn]')!;
+      const label = box.querySelector<HTMLElement>('[data-tsel-label]')!;
+      const open = (on: boolean) => { box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on)); };
+      btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
+      box.querySelectorAll<HTMLInputElement>('[data-tsel-opt]').forEach((o) => o.addEventListener('change', () => { label.textContent = o.dataset.tselOpt || ''; open(false); }));
+      document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
+      addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+    });
 
     // «Фильтры»: панель на весь экран; выдача под ней обновляется сразу, кнопка внизу закрывает панель.
     const panel = form.querySelector<HTMLElement>('[data-adv-panel]');

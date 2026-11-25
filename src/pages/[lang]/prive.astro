@@ -29,15 +29,22 @@ const turkeySale = { country: 'turkey', deal: 'sale' as const };
 // Фильтр страницы: стоимость, комнаты, площадь (из адреса), всегда только PRIVE-лоты.
 const sp = new URLSearchParams();
 for (const k of ['price_from', 'price_to', 'rooms', 'area_from', 'area_to']) for (const v of Astro.url.searchParams.getAll(k)) sp.append(k, v);
+// Тип лота из заголовка «Выбрать квартиру ˅»: квартира (по умолчанию), пентхаус, дуплекс.
+const qType = Astro.url.searchParams.get('type');
+const lotType = qType === 'penthouses' || qType === 'duplexes' ? qType : 'apartments';
+if (lotType !== 'apartments') sp.set('type', lotType);
 const query = sp.toString();
+sp.delete('type');
 sp.set('prive', '1');
 const f = parseFilters(sp);
 const all = await filtered(turkeySale, { ...noFilters(), prive: true });
-const lots = query ? await filtered(turkeySale, f) : all;
+const typeCounts = { apartments: all.filter((x) => x.type === 'apartments').length, penthouses: all.filter((x) => x.type === 'penthouses').length, duplexes: all.filter((x) => x.type === 'duplexes').length };
+const lotCat = { ...turkeySale, type: lotType } as const;
+const lots = await filtered(lotCat, f);
 const total = lots.length;
 const SHOW = 12;
 const ranges = rangesOf(all);
-const catalogHref = `/${lang}/turkey/sale/?${sp}`;
+const catalogHref = `/${lang}/turkey/sale/${lotType}/?${sp}`;
 const T = {
   ru: { title: 'PRIVE — закрытые проекты Stay Property', h1: 'PRIVE: закрытые проекты Stay Property', lead: 'Специальные условия и лоты, которых нет в открытой продаже.', choose: ['Выбрать', 'квартиру'], lots: 'Лоты PRIVE', all: 'Все лоты PRIVE в каталоге', none: 'По этим параметрам лотов нет — измените фильтр.' },
   en: { title: 'PRIVE — Stay Property private projects', h1: 'PRIVE: Stay Property private projects', lead: 'Special terms and units that are not on open sale.', choose: ['Choose', 'an apartment'], lots: 'PRIVE units', all: 'All PRIVE units in the catalogue', none: 'No units match these filters — try changing them.' },
@@ -53,9 +60,7 @@ const T = {
       <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: 'PRIVE' }]} />
     </section>
     <section class="container-x mt-10 md:mt-16">
-      <!-- Заголовок в два тона, как «Выбрать квартиру» у образца. -->
-      <h2 class="display h-section mb-8"><span class="text-muted">{T.choose[0]}</span> {T.choose[1]}</h2>
-      <CatalogFilter cat={turkeySale} f={f} total={total} mode="prive" ranges={ranges} />
+      <CatalogFilter cat={lotCat} f={f} total={total} mode="prive" typeCounts={typeCounts} ranges={ranges} />
     </section>
     <ProjectsBlock title={d.hp.priveProjects} projects={list} visible={cfg.projectsVisible} prive />
     <section id="lots" class="container-x mt-20 scroll-mt-28 md:mt-28">

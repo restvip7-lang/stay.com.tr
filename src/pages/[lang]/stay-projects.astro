@@ -37,15 +37,22 @@ const turkeySale = { country: 'turkey', deal: 'sale' as const };
 // Фильтр: стоимость, комнаты, площадь (из адреса), всегда только «Объекты Stay».
 const sp = new URLSearchParams();
 for (const k of ['price_from', 'price_to', 'rooms', 'area_from', 'area_to']) for (const v of Astro.url.searchParams.getAll(k)) sp.append(k, v);
+// Тип лота из заголовка «Выбрать квартиру ˅»: квартира (по умолчанию), пентхаус, дуплекс.
+const qType = Astro.url.searchParams.get('type');
+const lotType = qType === 'penthouses' || qType === 'duplexes' ? qType : 'apartments';
+if (lotType !== 'apartments') sp.set('type', lotType);
 const query = sp.toString();
+sp.delete('type');
 sp.set('own', '1');
 const f = parseFilters(sp);
 const all = await filtered(turkeySale, { ...noFilters(), own: true });
-const lots = query ? await filtered(turkeySale, f) : all;
+const typeCounts = { apartments: all.filter((x) => x.type === 'apartments').length, penthouses: all.filter((x) => x.type === 'penthouses').length, duplexes: all.filter((x) => x.type === 'duplexes').length };
+const lotCat = { ...turkeySale, type: lotType } as const;
+const lots = await filtered(lotCat, f);
 const total = lots.length;
 const SHOW = 12;
 const ranges = rangesOf(all);
-const catalogHref = `/${lang}/turkey/sale/?${sp}`;
+const catalogHref = `/${lang}/turkey/sale/${lotType}/?${sp}`;
 const prices = list.map((x) => x.priceFrom).filter((p): p is number => !!p);
 const minPrice = prices.length ? Math.min(...prices) : null;
 const cities = new Set(list.map((x) => x.city)).size;
@@ -83,8 +90,7 @@ const stats = [
       </ul>
     </section>
     <section class="container-x mt-14 md:mt-20">
-      <h2 class="display h-section mb-8"><span class="text-muted">{T.choose[0]}</span> {T.choose[1]}</h2>
-      <CatalogFilter cat={turkeySale} f={f} total={total} mode="prive" lots="own" ranges={ranges} />
+      <CatalogFilter cat={lotCat} f={f} total={total} mode="prive" typeCounts={typeCounts} lots="own" ranges={ranges} />
     </section>
     <ProjectsBlock title={T.projects} projects={list} visible={8} own />
     <section id="lots" class="container-x mt-20 scroll-mt-28 md:mt-28">

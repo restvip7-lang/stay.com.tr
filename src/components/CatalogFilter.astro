@@ -13,8 +13,9 @@ import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type
 const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
 import { numL, pluralL } from '../lib/format';
 
-interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges; preset?: boolean; /** Режим prive: какие лоты считать — PRIVE или «Объекты Stay» (страница STAY PROJECTS). */ lots?: 'prive' | 'own' }
-const { cat, f, total, mode = 'catalog', ranges, preset = false, lots = 'prive' } = Astro.props;
+interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges; preset?: boolean; /** Режим prive (маленький фильтр): какие лоты считать — PRIVE, «Объекты Stay» (STAY PROJECTS) или квартиры в новостройках гео (страница «Новостройки»). */ lots?: 'prive' | 'own' | 'new';
+  /** Маленький фильтр: сколько лотов каждого типа — в заголовке «Выбрать квартиру ˅» показываем типы, где есть лоты. */ typeCounts?: Partial<Record<'apartments' | 'penthouses' | 'duplexes', number>> }
+const { cat, f, total, mode = 'catalog', ranges, preset = false, lots = 'prive', typeCounts = {} } = Astro.props;
 // preset: блок «как на главной» на странице всех стран — поля заполнены текущим фильтром (на самой главной — пустые).
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
@@ -48,6 +49,18 @@ const priceTo = f.priceTo ?? pathPriceTo;
 const homeTypes = (['apartments', 'villas', 'duplexes'] as const).filter((x) => types.includes(x));
 const homeType = (cat.type && (homeTypes as readonly string[]).includes(cat.type) ? cat.type : 'apartments') as (typeof homeTypes)[number];
 const nouns = Object.fromEntries(homeTypes.map((x) => [x, TYPE_WORDS[lang][x].n])) as Record<string, [string, string, string]>;
+// Маленький фильтр: «Выбрать квартиру ˅» — выбор типа (квартира, пентхаус, дуплекс), как у образца (квартиру / кладовую).
+const CHOOSE: Record<string, { pre: string; post: string; w: Record<string, string> }> = {
+  ru: { pre: 'Выбрать', post: '', w: { apartments: 'квартиру', penthouses: 'пентхаус', duplexes: 'дуплекс' } },
+  en: { pre: 'Choose', post: '', w: { apartments: 'an apartment', penthouses: 'a penthouse', duplexes: 'a duplex' } },
+  tr: { pre: '', post: 'seçin', w: { apartments: 'Daire', penthouses: 'Penthouse', duplexes: 'Dubleks' } },
+  de: { pre: '', post: 'wählen', w: { apartments: 'Wohnung', penthouses: 'Penthouse', duplexes: 'Duplex' } },
+  sr: { pre: 'Izaberite', post: '', w: { apartments: 'stan', penthouses: 'penthaus', duplexes: 'dupleks' } },
+};
+const ch = CHOOSE[lang] ?? CHOOSE.ru;
+const lotTypes = (['apartments', 'penthouses', 'duplexes'] as const).filter((x) => x === 'apartments' || (typeCounts[x] ?? 0) > 0);
+const lotType = (lotTypes as readonly string[]).includes(cat.type ?? '') ? cat.type! : 'apartments';
+const lotNouns = Object.fromEntries(lotTypes.map((x) => [x, TYPE_WORDS[lang][x].n])) as Record<string, [string, string, string]>;
 const allW = ({ ru: 'Все', en: 'All', tr: 'Tümü', de: 'Alle', sr: 'Sve' } as Record<string, string>)[lang] ?? 'Все';
 /** Тумблер «наши объекты» (объекты компании). */
 const OWN_LABEL: Record<string, string> = { ru: 'Объекты Stay', en: 'Stay properties', tr: 'Stay ilanları', de: 'Stay-Objekte', sr: 'Stay nekretnine' };
@@ -69,13 +82,32 @@ const advCols: { title: string; groups: { title: string; items: { name: string; 
 ].map((c) => ({ ...c, groups: c.groups.filter((g) => g.floor || g.items.length) }));
 const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), prive: tf.onlyPrive, citizenship: tf.citizenship };
 ---
-<form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
+<form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-lots={prive ? lots : undefined} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
   {prive ? (
     <>
       <!-- Страница PRIVE — уменьшенный фильтр по образцу (mr-group.ru/private/): стоимость, комнаты, площадь и «Показать N квартир».
            Считает и показывает только PRIVE-лоты. -->
+      <h2 class="display h-section mb-8 flex flex-wrap items-center gap-x-[0.3em]">
+        {ch.pre && <span class="text-muted">{ch.pre}</span>}
+        {lotTypes.length > 1 ? (
+          <span class="tsel relative" data-tsel>
+            <button type="button" class="inline-flex items-center gap-3" aria-haspopup="listbox" aria-expanded="false" data-tsel-btn><span data-tsel-label>{ch.w[lotType]}</span><Icon name="chevronDown" class="tsel-i size-[0.6em] transition-transform" /></button>
+            <span class="tsel-list absolute left-0 top-full z-20 mt-3 hidden min-w-[260px] overflow-hidden rounded-[20px] bg-white py-2 font-sans text-[17px] font-normal tracking-normal shadow-[0_8px_32px_#1c1e2626]" role="listbox" data-tsel-list>
+              {lotTypes.map((x) => (
+                <label class="block cursor-pointer">
+                  <input type="radio" name="type" value={x} checked={x === lotType} class="peer sr-only" data-tsel-opt={ch.w[x]} />
+                  <span class="block px-5 py-3 hover:bg-page peer-checked:bg-page peer-focus-visible:bg-page">{ch.w[x]}</span>
+                </label>
+              ))}
+            </span>
+          </span>
+        ) : <><input type="hidden" name="type" value={lotType} /><span>{ch.w[lotType]}</span></>}
+        {ch.post && <span class="text-muted">{ch.post}</span>}
+      </h2>
       <input type="hidden" name="deal" value="sale" />
-      <input type="hidden" name={lots} value="1" />
+      {lots === 'new'
+        ? <><input type="hidden" name="country" value={cat.country} />{cat.city && <input type="hidden" name="city" value={cat.city} />}{cat.district && <input type="hidden" name="district" value={cat.district} />}<input type="hidden" name="feature" value="new" /></>
+        : <input type="hidden" name={lots} value="1" />}
       <div class="grid items-start gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto]">
         <fieldset class="range min-w-0" data-range data-min={pPrice[0]} data-max={pPrice[1]} data-step="1" aria-labelledby="p-price-l">
           <span class="hlabel" id="p-price-l">{tf.price}</span>
@@ -110,8 +142,8 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
             <input type="range" min={pArea[0]} max={pArea[1]} step="1" value={f.areaTo ?? pArea[1]} data-shi tabindex="-1" />
           </div>
         </fieldset>
-        <button type="submit" class="btn btn-accent h-[52px] whitespace-nowrap lg:mt-[28px]" data-nouns={JSON.stringify({ '': aptNouns })}>
-          <span>{tf.show} <span data-total>{numL(lang, total)}</span> <span data-noun>{pluralL(lang, total, aptNouns)}</span></span><Icon name="chevronRight" class="size-3.5" />
+        <button type="submit" class="btn btn-accent h-[52px] whitespace-nowrap lg:mt-[28px]" data-nouns={JSON.stringify({ '': aptNouns, ...lotNouns })}>
+          <span>{tf.show} <span data-total>{numL(lang, total)}</span> <span data-noun>{pluralL(lang, total, lotNouns[lotType] ?? aptNouns)}</span></span><Icon name="chevronRight" class="size-3.5" />
         </button>
       </div>
     </>
@@ -396,6 +428,8 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
   .switch input:checked { background: var(--color-ink); }
   .switch input:checked::after { transform: translateX(10px); }
   .switch input:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .tsel[data-open] .tsel-i { transform: rotate(180deg); }
+  .tsel[data-open] .tsel-list { display: block; }
   .switch-prive span { color: #bc906e; }
   .switch-prive input:checked { background: #bc906e; }
   .hlabel { display: block; margin-bottom: 8px; font-size: 14px; line-height: 20px; color: var(--color-muted); }
