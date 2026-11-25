@@ -29,15 +29,26 @@ const turkeySale = { country: 'turkey', deal: 'sale' as const };
 // Фильтр страницы: стоимость, комнаты, площадь (из адреса), всегда только PRIVE-лоты.
 const sp = new URLSearchParams();
 for (const k of ['price_from', 'price_to', 'rooms', 'area_from', 'area_to']) for (const v of Astro.url.searchParams.getAll(k)) sp.append(k, v);
+// Тип лота из заголовка «Выбрать квартиру ˅»: квартира (по умолчанию), пентхаус, дуплекс.
+const qType = Astro.url.searchParams.get('type');
+const lotType = (['penthouses', 'duplexes', 'villas', 'townhouses'] as const).find((x) => x === qType) ?? 'apartments';
+if (lotType !== 'apartments') sp.set('type', lotType);
 const query = sp.toString();
+sp.delete('type');
 sp.set('prive', '1');
 const f = parseFilters(sp);
 const all = await filtered(turkeySale, { ...noFilters(), prive: true });
-const lots = query ? await filtered(turkeySale, f) : all;
+const typeCounts: Record<string, number> = {};
+for (const x of all) typeCounts[x.type] = (typeCounts[x.type] ?? 0) + 1;
+const lotCat = { ...turkeySale, type: lotType } as const;
+const lots = await filtered(lotCat, f);
 const total = lots.length;
-const SHOW = 12;
+// Блок лотов внизу — витрина: 6 лотов всех типов и кнопка в каталог с галочкой (как у образца).
+// Старые ссылки с параметрами (?rooms=…#lots) показывают отобранные лоты.
+const SHOW = 6;
+const blockList = query ? lots : all;
 const ranges = rangesOf(all);
-const catalogHref = `/${lang}/turkey/sale/?${sp}`;
+const catalogHref = query ? `/${lang}/turkey/sale/${lotType}/?${sp}` : `/${lang}/turkey/sale/?prive=1`;
 const T = {
   ru: { title: 'PRIVE — закрытые проекты Stay Property', h1: 'PRIVE: закрытые проекты Stay Property', lead: 'Специальные условия и лоты, которых нет в открытой продаже.', choose: ['Выбрать', 'квартиру'], lots: 'Лоты PRIVE', all: 'Все лоты PRIVE в каталоге', none: 'По этим параметрам лотов нет — измените фильтр.' },
   en: { title: 'PRIVE — Stay Property private projects', h1: 'PRIVE: Stay Property private projects', lead: 'Special terms and units that are not on open sale.', choose: ['Choose', 'an apartment'], lots: 'PRIVE units', all: 'All PRIVE units in the catalogue', none: 'No units match these filters — try changing them.' },
@@ -53,20 +64,18 @@ const T = {
       <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: 'PRIVE' }]} />
     </section>
     <section class="container-x mt-10 md:mt-16">
-      <!-- Заголовок в два тона, как «Выбрать квартиру» у образца. -->
-      <h2 class="display h-section mb-8"><span class="text-muted">{T.choose[0]}</span> {T.choose[1]}</h2>
-      <CatalogFilter cat={turkeySale} f={f} total={total} mode="prive" ranges={ranges} />
+      <CatalogFilter cat={lotCat} f={f} total={total} mode="prive" typeCounts={typeCounts} ranges={ranges} />
     </section>
     <ProjectsBlock title={d.hp.priveProjects} projects={list} visible={cfg.projectsVisible} prive />
     <section id="lots" class="container-x mt-20 scroll-mt-28 md:mt-28">
       <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <h2 class="display h-section">{T.lots} <span class="text-accent">{numL(lang, total)}</span></h2>
+        <h2 class="display h-section">{T.lots} <span class="text-accent">{numL(lang, blockList.length)}</span></h2>
         {query && <a href={`/${lang}/prive/#lots`} class="text-sm text-muted underline-offset-4 hover:text-accent hover:underline">{d.filter.reset} ✕</a>}
       </div>
-      {total > 0 ? (
+      {blockList.length > 0 ? (
         <>
-          <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{lots.slice(0, SHOW).map((x) => <li><SaleCard x={x} /></li>)}</ul>
-          {total > SHOW && <div class="mt-10 flex justify-center"><a href={catalogHref} class="btn btn-accent h-[52px] px-8">{T.all}: {numL(lang, total)}<Icon name="chevronRight" class="size-3.5" /></a></div>}
+          <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{blockList.slice(0, SHOW).map((x) => <li><SaleCard x={x} /></li>)}</ul>
+          {blockList.length > SHOW && <div class="mt-10 flex justify-center"><a href={catalogHref} class="btn btn-accent h-[52px] px-8">{T.all}: {numL(lang, blockList.length)}<Icon name="chevronRight" class="size-3.5" /></a></div>}
         </>
       ) : <div class="card p-10 text-center"><p class="text-[17px]">{T.none}</p></div>}
     </section>

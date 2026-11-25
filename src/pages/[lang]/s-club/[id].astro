@@ -1,0 +1,125 @@
+---
+/**
+ * Страница партнёра S-Club (по образцу карточки MR Club, напр. «Дом Фарфора»):
+ * крошки, плашка скидки, название, подзаголовок, кнопка; фото, срезанное наискось;
+ * серый блок «логотип + о компании, адреса, сайт, телефон»; «Условия»; «Как воспользоваться»;
+ * «Не нашли ответа на свой вопрос?»; другие предложения той же категории.
+ */
+import Base from '../../../layouts/Base.astro';
+import Icon from '../../../components/Icon.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import SClubCard from '../../../components/SClubCard.astro';
+import { isLang } from '../../../i18n/config';
+import { site } from '../../../lib/site';
+import { getPartners, tx, lines, sclubUrl, CATEGORY_LABEL, UI } from '../../../lib/sclub';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const partners = await getPartners();
+const p = partners.find((x) => x.id === Astro.params.id);
+if (!p) return Astro.rewrite('/404');
+const T = UI[lang];
+const badge = tx(p.badge, lang);
+const tagline = tx(p.tagline, lang);
+const about = tx(p.about, lang).split(/\n\s*\n/).map((s) => s.trim()).filter(Boolean);
+const terms = lines(tx(p.terms, lang));
+const same = partners.filter((x) => x.id !== p.id && x.category === p.category);
+const other = [...same, ...partners.filter((x) => x.id !== p.id && x.category !== p.category)].slice(0, 3);
+const wa = site.phones.find((x) => x.href.startsWith('https://wa.me/'))?.href ?? site.phone.href;
+const host = (u: string) => u.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
+const crumbs = [
+  { label: T.home, href: `/${lang}/` },
+  { label: 'S-Club', href: sclubUrl(lang) },
+  { label: CATEGORY_LABEL[lang][p.category], href: `${sclubUrl(lang)}#offers` },
+  { label: p.name },
+];
+---
+<Base title={`${p.name} — S-Club | Stay Property`} description={tagline || T.lead} robots="noindex,follow">
+  <div class="bg-white">
+  <section class="container-n grid items-center gap-8 pb-14 pt-6 lg:grid-cols-[1fr_1.05fr] lg:gap-12 lg:pb-16 lg:pt-8">
+    <div>
+      <Breadcrumbs items={crumbs} />
+      <div class="mt-8 flex flex-wrap items-center gap-2 lg:mt-10">
+        {badge && <span class="rounded-full border border-line px-3 py-1.5 text-[13px] leading-[16px] text-ink-n">{badge}</span>}
+        {p.test && <span class="rounded-full bg-peach px-3 py-1.5 text-[12px] font-medium uppercase leading-[16px] tracking-[1px] text-ink-n" title={T.testNote}>{T.test}</span>}
+      </div>
+      <h1 class="display mt-4 text-[36px] leading-[42px] text-ink-n lg:text-[56px] lg:leading-[62px]">{p.name}</h1>
+      {tagline && <p class="mt-3 text-[16px] leading-[24px] text-ink-n">{tagline}</p>}
+      <a href="#how" class="btn btn-ghost mt-8 h-12 px-7 text-[11px]">{T.getOne}</a>
+      {p.test && <p class="mt-6 max-w-[520px] text-[13px] leading-[18px] text-soft">{T.testNote}</p>}
+    </div>
+    {p.image && (
+      <div class="sc-photo relative aspect-[16/10] overflow-hidden">
+        <img src={p.image} alt={p.name} class="size-full object-cover" fetchpriority="high" />
+      </div>
+    )}
+  </section>
+  </div>
+
+  <section class="bg-page py-14 lg:py-20">
+    <div class="container-n grid gap-8 lg:grid-cols-2 lg:gap-12">
+      <div>
+        <div class="grid h-[72px] w-[140px] place-items-center rounded-[16px] bg-white px-4 text-center">
+          {p.logo ? <img src={p.logo} alt={p.name} class="max-h-[44px] max-w-full object-contain" /> : <span class="display text-[15px] leading-[18px] text-ink-n">{p.name}</span>}
+        </div>
+      </div>
+      <div class="flex flex-col gap-4 text-[15px] leading-[22px] text-ink-n">
+        {about.map((s) => <p>{s}</p>)}
+        {p.addresses.length > 0 && (
+          <div>
+            <p>{T.addresses}:</p>
+            <ul class="mt-2 flex flex-col gap-1.5">{p.addresses.map((a) => <li class="sc-li">{a}</li>)}</ul>
+          </div>
+        )}
+        {p.site && <p>{T.site}: <a href={p.site} target="_blank" rel="noopener nofollow" class="underline hover:text-accent">{host(p.site)}</a></p>}
+        {p.phone && <p>{T.phone}: <a href={`tel:${p.phone.replace(/[^\d+]/g, '')}`} class="hover:text-accent">{p.phone}</a></p>}
+        {p.instagram && <p>{T.instagram}: <a href={p.instagram} target="_blank" rel="noopener nofollow" class="underline hover:text-accent">{host(p.instagram)}</a></p>}
+      </div>
+    </div>
+  </section>
+
+  <div class="bg-white">
+  {terms.length > 0 && (
+    <section class="container-n grid gap-6 py-14 lg:grid-cols-2 lg:gap-12 lg:py-20">
+      <h2 class="display text-[30px] leading-[36px] text-ink-n lg:text-[40px] lg:leading-[48px]">{T.terms}</h2>
+      <ul class="flex flex-col gap-2 text-[15px] leading-[22px] text-ink-n">{terms.map((s) => <li class="sc-li">{s}</li>)}</ul>
+    </section>
+  )}
+
+  <section id="how" class="container-n grid scroll-mt-28 gap-6 pb-14 lg:grid-cols-2 lg:gap-12 lg:pb-20">
+    <h2 class="display text-[30px] leading-[36px] text-ink-n lg:text-[40px] lg:leading-[48px]">{T.use}</h2>
+    <div>
+      <p class="max-w-[560px] text-[15px] leading-[22px] text-ink-n">{T.useText}</p>
+      <a href={wa} target="_blank" rel="noopener" class="btn btn-ghost mt-7 h-12 px-7 text-[11px]"><Icon name="whatsapp" class="size-4" />{T.contact}</a>
+    </div>
+  </section>
+  </div>
+
+  <section class="bg-page py-14 lg:py-20">
+    <div class="container-n">
+      <a href={wa} target="_blank" rel="noopener" class="flex items-center justify-between gap-4 rounded-[16px] bg-white px-5 py-5 transition-colors hover:bg-lavender-2 lg:px-6">
+        <span>
+          <span class="display block text-[18px] leading-[24px] text-ink-n">{T.noAnswer}</span>
+          <span class="mt-1 block text-[14px] leading-[20px] text-ink-n">{T.noAnswerText}</span>
+        </span>
+        <span class="grid size-10 shrink-0 place-items-center rounded-full bg-[#2a1a5e] text-white"><Icon name="whatsapp" class="size-5" /></span>
+      </a>
+      {other.length > 0 && (
+        <>
+          <div class="mt-16 flex items-end justify-between gap-4 lg:mt-20">
+            <h2 class="display text-[30px] leading-[36px] text-ink-n lg:text-[40px] lg:leading-[48px]">{T.other}</h2>
+            <a href={`${sclubUrl(lang)}#offers`} class="hidden shrink-0 text-[14px] text-ink-n underline hover:text-accent sm:block">{T.all}</a>
+          </div>
+          <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:mt-8 lg:grid-cols-3">{other.map((x) => <SClubCard p={x} lang={lang} />)}</div>
+        </>
+      )}
+    </div>
+  </section>
+</Base>
+
+<style>
+  /* Фото срезано наискось, как у образца. */
+  .sc-photo { clip-path: polygon(14% 0, 100% 0, 92% 100%, 0 100%); }
+  .sc-li { position: relative; padding-left: 22px; }
+  .sc-li::before { content: ''; position: absolute; left: 0; top: 15px; width: 12px; height: 2px; background: #754be9; }
+</style>

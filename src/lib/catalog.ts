@@ -63,7 +63,9 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
   const geo = resolveGeo(x.city, x.area) ?? fallback ?? null;
   if (!geo) return null;
   const city = cityBySlug(geo.city)!;
-  const type: TypeSlug = unit ? (/дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
+  // Квартиры проектов: тип по полю базы; проекты вилл (VILLA_PROJECTS, отметка Anuar) — все лоты виллы.
+  const villaProject = unit && !!x.projectCode && VILLA_SLUGS.has(slugify(String(x.projectCode)));
+  const type: TypeSlug = unit ? (villaProject || /вилл/i.test(x.objectType || '') ? 'villas' : /дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
   const rooms = x.roomLabel ?? null;
   const it: Item = {
     id: unit ? `u${x.id}` : String(x.id),
@@ -322,6 +324,10 @@ const OUR_PROJECTS = [
   'Villa Rabbit Hill', // VL001 Bektaş
 ];
 const OUR_SLUGS = new Set(OUR_PROJECTS.map(slugify));
+/** Проекты вилл (Anuar 25.11.2026): их лоты — виллы, на карточке проекта метка «Виллы». */
+const VILLA_PROJECTS = ['Riva Port Villas Side', 'Villa Rabbit Hill'];
+const VILLA_SLUGS = new Set(VILLA_PROJECTS.map(slugify));
+export const isVillaComplex = (c: Pick<Complex, 'title' | 'code'>) => VILLA_SLUGS.has(slugify(c.title)) || VILLA_SLUGS.has(slugify(c.code));
 export const isOurComplex = (c: Pick<Complex, 'title' | 'code'>) => OUR_SLUGS.has(slugify(c.title)) || OUR_SLUGS.has(slugify(c.code));
 /** Комплексы для списков «Новостройки / STAY PROJECTS»: только наши проекты. */
 export async function getOurComplexes(): Promise<Complex[]> {
@@ -498,17 +504,25 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   // «Лоты PRIVE» (тоггл): только PRIVE — квартиры проектов PRIVE и отмеченные в админке. Без тоггла PRIVE-лоты в выдаче не показываем.
   if (f.prive) base = [...(await getItems()), ...(await getUnits())].filter((x) => x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
   else base = (await itemsOf(cat)).filter((x) => !x.isPrivate);
+  // Новостройки (…/new/ или ?f=new): кроме объектов Portfolio — квартиры, дуплексы и виллы всех ЖК (кроме PRIVE).
+  if (!f.prive && (cat.feature === 'new' || f.extras.includes('new'))) base = [...base, ...(await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo))];
   // «Гражданство ТР» (тоггл) и посадочные «под гражданство» / «под ВНЖ»: только объекты с ручной отметкой,
   // включая квартиры в проектах Stay. Без тоггла показываются все объекты, в том числе отмеченные.
   const mark = f.citizenship || cat.feature === 'citizenship' ? 'citMark' : cat.feature === 'residence-permit' ? 'resMark' : null;
   if (mark) {
     const units = f.prive ? [] : (await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
-    base = [...base, ...units].filter((x) => x[mark]);
+    base = [...new Set([...base, ...units])].filter((x) => x[mark]);
   }
   // Наши объекты: в общем списке продажи (Stay Property) не показываем; находятся, если включён любой фильтр,
   // а тумблер «Объекты Stay» оставляет только их.
-  if (f.own) base = [...(f.prive || mark ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature))))].filter((x) => x.own);
-  else if (cat.deal === 'sale' && !usesFilter(f)) base = base.filter((x) => !x.own);
+  // PRIVE и «Объекты Stay» вместе — как классы у образца (галочки в «Тип недвижимости»): показываем и те, и другие.
+  if (f.own) {
+    const pool = mark && !f.prive ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)) && (!mark || x[mark]));
+    const own = pool.filter((x) => x.own);
+    base = f.prive ? [...new Set([...base, ...own])] : own;
+  }
+  // На «Новостройках» (…/new/) наши проекты показываем всегда — это тоже новостройки.
+  else if (cat.deal === 'sale' && !usesFilter(f) && cat.feature !== 'new') base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();
   let out = base.filter((x) => {
     if (f.extras.some((e) => !x.features.includes(e))) return false;

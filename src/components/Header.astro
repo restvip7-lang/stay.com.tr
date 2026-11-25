@@ -51,7 +51,9 @@ const seg = path.split('/');
 const isComplexes = seg.includes('complexes') && seg.includes('sale');
 const isSale = !isComplexes && seg.includes('sale');
 const isRent = seg.includes('rent');
-const currentBrand = (isComplexes || isSale) ? brands[1].href : bestMatch(brands);
+// Каталог (общий фильтр) бренд в шапке не подсвечивает, в том числе при переходе со страниц STAY PROJECTS и PRIVE;
+// STAY PROPERTY подсвечен только на своей странице (Anuar 25.11.2026).
+const currentBrand = isComplexes ? brands[1].href : isSale ? (path === brands[1].href ? brands[1].href : undefined) : bestMatch(brands);
 const currentNav = isComplexes ? nav[1].href : isRent ? nav[0].href : bestMatch(nav);
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
@@ -103,8 +105,8 @@ const groups = [
         <button type="button" data-menu-open class="icon-hover" aria-label={d.menu}><Icon name="menu" class="size-5" /></button>
       </div>
     </div>
-    <!-- Главное меню — с 1280px. Ниже всё уходит в бургер. -->
-    <nav class="main-nav hidden h-11 items-start gap-6 text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
+    <!-- Главное меню — с 1280px. Ниже всё уходит в бургер. Над ним тонкая линия от логотипа до бургера, как у образца. -->
+    <nav class="main-nav hidden h-11 items-start gap-6 pt-[13px] text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
       <div class="group relative">
         <a href={saleHref} class="nav-item inline-flex items-center gap-1" aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-3.5" /></a>
         <div class="hover-pop invisible absolute left-0 top-full z-10 pt-3 opacity-0 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
@@ -185,7 +187,7 @@ const groups = [
   /* Выпадающие окна по наведению: открываются сразу, закрываются с задержкой, чтобы успеть довести курсор. */
   .hover-pop { transition: opacity .15s ease .3s, visibility 0s linear .45s; }
   .group:hover > .hover-pop, .group:focus-within > .hover-pop { transition: opacity .15s ease, visibility 0s; }
-  .site-header { transition: background-color .3s, color .3s; }
+  .site-header { transition: transform .3s ease, background-color .3s, color .3s; }
   .site-header.is-solid { background: #fff; color: var(--color-ink); }
   .site-header.is-overlay { background: transparent; color: #fff; }
   .site-header .brand-sep { background: currentColor; opacity: .3; }
@@ -194,6 +196,8 @@ const groups = [
   .site-header.is-overlay .brand-link:hover { opacity: .7; }
   /* PRIVE подсвечивается золотом, как MR PRIVATE у образца (Anuar 25.11.2026). */
   .site-header .brand-link[data-brand="PRIVE"].is-current, .site-header.is-solid .brand-link[data-brand="PRIVE"]:hover { color: #bc906e; }
+  .site-header .main-nav { border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+  .site-header.is-overlay .main-nav { border-top-color: #ffffff2e; }
   .site-header .nav-item { transition: color .3s; }
   .site-header.is-solid .nav-item { color: var(--color-menu); }
   .site-header.is-solid .nav-item:hover, .site-header.is-solid .nav-item.is-current { color: var(--color-ink-2); }

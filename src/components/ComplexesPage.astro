@@ -7,9 +7,10 @@ import Pagination from './Pagination.astro';
 import LinkCloud from './LinkCloud.astro';
 import LeadSection from './LeadSection.astro';
 import Faq from './Faq.astro';
+import CatalogFilter from './CatalogFilter.astro';
 import { t } from '../i18n/ui';
 import { SITE } from '../i18n/config';
-import { getComplexes, isOurComplex, matchComplex, catUrl, complexUrl, INDEX_MIN, type Cat } from '../lib/catalog';
+import { getComplexes, isOurComplex, matchComplex, catUrl, complexUrl, filtered, noFilters, rangesOf, INDEX_MIN, type Cat } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { complexesMeta, geoOf, geoIn } from '../lib/seo';
 import { complexFaq } from '../lib/complexText';
@@ -53,6 +54,11 @@ const districtLinks = cat.city ? byCount(districtCounts).map(([s, n]) => ({
   n,
   current: s === cat.district,
 })) : [];
+// Маленький фильтр «Выбрать квартиру ˅» (как на PRIVE): квартиры в новостройках этого гео, «Показать N» ведёт в каталог.
+const newCat = { country: cat.country, city: cat.city, district: cat.district, deal: 'sale' as const, feature: 'new' as const };
+const newAll = page === 1 ? await filtered(newCat, noFilters()) : [];
+const newTypes: Record<string, number> = {};
+for (const x of newAll) newTypes[x.type] = (newTypes[x.type] ?? 0) + 1;
 const crumbs = catCrumbs(lang, { ...cat, complexes: true });
 if (page > 1) crumbs.push({ label: d.page(page) });
 const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang), prices.length ? Math.min(...prices) : null, null, null).slice(1) : [];
@@ -65,6 +71,11 @@ const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang
     {cityLinks.length > 1 && <LinkCloud title={d.catalog.cities(geoIn(lang, geoOf({ country: cat.country })))} links={cityLinks} />}
     {districtLinks.length > 1 && <LinkCloud title={d.catalog.districts(cityBySlug(cat.city!)!.name[lang], cityBySlug(cat.city!)!.gen)} links={districtLinks} />}
   </section>
+  {newAll.length > 0 && (
+    <section class="container-x mt-12 md:mt-16">
+      <CatalogFilter cat={{ ...newCat, type: 'apartments' }} f={noFilters()} total={newTypes.apartments ?? 0} mode="prive" lots="new" typeCounts={newTypes} ranges={rangesOf(newAll)} />
+    </section>
+  )}
   {shown.length > 0
     ? <ProjectsBlock projects={shown} visible={PER} tight />
     : <section class="container-x mt-12"><div class="card p-10 text-center"><p class="display text-2xl">{d.catalog.empty}</p><a href={catUrl(lang, { country: cat.country, city: cat.city }, { complexes: true })} class="btn btn-ghost mt-6">{d.complex.all}</a></div></section>}

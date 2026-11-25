@@ -10,6 +10,7 @@ import { lastAiError } from '../../lib/chatError';
 import { getSeoConfig } from '../../lib/seoConfig';
 import { categoryCounts } from '../../lib/sitemap';
 import { catUrl, INDEX_MIN } from '../../lib/catalog';
+import { getPartners, CATEGORIES, CATEGORY_LABEL } from '../../lib/sclub';
 
 export const prerender = false;
 
@@ -71,16 +72,18 @@ if (authed && can('seo')) {
   };
 }
 if (authed) {
-  const [home, projects, chat, chatUsed, chatErr] = await Promise.all([
+  const [home, projects, chat, chatUsed, chatErr, sclub] = await Promise.all([
     can('home') ? getHomeConfig() : null,
     can('home') ? getProjects() : [],
     can('chat') ? getChatSettings() : null,
     can('chat') ? usageFresh().catch(() => 0) : 0,
     can('chat') ? lastAiError() : null,
+    can('home') ? getPartners(true) : null,
   ]);
   chatUsedN = chatUsed;
   data = {
     home,
+    sclub: sclub ? { partners: sclub, categories: CATEGORIES.map((id) => ({ id, label: CATEGORY_LABEL.ru[id] })) } : null,
     chat: chat ? { ...chatAdminView(chat), lastError: chatErr } : null,
     storage: storageReady(),
     projects: projects.map((p) => ({ code: p.code, title: p.title, place: [p.city, p.area].filter(Boolean).join(', '), image: p.image, price: p.priceFromLabel ?? '' })),
@@ -248,6 +251,66 @@ if (authed) {
         </section>
         </>)}
 
+        {can('home') && (<>
+        <section class="card mt-6 p-6" id="sclub">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 class="text-xl font-medium">S-Club: партнёры</h2>
+              <p class="mt-1 max-w-3xl text-sm text-muted">Компании и скидки на странице <a href="/ru/s-club/" target="_blank" class="underline">S-Club</a>. Порядок в списке = порядок на сайте. «В ленте» — карточка под первым экраном, «Новое» — в категории «Новое в клубе», «Тест» — плашка «Тест» на карточке, «Скрыть» — убрать с сайта. Тексты на русском и английском; на турецком, немецком и сербском без своего перевода показывается английский. Фото и логотип — ссылка https или путь к своему файлу (/media/…, /hero/…, /services/…, /sclub/…).</p>
+            </div>
+            <div class="flex items-center gap-3">
+              <span data-sc-status class="text-sm text-muted"></span>
+              <button data-sc-add class="btn btn-ghost">Добавить партнёра</button>
+              <button data-sc-save class="btn btn-accent">Сохранить</button>
+            </div>
+          </div>
+          <p data-sc-testnote class="mt-4 hidden rounded-2xl bg-peach px-4 py-3 text-sm">Сейчас на сайте тестовые партнёры. Замените их на действующих или снимите отметку «Тест» у тех, кто подтверждён.</p>
+          <div class="mt-5 grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+            <ol data-sc-list class="grid max-h-[80vh] content-start gap-2 overflow-auto pr-1"></ol>
+            <form data-sc-form class="grid content-start gap-3" autocomplete="off">
+              <p data-sc-empty class="text-muted">Выберите партнёра слева или добавьте нового.</p>
+              <div data-sc-fields class="hidden grid gap-3">
+                <div class="grid gap-3 md:grid-cols-2">
+                  <div><label class="label">Название</label><input data-f="name" class="field" required /></div>
+                  <div><label class="label">Адрес страницы (латиница, цифры, дефис)</label><input data-f="id" class="field" pattern="[a-z0-9][a-z0-9-]*" /></div>
+                  <div><label class="label">Категория</label><select data-f="category" class="field"></select></div>
+                  <div><label class="label">Сайт</label><input data-f="site" class="field" placeholder="https://" /></div>
+                  <div><label class="label">Телефон</label><input data-f="phone" class="field" /></div>
+                  <div><label class="label">Instagram</label><input data-f="instagram" class="field" placeholder="https://instagram.com/…" /></div>
+                  <div><label class="label">Фото</label><input data-f="image" class="field" placeholder="https://… или /media/…" /></div>
+                  <div><label class="label">Логотип (необязательно)</label><input data-f="logo" class="field" placeholder="https://… или /media/…" /></div>
+                </div>
+                <div><label class="label">Адреса (по одному в строке)</label><textarea data-f="addresses" rows="3" class="field h-auto py-3"></textarea></div>
+                <div class="flex flex-wrap gap-5 text-sm">
+                  <label class="flex items-center gap-2"><input type="checkbox" data-f="featured" class="size-4 accent-[#754be9]" /> В ленте</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" data-f="isNew" class="size-4 accent-[#754be9]" /> Новое</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" data-f="test" class="size-4 accent-[#754be9]" /> Тест</label>
+                  <label class="flex items-center gap-2"><input type="checkbox" data-f="hidden" class="size-4 accent-[#754be9]" /> Скрыть</label>
+                </div>
+                <div class="mt-2 flex items-center gap-2 text-sm" role="tablist" data-sc-langs>
+                  <span class="text-muted">Тексты:</span>
+                  <button type="button" data-l="ru" class="rounded-full border border-line px-3 py-1">RU</button>
+                  <button type="button" data-l="en" class="rounded-full border border-line px-3 py-1">EN</button>
+                  <button type="button" data-l="tr" class="rounded-full border border-line px-3 py-1">TR</button>
+                  <button type="button" data-l="de" class="rounded-full border border-line px-3 py-1">DE</button>
+                  <button type="button" data-l="sr" class="rounded-full border border-line px-3 py-1">SR</button>
+                </div>
+                <div class="grid gap-3 md:grid-cols-2">
+                  <div><label class="label">Плашка скидки («−15%», «Доставка в подарок»)</label><input data-t="badge" class="field" /></div>
+                  <div><label class="label">Подзаголовок</label><input data-t="tagline" class="field" /></div>
+                </div>
+                <div><label class="label">О компании (абзацы через пустую строку)</label><textarea data-t="about" rows="5" class="field h-auto py-3"></textarea></div>
+                <div><label class="label">Условия (по одному в строке)</label><textarea data-t="terms" rows="4" class="field h-auto py-3"></textarea></div>
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <a data-sc-open target="_blank" class="text-sm underline">Открыть страницу партнёра</a>
+                  <button type="button" data-sc-del class="text-sm text-red-600 hover:underline">Удалить партнёра</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </section>
+        </>)}
+
         {can('chat') && (<>
         <section class="card mt-6 p-6" id="chat">
           <div class="flex flex-wrap items-start justify-between gap-4">
@@ -394,6 +457,96 @@ if (authed) {
         const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
         st.textContent = r.ok ? `Сохранено: ${r.saved.redirects.length} редиректов, ${Object.keys(r.saved.overrides).length} переопределений.` : 'Ошибка: ' + (r.error || res.status);
       });
+    </script>
+    <script>
+      // S-Club: список партнёров + форма правки; сохраняется весь список целиком.
+      const scEl = document.getElementById('admin-data');
+      const scData = scEl ? JSON.parse(scEl.textContent || '{}').sclub : null;
+      if (scData) {
+        const q = <T extends HTMLElement = HTMLElement>(s: string, r: ParentNode = document) => r.querySelector(s) as T;
+        const esc = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+        const list: any[] = scData.partners.map((p: any) => ({ ...p }));
+        const catLabel = new Map<string, string>(scData.categories.map((c: any) => [c.id, c.label]));
+        let cur = -1;
+        let lang = 'ru';
+        let dirty = false;
+        const status = q('[data-sc-status]');
+        const touch = () => { dirty = true; status.textContent = 'Есть несохранённые изменения'; };
+        const btn = 'grid size-8 place-items-center rounded-full border border-line hover:border-ink disabled:opacity-30';
+        q<HTMLSelectElement>('[data-f="category"]').innerHTML = scData.categories.map((c: any) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
+
+        function renderList() {
+          q('[data-sc-list]').innerHTML = list.map((p, i) => `<li class="flex items-center gap-2 rounded-2xl border p-2 ${i === cur ? 'border-accent bg-lavender-2' : 'border-line'} ${p.hidden ? 'opacity-50' : ''}">
+            ${p.image ? `<img src="${esc(p.image)}" alt="" class="size-11 shrink-0 rounded-xl object-cover bg-lavender-2" loading="lazy">` : '<span class="size-11 shrink-0 rounded-xl bg-lavender-2"></span>'}
+            <button type="button" data-pick="${i}" class="min-w-0 flex-1 text-left"><span class="block truncate font-medium">${esc(p.name || 'Без названия')}</span>
+              <span class="block truncate text-xs text-muted">${esc(catLabel.get(p.category) || '')}${p.badge?.ru ? ' · ' + esc(p.badge.ru) : ''}${p.featured ? ' · в ленте' : ''}${p.test ? ' · тест' : ''}${p.hidden ? ' · скрыт' : ''}</span></button>
+            <button type="button" data-up="${i}" class="${btn}" ${i === 0 ? 'disabled' : ''} title="Выше">↑</button>
+            <button type="button" data-down="${i}" class="${btn}" ${i === list.length - 1 ? 'disabled' : ''} title="Ниже">↓</button></li>`).join('') || '<li class="text-muted">Партнёров пока нет.</li>';
+          q('[data-sc-testnote]').classList.toggle('hidden', !list.some((p) => p.test && !p.hidden));
+        }
+        function renderForm() {
+          const p = list[cur];
+          q('[data-sc-empty]').classList.toggle('hidden', !!p);
+          q('[data-sc-fields]').classList.toggle('hidden', !p);
+          if (!p) return;
+          document.querySelectorAll<HTMLInputElement>('[data-sc-form] [data-f]').forEach((f) => {
+            const k = f.dataset.f!;
+            if (f.type === 'checkbox') f.checked = !!p[k];
+            else f.value = k === 'addresses' ? (p.addresses || []).join('\n') : (p[k] ?? '');
+          });
+          document.querySelectorAll<HTMLInputElement>('[data-sc-form] [data-t]').forEach((f) => { f.value = p[f.dataset.t!]?.[lang] ?? ''; });
+          document.querySelectorAll<HTMLElement>('[data-sc-langs] [data-l]').forEach((b) => { b.classList.toggle('bg-ink', b.dataset.l === lang); b.classList.toggle('text-white', b.dataset.l === lang); });
+          q<HTMLAnchorElement>('[data-sc-open]').href = `/${lang === 'ru' || lang === 'en' ? lang : 'ru'}/s-club/${p.id}/`;
+        }
+        const render = () => { renderList(); renderForm(); };
+
+        q('[data-sc-list]').addEventListener('click', (e) => {
+          const t = (e.target as HTMLElement).closest<HTMLElement>('[data-pick],[data-up],[data-down]');
+          if (!t) return;
+          if (t.dataset.pick) cur = Number(t.dataset.pick);
+          const swap = (a: number, b: number) => { [list[a], list[b]] = [list[b], list[a]]; if (cur === a) cur = b; else if (cur === b) cur = a; touch(); };
+          if (t.dataset.up) swap(Number(t.dataset.up), Number(t.dataset.up) - 1);
+          if (t.dataset.down) swap(Number(t.dataset.down), Number(t.dataset.down) + 1);
+          render();
+        });
+        q('[data-sc-form]').addEventListener('input', (e) => {
+          const f = e.target as HTMLInputElement;
+          const p = list[cur];
+          if (!p) return;
+          if (f.dataset.f) {
+            const k = f.dataset.f;
+            p[k] = f.type === 'checkbox' ? f.checked : k === 'addresses' ? f.value.split('\n').map((s) => s.trim()).filter(Boolean) : k === 'id' ? f.value.trim().toLowerCase() : f.value;
+          }
+          if (f.dataset.t) p[f.dataset.t] = { ...(p[f.dataset.t] || {}), [lang]: f.value };
+          touch();
+          renderList();
+        });
+        q('[data-sc-langs]').addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-l]'); if (b) { lang = b.dataset.l!; renderForm(); } });
+        q('[data-sc-add]').addEventListener('click', () => {
+          const n = list.length + 1;
+          list.unshift({ id: `partner-${Date.now().toString(36)}`, name: `Новый партнёр ${n}`, category: 'services', badge: {}, tagline: {}, about: {}, terms: {}, addresses: [], image: '', hidden: true });
+          cur = 0; lang = 'ru'; touch(); render();
+          q<HTMLInputElement>('[data-f="name"]').focus();
+        });
+        q('[data-sc-del]').addEventListener('click', () => {
+          const p = list[cur];
+          if (!p || !confirm(`Удалить «${p.name}»? Изменение вступит в силу после «Сохранить».`)) return;
+          list.splice(cur, 1); cur = -1; touch(); render();
+        });
+        q('[data-sc-save]').addEventListener('click', async () => {
+          const ids = list.map((p) => p.id);
+          const bad = list.find((p) => !/^[a-z0-9][a-z0-9-]{0,60}$/.test(p.id) || !String(p.name).trim());
+          if (bad) { status.textContent = `Проверьте «${bad.name || 'без названия'}»: нужно название и адрес латиницей.`; return; }
+          if (new Set(ids).size !== ids.length) { status.textContent = 'Адреса страниц партнёров повторяются.'; return; }
+          status.textContent = 'Сохраняю…';
+          const res = await fetch('/api/admin/sclub', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ partners: list }) });
+          const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+          dirty = !r.ok;
+          status.textContent = r.ok ? `Сохранено: ${r.saved.length} партнёров. На сайте — в течение минуты.` : 'Ошибка: ' + (r.error || res.status);
+        });
+        window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+        render();
+      }
     </script>
     {authed && <script type="application/json" id="admin-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />}
     <script>

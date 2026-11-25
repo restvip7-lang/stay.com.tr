@@ -1,5 +1,9 @@
 ---
-/** Контакты (ТЗ 3.5): адрес, телефоны, почта, часы, соцсети, карта, заявка. */
+/**
+ * Контакты (ТЗ 3.5) — все офисы Stay Property, данные со stayproperty.com/contacts/ (Anuar 25.11.2026).
+ * Вкладки городов: фото офиса, описание, телефон, почта, адрес, кнопки; под ними одна карта со всеми офисами
+ * (вкладка переводит карту на свой офис). Ниже — «Наши офисы по всему миру», Телеграм-канал, соцсети и заявка.
+ */
 import Base from '../../layouts/Base.astro';
 import Icon from '../../components/Icon.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
@@ -8,46 +12,159 @@ import { isLang } from '../../i18n/config';
 import { t } from '../../i18n/ui';
 import { site } from '../../lib/site';
 import { allLangs } from '../../lib/page';
+import { OFFICES, SOON, telHref, small } from '../../lib/offices';
 
 const lang = Astro.params.lang;
 if (!isLang(lang)) return Astro.rewrite('/404');
 const d = t(lang);
 const p = d.pages;
 const url = `/${lang}/contacts/`;
-const phones = [
-  { label: d.footer.phoneTR, value: site.phones[0].label, href: 'tel:+905301782916' },
-  { label: d.footer.phoneRU, value: site.phones[1].label, href: site.phones[1].href },
-];
-// Офис: точка из карточки Stay Property в Google Картах.
-const office = { lat: 36.5381797, lng: 32.0393043 };
-const officeMap = 'https://maps.app.goo.gl/uRdjXBaUqdnRZMLA7';
+const T = {
+  ru: { lead: 'Офисы Stay Property в Турции, на Северном Кипре, в России, Казахстане и ОАЭ.', main: 'Главный офис', opened: (y: number, m: boolean) => `${m ? 'Главный офис компании Stay Property' : 'Офис Stay Property'} открыт в ${y} году.`, what: 'Здесь можно получить консультацию и презентацию объектов, оформить договор купли-продажи, оплатить сделку или оформить рассрочку.', team: 'К вашим услугам менеджеры по продажам и специалисты отдела послепродажного сервиса.', phone: 'Телефон', address: 'Адрес', call: 'Позвонить', route: 'Маршрут', map: 'Офисы на карте', world: 'Наши офисы по всему миру', worldSub: 'Официальные представительства', soon: 'Скоро', soonText: 'Новый офис в Лондоне', tg: 'Телеграм-канал Stay Property', tgText: 'Будьте всегда в курсе свежих новостей и лучших предложений недвижимости Турции, Северного Кипра и Дубая!', subscribe: 'Подписаться', socials: 'Наши соцсети' },
+  en: { lead: 'Stay Property offices in Türkiye, Northern Cyprus, Russia, Kazakhstan and the UAE.', main: 'Head office', opened: (y: number, m: boolean) => `${m ? 'The Stay Property head office' : 'This Stay Property office'} opened in ${y}.`, what: 'Get a consultation and property presentations, sign a sale agreement, pay for a deal or arrange an instalment plan.', team: 'Our sales managers and after-sales specialists are here to help.', phone: 'Phone', address: 'Address', call: 'Call', route: 'Directions', map: 'Offices on the map', world: 'Our offices worldwide', worldSub: 'Official representative offices', soon: 'Coming soon', soonText: 'New office in London', tg: 'Stay Property Telegram channel', tgText: 'Get the latest news and the best property offers in Türkiye, Northern Cyprus and Dubai!', subscribe: 'Subscribe', socials: 'Social media' },
+  tr: { lead: 'Türkiye, Kuzey Kıbrıs, Rusya, Kazakistan ve BAE’deki Stay Property ofisleri.', main: 'Merkez ofis', opened: (y: number, m: boolean) => `${m ? 'Stay Property merkez ofisi' : 'Stay Property ofisi'} ${y} yılında açıldı.`, what: 'Danışmanlık ve proje sunumu alabilir, satış sözleşmesi imzalayabilir, ödeme yapabilir veya taksit planı oluşturabilirsiniz.', team: 'Satış danışmanlarımız ve satış sonrası hizmet uzmanlarımız hizmetinizde.', phone: 'Telefon', address: 'Adres', call: 'Ara', route: 'Yol tarifi', map: 'Haritada ofisler', world: 'Dünyadaki ofislerimiz', worldSub: 'Resmi temsilcilikler', soon: 'Yakında', soonText: 'Londra’da yeni ofis', tg: 'Stay Property Telegram kanalı', tgText: 'Türkiye, Kuzey Kıbrıs ve Dubai’deki en yeni haberler ve en iyi gayrimenkul teklifleri!', subscribe: 'Abone ol', socials: 'Sosyal medya' },
+  de: { lead: 'Büros von Stay Property in der Türkei, in Nordzypern, Russland, Kasachstan und den VAE.', main: 'Hauptbüro', opened: (y: number, m: boolean) => `${m ? 'Das Hauptbüro von Stay Property' : 'Dieses Büro von Stay Property'} wurde ${y} eröffnet.`, what: 'Hier erhalten Sie Beratung und Objektpräsentationen, schließen den Kaufvertrag, bezahlen die Transaktion oder vereinbaren eine Ratenzahlung.', team: 'Unsere Verkaufsberater und After-Sales-Spezialisten sind für Sie da.', phone: 'Telefon', address: 'Adresse', call: 'Anrufen', route: 'Route', map: 'Büros auf der Karte', world: 'Unsere Büros weltweit', worldSub: 'Offizielle Vertretungen', soon: 'Demnächst', soonText: 'Neues Büro in London', tg: 'Telegram-Kanal von Stay Property', tgText: 'Die neuesten Nachrichten und besten Immobilienangebote in der Türkei, Nordzypern und Dubai!', subscribe: 'Abonnieren', socials: 'Soziale Medien' },
+  sr: { lead: 'Kancelarije Stay Property u Turskoj, Severnom Kipru, Rusiji, Kazahstanu i UAE.', main: 'Glavna kancelarija', opened: (y: number, m: boolean) => `${m ? 'Glavna kancelarija Stay Property' : 'Kancelarija Stay Property'} otvorena je ${y}. godine.`, what: 'Ovde možete dobiti konsultacije i prezentaciju objekata, potpisati kupoprodajni ugovor, platiti transakciju ili dogovoriti otplatu na rate.', team: 'Na usluzi su vam menadžeri prodaje i stručnjaci za postprodajnu podršku.', phone: 'Telefon', address: 'Adresa', call: 'Pozovite', route: 'Putanja', map: 'Kancelarije na mapi', world: 'Naše kancelarije u svetu', worldSub: 'Zvanična predstavništva', soon: 'Uskoro', soonText: 'Nova kancelarija u Londonu', tg: 'Telegram kanal Stay Property', tgText: 'Budite u toku sa najnovijim vestima i najboljim ponudama nekretnina u Turskoj, Severnom Kipru i Dubaiju!', subscribe: 'Pretplatite se', socials: 'Društvene mreže' },
+}[lang];
+const tg = site.socials.find((s) => s.name === 'telegram')?.href ?? 'https://t.me/stayproperty';
+const route = (o: (typeof OFFICES)[number]) => `https://www.google.com/maps/dir/?api=1&destination=${o.lat},${o.lng}`;
+const points = OFFICES.map((o) => ({ t: `Stay Property · ${o.city[lang]}`, u: '', lat: o.lat, lng: o.lng, a: o.address }));
+const main = OFFICES[0];
 ---
-<Base title={`${p.contacts} Stay Property — ${d.footer.company}`} description={`${p.contactsLead} ${site.address}. ${site.phones[0].label}, ${site.email}.`} alternates={allLangs(url)}>
-  <section class="container-x pt-6 md:pt-10">
+<Base title={`${p.contacts} Stay Property — ${d.footer.company}`} description={`${T.lead} ${main.address}. ${main.phone}, ${main.email}.`} alternates={allLangs(url)}>
+  <section class="container-n pt-6 md:pt-10">
     <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: p.contacts }]} />
     <h1 class="display h-page-lg mt-6">{p.contacts}</h1>
-    <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{p.contactsLead}</p>
-    <div class="mt-10 grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-      <address class="card space-y-6 p-6 not-italic">
-        <div><p class="text-sm text-muted">{p.office}</p><p class="mt-1 text-lg">{site.address}</p><a href={officeMap} target="_blank" rel="noopener" class="mt-1 inline-block text-sm text-accent hover:underline">Google Maps →</a></div>
-        <div><p class="text-sm text-muted">{p.phones}</p><ul class="mt-1 space-y-1">{phones.map((x) => <li><a href={x.href} class="text-lg hover:text-accent">{x.value}</a> <span class="text-sm text-muted">({x.label})</span></li>)}</ul></div>
-        <div><p class="text-sm text-muted">{p.email}</p><a href={`mailto:${site.email}`} class="mt-1 block text-lg hover:text-accent">{site.email}</a></div>
-        <div><p class="text-sm text-muted">{p.hours}</p><p class="mt-1 text-lg">{p.hoursValue}</p></div>
-        <div class="flex flex-wrap gap-2">
-          <a href="https://wa.me/905301782916" target="_blank" rel="noopener" class="btn btn-accent"><Icon name="whatsapp" class="size-4" />WhatsApp</a>
-          {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" class="btn btn-ghost capitalize">{s.name}</a>)}
+    <p class="mt-3 max-w-3xl text-[16px] leading-[24px] text-soft lg:text-[17px]">{T.lead}</p>
+
+    <div class="ct-tabs -mx-5 mt-8 flex gap-2 overflow-x-auto px-5 pb-1 md:mx-0 md:flex-wrap md:px-0" role="tablist" aria-label={p.contacts}>
+      {OFFICES.map((o, i) => (
+        <button type="button" role="tab" id={`tab-${o.id}`} aria-controls={`office-${o.id}`} aria-selected={i === 0 ? 'true' : 'false'} tabindex={i === 0 ? 0 : -1} class="ct-tab" data-office={o.id}>
+          <img src={`/contacts/flag-${o.flag}.webp`} alt="" class="h-4 w-auto" />{o.city[lang]}
+        </button>
+      ))}
+    </div>
+
+    {OFFICES.map((o, i) => (
+      <div id={`office-${o.id}`} role="tabpanel" aria-labelledby={`tab-${o.id}`} class="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]" hidden={i !== 0} data-panel={o.id}>
+        <div class="relative min-h-[240px] overflow-hidden rounded-[20px] bg-lavender-2 lg:min-h-[420px]">
+          {o.photo && <img src={o.photo} srcset={`${small(o.photo)} 700w, ${o.photo} 1400w`} sizes="(min-width: 1024px) 720px, 100vw" alt={`Stay Property · ${o.city[lang]}`} loading={i === 0 ? 'eager' : 'lazy'} class="absolute inset-0 size-full object-cover" />}
         </div>
-      </address>
-      <div data-map data-zoom="16" data-points={JSON.stringify([{ t: 'Stay Property', u: '', lat: office.lat, lng: office.lng, a: site.address }])} class="min-h-[380px] overflow-hidden rounded-[var(--radius-card)] bg-lavender-2"></div>
+        <address class="flex flex-col rounded-[20px] bg-white p-6 not-italic lg:p-8">
+          {o.main && <p class="w-fit rounded-full bg-lavender-2 px-3 py-1 text-[12px] font-medium uppercase tracking-[1px] text-accent">{T.main}</p>}
+          <h2 class:list={['display text-[28px] leading-[34px] text-ink-n lg:text-[34px] lg:leading-[40px]', o.main && 'mt-4']}>{o.city[lang]}</h2>
+          <p class="mt-3 text-[15px] leading-[22px] text-soft">{T.opened(o.year, !!o.main)} {T.what}{o.main && ` ${T.team}`}</p>
+          <dl class="mt-6 grid gap-4 text-[15px] leading-[22px] text-ink-n">
+            <div><dt class="text-[13px] text-muted">{T.phone}</dt><dd><a href={telHref(o.phone)} class="text-[18px] hover:text-accent">{o.phone}</a></dd></div>
+            <div><dt class="text-[13px] text-muted">{p.email}</dt><dd><a href={`mailto:${o.email}`} class="hover:text-accent">{o.email}</a></dd></div>
+            <div><dt class="text-[13px] text-muted">{T.address}</dt><dd>{o.address}</dd></div>
+            {o.main && <div><dt class="text-[13px] text-muted">{p.hours}</dt><dd>{p.hoursValue}</dd></div>}
+          </dl>
+          <div class="mt-auto flex flex-wrap gap-2 pt-7">
+            {o.wa && <a href={`https://wa.me/${o.wa}`} target="_blank" rel="noopener" class="btn btn-accent h-11 px-5"><Icon name="whatsapp" class="size-4" />WhatsApp</a>}
+            <a href={telHref(o.phone)} class="btn btn-ghost h-11 px-5"><Icon name="phone" class="size-4" />{T.call}</a>
+            <a href={route(o)} target="_blank" rel="noopener" class="btn btn-ghost h-11 px-5"><Icon name="pin" class="size-4" />{T.route}</a>
+          </div>
+        </address>
+      </div>
+    ))}
+
+    <div data-map data-zoom="16" data-points={JSON.stringify(points)} aria-label={T.map} class="mt-3 h-[360px] overflow-hidden rounded-[20px] bg-lavender-2 lg:h-[440px]"></div>
+  </section>
+
+  <section class="container-n mt-20 lg:mt-28">
+    <h2 class="display text-[30px] leading-[36px] text-ink-n lg:text-[40px] lg:leading-[48px]">{T.world}</h2>
+    <p class="mt-2 text-[16px] text-soft">{T.worldSub}</p>
+    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      {OFFICES.map((o) => (
+        <a href={`#office-${o.id}`} class="group flex flex-col rounded-[20px] bg-white p-5 transition-shadow hover:shadow-[0_12px_40px_rgba(28,30,38,.08)]" data-office-link={o.id}>
+          <span class="flex items-center gap-3"><img src={`/contacts/flag-${o.flag}.webp`} alt="" class="h-6 w-auto" loading="lazy" /><span class="display text-[20px] leading-[24px] text-ink-n group-hover:text-accent">{o.city[lang]}</span></span>
+          <span class="mt-4 text-[14px] leading-[20px] text-ink-n">{o.address}</span>
+          <span class="mt-auto pt-5 text-[14px] leading-[20px]"><span class="block text-muted">{T.phone}: <span class="text-ink-n">{o.phone}</span></span><span class="block text-muted">{p.email}: <span class="text-ink-n">{o.email}</span></span></span>
+        </a>
+      ))}
+      <div class="flex flex-col rounded-[20px] border border-dashed border-line-2 p-5">
+        <span class="flex items-center gap-3"><img src={`/contacts/flag-${SOON.flag}.webp`} alt="" class="h-6 w-auto" loading="lazy" /><span class="display text-[20px] leading-[24px] text-ink-n">{SOON.city[lang]}</span></span>
+        <span class="mt-4 text-[14px] leading-[20px] text-ink-n">{T.soonText}. {T.soon}…</span>
+        <span class="mt-auto pt-5 text-[14px] leading-[20px]"><span class="block text-muted">{T.phone}: <a href={telHref(SOON.phone)} class="text-ink-n hover:text-accent">{SOON.phone}</a></span><span class="block text-muted">{p.email}: <a href={`mailto:${SOON.email}`} class="text-ink-n hover:text-accent">{SOON.email}</a></span></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="container-n mt-12 grid gap-3 lg:mt-16 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+    <a href={tg} target="_blank" rel="noopener" class="ct-tg flex flex-col justify-between gap-6 rounded-[20px] p-6 text-white sm:flex-row sm:items-center lg:p-8">
+      <span>
+        <span class="display block text-[22px] leading-[28px] lg:text-[26px] lg:leading-[32px]">{T.tg}</span>
+        <span class="mt-2 block max-w-[520px] text-[15px] leading-[22px] text-white/75">{T.tgText}</span>
+      </span>
+      <span class="btn h-12 shrink-0 bg-white px-6 text-[11px] text-ink-n"><Icon name="telegram" class="size-4" />{T.subscribe}</span>
+    </a>
+    <div class="rounded-[20px] bg-white p-6 lg:p-8">
+      <p class="display text-[20px] leading-[26px] text-ink-n">{T.socials}</p>
+      <div class="mt-5 flex flex-wrap gap-2">
+        {site.socials.map((s) => <a href={s.href} target="_blank" rel="noopener" class="btn-icon" aria-label={s.name}><Icon name={s.name as any} class="size-5" /></a>)}
+      </div>
     </div>
   </section>
   <LeadSection context="contacts" />
 </Base>
+
+<style>
+  .ct-tabs { scrollbar-width: none; }
+  .ct-tabs::-webkit-scrollbar { display: none; }
+  .ct-tab { display: inline-flex; flex-shrink: 0; align-items: center; gap: 8px; height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--color-line-2); background: #fff; font-size: 15px; color: var(--color-ink-n); transition: background-color .2s, color .2s, border-color .2s; }
+  .ct-tab:hover { border-color: var(--color-accent); }
+  .ct-tab[aria-selected="true"] { background: var(--color-ink-n); border-color: var(--color-ink-n); color: #fff; }
+  .ct-tg { background: linear-gradient(115deg, #0e0a26 0%, #26165c 55%, #754be9 100%); }
+</style>
+
 <script>
   import { mountMap } from '../../scripts/map';
+  const tabs = [...document.querySelectorAll<HTMLButtonElement>('[data-office]')];
+  const panels = document.querySelectorAll<HTMLElement>('[data-panel]');
+  const ids = tabs.map((t) => t.dataset.office!);
+  let handle: Awaited<ReturnType<typeof mountMap>> | undefined;
+  // Пока офис не выбран, карта показывает все офисы; после выбора — крупно выбранный.
+  let chosen = false;
+  const focusMap = (id: string) => {
+    const i = ids.indexOf(id);
+    if (!handle || i < 0) return;
+    const m = handle.markers[i];
+    handle.map.setView(m.getLatLng(), 16);
+    m.openPopup();
+  };
+  const select = (id: string, scroll = false) => {
+    if (!ids.includes(id)) return;
+    chosen = true;
+    tabs.forEach((t) => { const on = t.dataset.office === id; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; });
+    panels.forEach((p) => { p.hidden = p.dataset.panel !== id; });
+    focusMap(id);
+    if (scroll) document.querySelector('[role="tablist"]')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  tabs.forEach((t, i) => {
+    t.addEventListener('click', () => { select(t.dataset.office!); history.replaceState(null, '', `#office-${t.dataset.office}`); });
+    t.addEventListener('keydown', (e) => {
+      const k = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+      if (!k) return;
+      const n = tabs[(i + k + tabs.length) % tabs.length];
+      n.focus(); n.click();
+    });
+  });
+  document.querySelectorAll<HTMLAnchorElement>('[data-office-link]').forEach((a) => a.addEventListener('click', (e) => {
+    e.preventDefault(); select(a.dataset.officeLink!, true); history.replaceState(null, '', `#office-${a.dataset.officeLink}`);
+  }));
+  const fromHash = location.hash.replace('#office-', '');
+  if (ids.includes(fromHash)) select(fromHash);
+
   const el = document.querySelector<HTMLElement>('[data-map]');
   if (el) {
-    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(el); } }, { rootMargin: '200px' });
+    const io = new IntersectionObserver(async (e) => {
+      if (!e[0].isIntersecting) return;
+      io.disconnect();
+      handle = await mountMap(el);
+      const cur = tabs.find((t) => t.getAttribute('aria-selected') === 'true')?.dataset.office;
+      if (cur && chosen) focusMap(cur);
+    }, { rootMargin: '200px' });
     io.observe(el);
   }
 </script>
