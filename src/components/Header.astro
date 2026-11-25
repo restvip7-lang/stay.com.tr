@@ -186,6 +186,8 @@ const groups = [
   .site-header .brand-link { transition: color .3s; }
   .site-header.is-solid .brand-link:hover, .site-header.is-solid .brand-link.is-current { color: var(--color-accent); }
   .site-header.is-overlay .brand-link:hover { opacity: .7; }
+  /* PRIVE подсвечивается золотом, как MR PRIVATE у образца (Anuar 25.11.2026). */
+  .site-header .brand-link[data-brand="PRIVE"].is-current, .site-header.is-solid .brand-link[data-brand="PRIVE"]:hover { color: #bc906e; }
   .site-header .nav-item { transition: color .3s; }
   .site-header.is-solid .nav-item { color: var(--color-menu); }
   .site-header.is-solid .nav-item:hover, .site-header.is-solid .nav-item.is-current { color: var(--color-ink-2); }
