@@ -504,17 +504,20 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   // «Лоты PRIVE» (тоггл): только PRIVE — квартиры проектов PRIVE и отмеченные в админке. Без тоггла PRIVE-лоты в выдаче не показываем.
   if (f.prive) base = [...(await getItems()), ...(await getUnits())].filter((x) => x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
   else base = (await itemsOf(cat)).filter((x) => !x.isPrivate);
+  // Новостройки (…/new/ или ?f=new): кроме объектов Portfolio — квартиры, дуплексы и виллы всех ЖК (кроме PRIVE).
+  if (!f.prive && (cat.feature === 'new' || f.extras.includes('new'))) base = [...base, ...(await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo))];
   // «Гражданство ТР» (тоггл) и посадочные «под гражданство» / «под ВНЖ»: только объекты с ручной отметкой,
   // включая квартиры в проектах Stay. Без тоггла показываются все объекты, в том числе отмеченные.
   const mark = f.citizenship || cat.feature === 'citizenship' ? 'citMark' : cat.feature === 'residence-permit' ? 'resMark' : null;
   if (mark) {
     const units = f.prive ? [] : (await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
-    base = [...base, ...units].filter((x) => x[mark]);
+    base = [...new Set([...base, ...units])].filter((x) => x[mark]);
   }
   // Наши объекты: в общем списке продажи (Stay Property) не показываем; находятся, если включён любой фильтр,
   // а тумблер «Объекты Stay» оставляет только их.
   if (f.own) base = [...(f.prive || mark ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature))))].filter((x) => x.own);
-  else if (cat.deal === 'sale' && !usesFilter(f)) base = base.filter((x) => !x.own);
+  // На «Новостройках» (…/new/) наши проекты показываем всегда — это тоже новостройки.
+  else if (cat.deal === 'sale' && !usesFilter(f) && cat.feature !== 'new') base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();
   let out = base.filter((x) => {
     if (f.extras.some((e) => !x.features.includes(e))) return false;
