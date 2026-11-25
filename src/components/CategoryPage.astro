@@ -199,8 +199,8 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
 
   <!-- Все страны (Stay Property): на компьютере сверху блок «Выбрать недвижимость» как на главной (Anuar 25.11.2026). -->
   {world && !hub && (
-    <section class="container-n mt-12 hidden lg:block lg:mt-16">
-      <h2 class="display h-section mb-6">{CHOOSE_T[lang]}</h2>
+    <section class="container-n mt-12 hidden lg:block lg:mt-10" aria-label={CHOOSE_T[lang]}>
+      <!-- Без своего заголовка: рядом с H1 он спорил с ним (Anuar 25.11.2026). Вкладки идут сразу под подписью. -->
       <CatalogFilter cat={{ ...listCat, type: chooserType }} f={f} total={chooserTotal} mode="home" preset />
       <LinkCloud title={POPULAR_T[lang]} links={landings} />
     </section>
