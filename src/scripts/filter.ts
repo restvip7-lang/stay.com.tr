@@ -233,7 +233,7 @@ export function initFilters() {
 
     // «Фильтры»: панель на весь экран; выдача под ней обновляется сразу, кнопка внизу закрывает панель.
     const panel = form.querySelector<HTMLElement>('[data-adv-panel]');
-    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; };
+    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; document.body.classList.toggle('adv-open', open); };
     form.querySelectorAll('[data-adv-open]').forEach((b) => b.addEventListener('click', () => setPanel(true)));
     form.querySelectorAll('[data-adv-close]').forEach((b) => b.addEventListener('click', () => setPanel(false)));
     form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[name=floor_from],[name=floor_to]') && catalog) apply(); });

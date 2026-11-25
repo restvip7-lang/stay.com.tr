@@ -244,7 +244,7 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
 
   {text && (
     <section class="container-n mt-20 lg:mt-28">
-      <div class="grid gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div class="prose-stay text-[17px]" set:html={text} />
         {priceRows.length > 0 && (
           <div>

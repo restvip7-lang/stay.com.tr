@@ -50,11 +50,11 @@ const allW = ({ ru: 'Все', en: 'All', tr: 'Tümü', de: 'Alle', sr: 'Sve' } a
 const OWN_LABEL: Record<string, string> = { ru: 'Объекты Stay', en: 'Stay properties', tr: 'Stay ilanları', de: 'Stay-Objekte', sr: 'Stay nekretnine' };
 /** «Все фильтры»: подписи и колонки «Расширенных» (только фичи, допустимые для сделки). */
 const A = ({
-  ru: { main: 'Основные', more: 'Расширенные', area: 'Площадь', floor: 'Этаж', resetAll: 'Сбросить все', general: 'Общее', object: 'Объект', place: 'Расположение и класс', buy: 'Особенности покупки', market: 'Рынок', props: 'Характеристики', loc: 'Расположение', cls: 'Класс' },
-  en: { main: 'Main', more: 'Advanced', area: 'Area', floor: 'Floor', resetAll: 'Reset all', general: 'General', object: 'Property', place: 'Location and class', buy: 'Purchase', market: 'Market', props: 'Features', loc: 'Location', cls: 'Class' },
-  tr: { main: 'Temel', more: 'Gelişmiş', area: 'Alan', floor: 'Kat', resetAll: 'Tümünü sıfırla', general: 'Genel', object: 'Mülk', place: 'Konum ve sınıf', buy: 'Satın alma', market: 'Pazar', props: 'Özellikler', loc: 'Konum', cls: 'Sınıf' },
-  de: { main: 'Basis', more: 'Erweitert', area: 'Fläche', floor: 'Etage', resetAll: 'Alle zurücksetzen', general: 'Allgemein', object: 'Objekt', place: 'Lage und Klasse', buy: 'Kauf', market: 'Markt', props: 'Ausstattung', loc: 'Lage', cls: 'Klasse' },
-  sr: { main: 'Osnovni', more: 'Prošireni', area: 'Površina', floor: 'Sprat', resetAll: 'Poništi sve', general: 'Opšte', object: 'Nekretnina', place: 'Lokacija i klasa', buy: 'Kupovina', market: 'Tržište', props: 'Karakteristike', loc: 'Lokacija', cls: 'Klasa' },
+  ru: { reset: 'Сбросить', main: 'Основные', more: 'Расширенные', area: 'Площадь', floor: 'Этаж', resetAll: 'Сбросить все', general: 'Общее', object: 'Объект', place: 'Расположение и класс', buy: 'Особенности покупки', market: 'Рынок', props: 'Характеристики', loc: 'Расположение', cls: 'Класс' },
+  en: { reset: 'Reset', main: 'Main', more: 'Advanced', area: 'Area', floor: 'Floor', resetAll: 'Reset all', general: 'General', object: 'Property', place: 'Location and class', buy: 'Purchase', market: 'Market', props: 'Features', loc: 'Location', cls: 'Class' },
+  tr: { reset: 'Sıfırla', main: 'Temel', more: 'Gelişmiş', area: 'Alan', floor: 'Kat', resetAll: 'Tümünü sıfırla', general: 'Genel', object: 'Mülk', place: 'Konum ve sınıf', buy: 'Satın alma', market: 'Pazar', props: 'Özellikler', loc: 'Konum', cls: 'Sınıf' },
+  de: { reset: 'Zurücksetzen', main: 'Basis', more: 'Erweitert', area: 'Fläche', floor: 'Etage', resetAll: 'Alle zurücksetzen', general: 'Allgemein', object: 'Objekt', place: 'Lage und Klasse', buy: 'Kauf', market: 'Markt', props: 'Ausstattung', loc: 'Lage', cls: 'Klasse' },
+  sr: { reset: 'Poništi', main: 'Osnovni', more: 'Prošireni', area: 'Površina', floor: 'Sprat', resetAll: 'Poništi sve', general: 'Opšte', object: 'Nekretnina', place: 'Lokacija i klasa', buy: 'Kupovina', market: 'Tržište', props: 'Karakteristike', loc: 'Lokacija', cls: 'Klasa' },
 } as Record<string, Record<string, string>>)[lang] ?? {};
 const fdeal = (slugs: string[]) => slugs.filter((x) => x === 'citizenship' ? cat.deal === 'sale' && cat.country === 'turkey' : (allowedDeals[x] ?? []).includes(cat.deal) && (x !== 'residence-permit' || cat.country === 'turkey'))
   .map((x) => ({ name: x, label: FEATURE_LABEL[lang][x as FeatureSlug] }));
@@ -158,7 +158,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
       </div>
       <button type="button" data-adv-open class="btn-n btn-n-white mt-3 w-full lg:hidden"><Icon name="filter" class="size-5" />{tf.all}</button>
       <!-- Чипы: комнатность, PRIVE, гражданство, фичи из адреса -->
-      <div class="scroll-x -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
+      <div class="scroll-x relative -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
         {rooms.map((r) => (
           <label class="shrink-0 cursor-pointer">
             <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
@@ -178,14 +178,16 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
            Выдача под окном обновляется сразу; внизу «Показать N» закрывает окно, «Сбросить все» — чистый адрес раздела. -->
       <div data-adv-panel class="fixed inset-0 z-[60] hidden overflow-y-auto bg-white" role="dialog" aria-modal="true" aria-label={tf.all}>
         <div class="mx-auto max-w-[1392px] px-4 pb-36 pt-3 lg:px-[42px] lg:pt-5">
-          <div class="relative flex h-12 items-center justify-center rounded-[16px] bg-page-n/70 text-[16px] font-medium shadow-[var(--shadow-btn)] lg:h-[50px] lg:text-[14px]">
+          <div class="sticky top-0 z-10 -mx-4 -mt-3 bg-white px-4 pb-2 pt-3 lg:static lg:mx-0 lg:mt-0 lg:bg-transparent lg:p-0">
+            <div class="relative flex h-12 items-center justify-center rounded-[16px] bg-[#f3f4f6] lg:bg-page-n/70 text-[16px] font-medium shadow-[var(--shadow-btn)] lg:h-[50px] lg:text-[14px]">
             {tf.all}
             <button type="button" data-adv-close class="icon-hover absolute right-4" aria-label={d.closeMenu}><Icon name="close" class="size-5" /></button>
           </div>
+          </div>
 
           <h3 class="adv-h2">{A.main}</h3>
-          <div class="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
-            <fieldset>
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
+            <fieldset class="min-w-0">
               <legend class="adv-h4">{tf.rooms}</legend>
               <div class="flex flex-wrap gap-2">
                 {rooms.map((r) => (
@@ -196,35 +198,35 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
                 ))}
               </div>
             </fieldset>
-            <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step={step}>
+            <fieldset class="range min-w-0" data-range data-min={priceMin} data-max={priceMax} data-step={step}>
               <legend class="adv-h4">{tf.price}</legend>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid gap-2 sm:grid-cols-2">
                 <input class="field" name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
                 <input class="field" name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} />
               </div>
-              <div class="dual mt-4" aria-hidden="true">
+              <div class="dual mt-4 hidden lg:block" aria-hidden="true">
                 <input type="range" min={priceMin} max={priceMax} step={step} value={f.priceFrom ?? priceMin} data-slo tabindex="-1" />
                 <input type="range" min={priceMin} max={priceMax} step={step} value={priceTo ?? priceMax} data-shi tabindex="-1" />
               </div>
             </fieldset>
-            <fieldset class="range" data-range data-min="10" data-max="800" data-step="5">
+            <fieldset class="range min-w-0" data-range data-min="10" data-max="800" data-step="5">
               <legend class="adv-h4">{A.area}, {d.m2}</legend>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid gap-2 sm:grid-cols-2">
                 <input class="field" name="area_from" inputmode="numeric" placeholder={`${tf.fromW} 10`} value={f.areaFrom ?? ''} data-lo aria-label={`${A.area} ${tf.fromW}`} />
                 <input class="field" name="area_to" inputmode="numeric" placeholder={`${tf.toW} 800`} value={f.areaTo ?? ''} data-hi aria-label={`${A.area} ${tf.toW}`} />
               </div>
-              <div class="dual mt-4" aria-hidden="true">
+              <div class="dual mt-4 hidden lg:block" aria-hidden="true">
                 <input type="range" min="10" max="800" step="5" value={f.areaFrom ?? 10} data-slo tabindex="-1" />
                 <input type="range" min="10" max="800" step="5" value={f.areaTo ?? 800} data-shi tabindex="-1" />
               </div>
             </fieldset>
-            <fieldset class="range" data-range data-min={seaMin} data-max={seaMax} data-step="10">
+            <fieldset class="range min-w-0" data-range data-min={seaMin} data-max={seaMax} data-step="10">
               <legend class="adv-h4">{tf.sea}</legend>
-              <div class="grid grid-cols-2 gap-2">
+              <div class="grid gap-2 sm:grid-cols-2">
                 <input class="field" name="sea_from" inputmode="numeric" placeholder={`${tf.fromW} ${seaMin}`} value={f.seaFrom ?? ''} data-lo aria-label={tf.seaFrom} />
                 <input class="field" name="sea_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, seaMax)}`} value={f.seaTo ?? ''} data-hi aria-label={tf.seaTo} />
               </div>
-              <div class="dual mt-4" aria-hidden="true">
+              <div class="dual mt-4 hidden lg:block" aria-hidden="true">
                 <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaFrom ?? seaMin} data-slo tabindex="-1" />
                 <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaTo ?? seaMax} data-shi tabindex="-1" />
               </div>
@@ -237,8 +239,8 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
             </div>
           )}
 
-          <h3 class="adv-h2 mt-14">{A.more}</h3>
-          <div class="grid gap-10 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-line">
+          <h3 class="adv-h2 mt-10 border-t border-line pt-8 lg:mt-14 lg:border-0 lg:pt-0">{A.more}</h3>
+          <div class="grid grid-cols-1 gap-10 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-line">
             {advCols.map((col, i) => (
               <div class:list={[i > 0 && 'lg:pl-8', i < 2 && 'lg:pr-8']}>
                 <h4 class="adv-h3">{col.title}</h4>
@@ -269,9 +271,9 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           </div>
         </div>
         <div class="fixed inset-x-0 bottom-0 border-t border-line bg-white">
-          <div class="mx-auto flex max-w-[1392px] items-center gap-6 px-4 pb-6 pt-5 lg:px-[42px]">
-            <button type="button" data-adv-close class="btn-n btn-n-dark flex-1 !bg-ink-n sm:w-[360px] sm:flex-none"><span data-swap="count-btn">{tf.show}: {numL(lang, total)}</span></button>
-            <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="text-[15px] font-medium hover:text-accent">{A.resetAll} ✕</a>
+          <div class="mx-auto flex max-w-[1392px] items-center gap-3 px-4 pb-5 pt-4 lg:gap-6 lg:pb-6 lg:pt-5 lg:px-[42px]">
+            <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="order-first inline-flex h-14 shrink-0 items-center justify-center rounded-[16px] bg-[#f0f1f4] px-5 text-[15px] font-medium lg:order-last lg:h-auto lg:bg-transparent lg:px-0 lg:hover:text-accent"><span class="lg:hidden">{A.reset}</span><span class="hidden lg:inline">{A.resetAll} ✕</span></a>
+            <button type="button" data-adv-close class="btn-n btn-n-dark min-w-0 flex-1 !bg-ink-n lg:w-[360px] lg:flex-none"><span data-swap="count-btn">{tf.show}: {numL(lang, total)}</span></button>
           </div>
         </div>
       </div>
@@ -281,7 +283,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
       <!-- Главная — макет, согласованный с директором: вкладки-типы, ряд «Страна / Город / Район / ID»,
            ниже стоимость с тумблерами PRIVE и «Гражданство ТР», планировка кругами, до моря и кнопка «Показать N квартир». -->
       <input type="hidden" name="deal" value="sale" />
-      <div class="scroll-x flex gap-8 border-b border-line" role="radiogroup" aria-label={tf.type}>
+      <div class="scroll-x relative flex gap-8 border-b border-line" role="radiogroup" aria-label={tf.type}>
         {homeTypes.map((x) => (
           <label class="shrink-0 cursor-pointer">
             <input type="radio" name="type" value={x} checked={homeType === x} class="peer sr-only" />
@@ -378,8 +380,10 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
 </form>
 
 <style>
-  .adv-h2 { margin: 36px 0 24px; font-size: 26px; line-height: 32px; font-weight: 500; letter-spacing: -.3px; }
-  .adv-h3 { font-size: 22px; line-height: 28px; font-weight: 500; }
+  .adv-h2 { margin: 28px 0 20px; font-size: 24px; line-height: 30px; font-weight: 500; letter-spacing: -.3px; }
+  @media (min-width: 1024px) { .adv-h2 { margin: 36px 0 24px; font-size: 26px; line-height: 32px; } }
+  .adv-h3 { font-size: 20px; line-height: 26px; font-weight: 500; }
+  @media (min-width: 1024px) { .adv-h3 { font-size: 22px; line-height: 28px; } }
   .adv-h4 { display: block; margin-bottom: 12px; font-size: 16px; line-height: 20px; font-weight: 500; }
   .adv-chip { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: #f0f1f4; font-size: 15px; transition: background-color .2s, color .2s; }
   .adv-chip:hover { background: #e4e5ea; }

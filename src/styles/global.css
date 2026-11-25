@@ -231,3 +231,6 @@ body.theme-prive { --color-ink: #2d241e; }
 .theme-prive .sale-card:not(.ring-1) { background: #f6f1ec; }
 .theme-prive .h-section .text-accent { color: var(--color-accent); }
 .theme-prive footer a:hover, .theme-prive footer a[aria-current] { color: var(--color-accent); }
+
+/* Пока открыто окно «Все фильтры», Доми не перекрывает кнопку «Показать». */
+body.adv-open .chat-root { display: none; }
