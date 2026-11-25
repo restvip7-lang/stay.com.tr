@@ -12,7 +12,7 @@ import Icon from '../../../components/Icon.astro';
 import SClubCard from '../../../components/SClubCard.astro';
 import { isLang } from '../../../i18n/config';
 import { site } from '../../../lib/site';
-import { getPartners, tx, sclubUrl, CATEGORIES, CATEGORY_LABEL, FAQ, UI } from '../../../lib/sclub';
+import { getPartners, tx, sclubUrl, smallImage, CATEGORIES, CATEGORY_LABEL, FAQ, UI } from '../../../lib/sclub';
 
 const lang = Astro.params.lang;
 if (!isLang(lang)) return Astro.rewrite('/404');
@@ -59,7 +59,7 @@ const wa = site.phones.find((p) => p.href.startsWith('https://wa.me/'))?.href ??
           {featured.map((p) => (
             <a href={sclubUrl(lang, p.id)} class="sc-feat group relative flex h-[136px] w-[300px] shrink-0 snap-start overflow-hidden rounded-[16px] bg-white sm:w-[340px] lg:w-[calc((100%-24px)/3)]">
               <span class="display relative z-10 w-[58%] p-4 text-[18px] leading-[22px] text-ink-n lg:p-5 lg:text-[22px] lg:leading-[26px]">{p.name}</span>
-              {p.image && <img src={p.image} alt="" loading="lazy" decoding="async" class="sc-skew absolute inset-y-0 right-0 h-full w-[48%] object-cover transition-transform duration-500 group-hover:scale-[1.04]" />}
+              {p.image && <img src={smallImage(p.image)} alt="" loading="lazy" decoding="async" class="sc-skew absolute inset-y-0 right-0 h-full w-[48%] object-cover transition-transform duration-500 group-hover:scale-[1.04]" />}
               {tx(p.badge, lang) && <span class="absolute bottom-3 right-3 z-10 rounded-full bg-peach px-2.5 py-1 text-[12px] leading-[14px] text-ink-n">{tx(p.badge, lang)}</span>}
               {p.test && <span class="absolute bottom-3 left-4 z-10 rounded-full bg-[#1c1e26]/70 px-2.5 py-1 text-[11px] leading-[14px] text-white lg:left-5">{T.test}</span>}
             </a>

@@ -1,7 +1,7 @@
 ---
 /** Карточка партнёра S-Club (как у образца MR Club): фото со скидкой-плашкой, «Название — подзаголовок», первое предложение о компании. */
 import type { Lang } from '../i18n/config';
-import { type Partner, tx, sclubUrl, firstSentence, UI } from '../lib/sclub';
+import { type Partner, tx, sclubUrl, firstSentence, smallImage, UI } from '../lib/sclub';
 interface Props { p: Partner; lang: Lang }
 const { p, lang } = Astro.props;
 const tagline = tx(p.tagline, lang);
@@ -9,7 +9,7 @@ const badge = tx(p.badge, lang);
 ---
 <a href={sclubUrl(lang, p.id)} class="sc-card group flex flex-col rounded-[20px] bg-white p-1 transition-shadow hover:shadow-[0_12px_40px_rgba(28,30,38,.10)]" data-cat={p.category} data-new={p.isNew ? '1' : undefined}>
   <span class="relative block aspect-[4/3] overflow-hidden rounded-[16px] bg-page">
-    {p.image && <img src={p.image} alt="" loading="lazy" decoding="async" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />}
+    {p.image && <img src={smallImage(p.image)} srcset={smallImage(p.image) !== p.image ? `${smallImage(p.image)} 600w, ${p.image} 1200w` : undefined} sizes="(min-width: 1024px) 440px, (min-width: 640px) 50vw, 100vw" alt="" loading="lazy" decoding="async" class="size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />}
     {badge && <span class="absolute left-4 top-4 rounded-full bg-peach px-3 py-1.5 text-[13px] leading-[16px] text-ink-n">{badge}</span>}
     {p.test && <span class="absolute bottom-4 left-4 rounded-full bg-[#1c1e26]/70 px-3 py-1 text-[12px] leading-[16px] text-white backdrop-blur-sm">{UI[lang].test}</span>}
   </span>

@@ -38,7 +38,7 @@ export interface Partner {
   site?: string;
   phone?: string;
   instagram?: string;
-  /** Фото: свой файл (/media/…, /hero/…, /services/…) или ссылка https. */
+  /** Фото: свой файл (/media/…, /hero/…, /services/…, /sclub/…) или ссылка https. */
   image: string;
   /** Логотип (необязательно): без него — название текстом. */
   logo?: string;
@@ -65,7 +65,7 @@ const txt = (v: any, max = 4000): Txt => {
   if (v && typeof v === 'object') for (const l of ['ru', 'en', 'tr', 'de', 'sr'] as Lang[]) if (typeof v[l] === 'string' && v[l].trim()) out[l] = v[l].slice(0, max);
   return out;
 };
-const url = (v: unknown) => { const s = str(v, 500).trim(); return /^(https:\/\/|\/(media|hero|services)\/)/.test(s) ? s : ''; };
+const url = (v: unknown) => { const s = str(v, 500).trim(); return /^(https:\/\/|\/(media|hero|services|sclub)\/)/.test(s) ? s : ''; };
 
 export function normalizePartners(x: unknown): Partner[] {
   if (!Array.isArray(x)) return [];
@@ -136,6 +136,7 @@ export const FAQ: Record<'ru' | 'en', { q: string; a: string }[]> = {
 };
 
 // ——— Тестовые данные (Anuar 25.11.2026: заглушки, потом заменим боевыми через админку) ———
+// Фото — бесплатные снимки Unsplash по теме партнёра (лицензия Unsplash, без подписи автора), сохранены у нас: public/sclub/{id}.webp + {id}-600.webp.
 const T = (ru: string, en: string): Txt => ({ ru, en });
 const TEST_ADDR = 'Алания (тестовый адрес)';
 export const TEST_PARTNERS: Partner[] = [
@@ -143,97 +144,97 @@ export const TEST_PARTNERS: Partner[] = [
     badge: T('−15%', '−15%'), tagline: T('Мебель и интерьер под ключ в Алании', 'Turnkey furniture and interiors in Alanya'),
     about: T('Ducca Home — мебельный салон в Алании: гостиные, спальни, кухни и мебель для террас. Помогают обставить квартиру под сдачу или для жизни за пару недель.\n\nДизайнер салона подберёт комплект под планировку и бюджет, доставка и сборка по Алании.', 'Ducca Home is a furniture showroom in Alanya: living rooms, bedrooms, kitchens and terrace furniture. They furnish an apartment for living or renting out within a couple of weeks.\n\nThe in-house designer selects a set for your layout and budget; delivery and assembly across Alanya.'),
     terms: T('Скидка 15% на мебель из салона\nБесплатная доставка и сборка по Алании\nНе суммируется с другими акциями', '15% off showroom furniture\nFree delivery and assembly in Alanya\nCannot be combined with other offers'),
-    addresses: [TEST_ADDR], site: 'https://duccahome.com', image: '/services/furnishing-and-equipping-the-apartment.webp' },
+    addresses: [TEST_ADDR], site: 'https://duccahome.com', image: '/sclub/ducca-home.webp' },
   { id: 'arcelik', name: 'Arçelik', category: 'appliances', featured: true, test: true,
     badge: T('−10%', '−10%'), tagline: T('Бытовая техника и кондиционеры', 'Home appliances and air conditioners'),
     about: T('Arçelik — крупнейший турецкий производитель бытовой техники: холодильники, стиральные машины, плиты, кондиционеры. Фирменные магазины есть во всех районах Алании.', 'Arçelik is Türkiye’s largest home appliance maker: fridges, washing machines, ovens, air conditioners. Brand stores are in every district of Alanya.'),
     terms: T('Скидка 10% на технику в фирменных магазинах\nУстановка кондиционера в подарок\nГарантия производителя', '10% off appliances in brand stores\nFree air conditioner installation\nManufacturer warranty'),
-    addresses: [TEST_ADDR], site: 'https://www.arcelik.com.tr', image: '/services/checking-the-technical-condition-of-equipment.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.arcelik.com.tr', image: '/sclub/arcelik.webp' },
   { id: 'beko', name: 'Beko', category: 'appliances', test: true,
     badge: T('−12%', '−12%'), tagline: T('Техника для кухни и дома', 'Kitchen and home appliances'),
     about: T('Beko — турецкий бренд техники для кухни, стирки и климата. Комплекты для новой квартиры со скидкой и доставкой.', 'Beko is a Turkish brand of kitchen, laundry and climate appliances. Sets for a new apartment with a discount and delivery.'),
     terms: T('Скидка 12% на комплект из 3 предметов\nДоставка и подключение бесплатно', '12% off a set of 3 appliances\nFree delivery and connection'),
-    addresses: [TEST_ADDR], site: 'https://www.beko.com.tr', image: '/services/checking-the-technical-condition-of-equipment.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.beko.com.tr', image: '/sclub/beko.webp' },
   { id: 'vestel', name: 'Vestel', category: 'appliances', test: true,
     badge: T('−8%', '−8%'), tagline: T('Телевизоры и техника для дома', 'TVs and home appliances'),
     about: T('Vestel — турецкий производитель телевизоров, кондиционеров и бытовой техники.', 'Vestel is a Turkish maker of TVs, air conditioners and home appliances.'),
     terms: T('Скидка 8% на телевизоры и технику\nРассрочка без переплаты', '8% off TVs and appliances\nInterest-free instalments'),
-    addresses: [TEST_ADDR], site: 'https://www.vestel.com.tr', image: '/services/subscription-contracts-services.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.vestel.com.tr', image: '/sclub/vestel.webp' },
   { id: 'istikbal', name: 'İstikbal', category: 'furniture', featured: true, test: true,
     badge: T('−10%', '−10%'), tagline: T('Мебель, матрасы и товары для сна', 'Furniture, mattresses and sleep products'),
     about: T('İstikbal — турецкая сеть мебели и матрасов: спальни, диваны, детские комнаты.', 'İstikbal is a Turkish furniture and mattress chain: bedrooms, sofas, kids’ rooms.'),
     terms: T('Скидка 10% на мебель и матрасы\nДоставка по Алании бесплатно', '10% off furniture and mattresses\nFree delivery in Alanya'),
-    addresses: [TEST_ADDR], site: 'https://www.istikbal.com.tr', image: '/services/furnishing-and-equipping-the-apartment.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.istikbal.com.tr', image: '/sclub/istikbal.webp' },
   { id: 'bellona', name: 'Bellona', category: 'furniture', test: true,
     badge: T('−12%', '−12%'), tagline: T('Мебель для гостиной и спальни', 'Living room and bedroom furniture'),
     about: T('Bellona — турецкий бренд мебели и текстиля для дома.', 'Bellona is a Turkish brand of home furniture and textiles.'),
     terms: T('Скидка 12% на гарнитуры\nСборка в подарок', '12% off furniture sets\nFree assembly'),
-    addresses: [TEST_ADDR], site: 'https://www.bellona.com.tr', image: '/services/furnishing-and-equipping-the-apartment.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.bellona.com.tr', image: '/sclub/bellona.webp' },
   { id: 'dogtas', name: 'Doğtaş', category: 'furniture', isNew: true, test: true,
     badge: T('Доставка в подарок', 'Free delivery'), tagline: T('Дизайнерская мебель из Турции', 'Designer furniture from Türkiye'),
     about: T('Doğtaş — мебель для гостиной, столовой и спальни в современном стиле.', 'Doğtaş makes modern living, dining and bedroom furniture.'),
     terms: T('Бесплатная доставка и сборка\nСкидка 5% при заказе от 100 000 ₺', 'Free delivery and assembly\n5% off orders over ₺100,000'),
-    addresses: [TEST_ADDR], site: 'https://www.dogtas.com', image: '/services/renovation-and-decoration.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.dogtas.com', image: '/sclub/dogtas.webp' },
   { id: 'english-home', name: 'English Home', category: 'interior', featured: true, test: true,
     badge: T('−15%', '−15%'), tagline: T('Текстиль и декор для дома', 'Home textiles and decor'),
     about: T('English Home — постельное бельё, полотенца, шторы, посуда и декор.', 'English Home: bedding, towels, curtains, tableware and decor.'),
     terms: T('Скидка 15% на текстиль\nНе действует на товары со скидкой', '15% off textiles\nNot valid on discounted items'),
-    addresses: [TEST_ADDR], site: 'https://www.englishhome.com', image: '/services/cleaning-and-hygiene-services.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.englishhome.com', image: '/sclub/english-home.webp' },
   { id: 'karaca', name: 'Karaca', category: 'interior', test: true,
     badge: T('−20%', '−20%'), tagline: T('Посуда и сервировка', 'Cookware and tableware'),
     about: T('Karaca — турецкий бренд посуды, сервизов и техники для кухни.', 'Karaca is a Turkish brand of cookware, dinnerware and kitchen appliances.'),
     terms: T('Скидка 20% на сервизы и наборы посуды', '20% off dinnerware and cookware sets'),
-    addresses: [TEST_ADDR], site: 'https://www.karaca.com', image: '/services/after-sales.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.karaca.com', image: '/sclub/karaca.webp' },
   { id: 'pasabahce', name: 'Paşabahçe', category: 'interior', test: true,
     badge: T('−10%', '−10%'), tagline: T('Стекло и хрусталь', 'Glass and crystal'),
     about: T('Paşabahçe — бокалы, вазы и предметы из стекла.', 'Paşabahçe: glasses, vases and glassware.'),
     terms: T('Скидка 10% в магазинах Paşabahçe', '10% off in Paşabahçe stores'),
-    addresses: [TEST_ADDR], site: 'https://www.pasabahce.com', image: '/services/exchange.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.pasabahce.com', image: '/sclub/pasabahce.webp' },
   { id: 'vitra', name: 'VitrA', category: 'renovation', test: true,
     badge: T('−10%', '−10%'), tagline: T('Сантехника и плитка', 'Bathroom fixtures and tiles'),
     about: T('VitrA — турецкий бренд сантехники, смесителей и керамической плитки.', 'VitrA is a Turkish brand of bathroom fixtures, taps and ceramic tiles.'),
     terms: T('Скидка 10% на сантехнику и плитку', '10% off bathroom fixtures and tiles'),
-    addresses: [TEST_ADDR], site: 'https://www.vitra.com.tr', image: '/services/renovation-and-decoration.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.vitra.com.tr', image: '/sclub/vitra.webp' },
   { id: 'alanya-design-studio', name: 'Alanya Design Studio', category: 'renovation', isNew: true, test: true,
     badge: T('Дизайн-проект в подарок', 'Free design project'), tagline: T('Дизайн и ремонт квартир под ключ', 'Turnkey design and renovation'),
     about: T('Студия дизайна и ремонта в Алании: дизайн-проект, черновые и чистовые работы, меблировка.', 'An Alanya design and renovation studio: design project, rough and finishing works, furnishing.'),
     terms: T('Дизайн-проект бесплатно при заказе ремонта\nГарантия на работы 2 года', 'Free design project with a renovation order\n2-year warranty on works'),
-    addresses: [TEST_ADDR], image: '/services/renovation-and-decoration.webp' },
+    addresses: [TEST_ADDR], image: '/sclub/alanya-design-studio.webp' },
   { id: 'alanya-clean', name: 'Alanya Clean', category: 'services', featured: true, test: true,
     badge: T('−20%', '−20%'), tagline: T('Уборка после ремонта и заселения', 'Post-renovation and move-in cleaning'),
     about: T('Клининговая служба в Алании: генеральная уборка, мойка окон, уборка после ремонта.', 'An Alanya cleaning service: deep cleaning, window washing, post-renovation cleaning.'),
     terms: T('Скидка 20% на первую уборку', '20% off the first cleaning'),
-    addresses: [TEST_ADDR], image: '/services/cleaning-and-hygiene-services.webp' },
+    addresses: [TEST_ADDR], image: '/sclub/alanya-clean.webp' },
   { id: 'alanya-transfer', name: 'Alanya Transfer', category: 'services', test: true,
     badge: T('−15%', '−15%'), tagline: T('Трансфер из аэропорта и переезд', 'Airport transfers and moving'),
     about: T('Трансферы из аэропортов Анталии и Газипаши, перевозка вещей и мебели.', 'Transfers from Antalya and Gazipaşa airports, moving of belongings and furniture.'),
     terms: T('Скидка 15% на трансферы и переезд', '15% off transfers and moving'),
-    addresses: [TEST_ADDR], image: '/services/transportation-services.webp' },
+    addresses: [TEST_ADDR], image: '/sclub/alanya-transfer.webp' },
   { id: 'insurance-alanya', name: 'Sigorta Alanya', category: 'services', test: true,
     badge: T('−10%', '−10%'), tagline: T('Страхование жилья и DASK', 'Home insurance and DASK'),
     about: T('Страховой агент в Алании: обязательная страховка DASK, страхование квартиры и имущества.', 'An insurance agent in Alanya: mandatory DASK, apartment and contents insurance.'),
     terms: T('Скидка 10% на страхование квартиры', '10% off apartment insurance'),
-    addresses: [TEST_ADDR], image: '/services/insurance-services.webp' },
+    addresses: [TEST_ADDR], image: '/sclub/insurance-alanya.webp' },
   { id: 'turk-telekom', name: 'Türk Telekom', category: 'services', test: true,
     badge: T('Подключение бесплатно', 'Free connection'), tagline: T('Интернет и ТВ для новой квартиры', 'Internet and TV for your new home'),
     about: T('Домашний интернет и телевидение. Поможем оформить договор на иностранца.', 'Home internet and TV. We help sign the contract as a foreigner.'),
     terms: T('Бесплатное подключение\nПервый месяц со скидкой 50%', 'Free connection\n50% off the first month'),
-    addresses: [TEST_ADDR], site: 'https://www.turktelekom.com.tr', image: '/services/subscription-contracts-services.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.turktelekom.com.tr', image: '/sclub/turk-telekom.webp' },
   { id: 'marina-restaurant', name: 'Marina Restaurant', category: 'restaurants', featured: true, test: true,
     badge: T('−10%', '−10%'), tagline: T('Ресторан у марины Алании', 'Restaurant by the Alanya marina'),
     about: T('Средиземноморская кухня и морепродукты с видом на марину и крепость.', 'Mediterranean cuisine and seafood overlooking the marina and the castle.'),
     terms: T('Скидка 10% на всё меню\nБронирование по телефону', '10% off the whole menu\nBooking by phone'),
-    addresses: [TEST_ADDR], image: '/hero/exodus_dreams_residence.webp' },
+    addresses: [TEST_ADDR], image: '/sclub/marina-restaurant.webp' },
   { id: 'beach-club', name: 'Alanya Beach Club', category: 'lifestyle', test: true,
     badge: T('−15%', '−15%'), tagline: T('Пляжный клуб и бассейн', 'Beach club and pool'),
     about: T('Шезлонги, бассейн и бар на пляже Клеопатры.', 'Sunbeds, a pool and a bar on Cleopatra Beach.'),
     terms: T('Скидка 15% на абонемент на сезон', '15% off a season pass'),
-    addresses: [TEST_ADDR], image: '/hero/exodus_aqua_deluxe_konakli.webp' },
+    addresses: [TEST_ADDR], image: '/sclub/beach-club.webp' },
   { id: 'ebebek', name: 'ebebek', category: 'kids', test: true,
     badge: T('−10%', '−10%'), tagline: T('Всё для малышей', 'Everything for babies'),
     about: T('Турецкая сеть товаров для детей: коляски, кроватки, одежда, игрушки.', 'A Turkish chain of baby products: strollers, cots, clothes, toys.'),
     terms: T('Скидка 10% на мебель для детской', '10% off nursery furniture'),
-    addresses: [TEST_ADDR], site: 'https://www.e-bebek.com', image: '/services/relocation-support.webp' },
+    addresses: [TEST_ADDR], site: 'https://www.e-bebek.com', image: '/sclub/ebebek.webp' },
 ];
 
 /** Подписи страниц S-Club (5 языков). */
@@ -297,3 +298,6 @@ export const UI: Record<Lang, Record<string, string>> = {
 
 /** Первое предложение «О компании» — подпись на карточке. */
 export const firstSentence = (s: string) => (lines(s)[0] ?? '').split(/(?<=[.!?])\s/)[0] ?? '';
+
+/** Уменьшенная копия для карточек: у файлов /sclub/x.webp рядом лежит /sclub/x-600.webp. */
+export const smallImage = (src: string) => (/^\/sclub\/[a-z0-9-]+\.webp$/.test(src) ? src.replace(/\.webp$/, '-600.webp') : src);
