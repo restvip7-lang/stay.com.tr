@@ -26,7 +26,7 @@ import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '
 import { DEAL_WORDS, FEATURE_LABEL, TYPE_WORDS, featureDef, featureAllowed, type Deal } from '../lib/segments';
 import { catCrumbs, SERVICE_TITLES, footerColumns } from '../lib/nav';
 import { itemListLd } from '../lib/ld';
-import { moneyL, numL, dateL } from '../lib/format';
+import { moneyL, numL, dateL, pluralL } from '../lib/format';
 import { allLangs, type Robots } from '../lib/page';
 import { guideFor, lawLinks } from '../lib/blog';
 import { SITE } from '../i18n/config';
@@ -145,6 +145,18 @@ const sortHref = (k: string) => {
   const q = u.toString();
   return base + (q ? `?${q}` : '');
 };
+// STAY PROJECTS с одним выбранным проектом — заголовок под проект, как у образца («Квартиры в ЖК МИРА однокомнатные»).
+const pj = !hub && f.own && f.projects.length === 1 ? (await getComplexes()).find((x) => x.code === f.projects[0]) : null;
+if (pj) {
+  const ty = cat.type ?? 'apartments';
+  const rm = f.rooms.length === 1 ? f.rooms[0] : ({ '1-bedroom': '1+1', '2-bedrooms': '2+1', '3-bedrooms': '3+1', '4-bedrooms': '4+' } as Record<string, string>)[cat.feature ?? ''];
+  const studio = rm === 'studio';
+  const STU: Record<string, string> = { ru: 'Студии', en: 'Studios', tr: 'Stüdyolar', de: 'Studios', sr: 'Garsonjere' };
+  const what = studio && ty === 'apartments' ? STU[lang] : `${TYPE_WORDS[lang][ty].pl}${rm && !studio ? ` ${rm}` : ''}`;
+  meta.h1 = ({ ru: `${what} в ${pj.title}`, en: `${what} in ${pj.title}`, tr: `${pj.title}: ${what}`, de: `${what} in ${pj.title}`, sr: `${what} u ${pj.title}` } as Record<string, string>)[lang] ?? `${what} — ${pj.title}`;
+  const lo = list.map((x) => x.price).filter((v): v is number => !!v);
+  meta.lead = `${numL(lang, list.length)} ${pluralL(lang, list.length, TYPE_WORDS[lang][ty].n)}${lo.length ? `, ${d.from(moneyL(lang, Math.min(...lo)))}` : ''}`;
+}
 const lead = hub
   ? meta.lead
   : n
@@ -164,8 +176,10 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
   <!-- Шапка страницы и фильтры — белая панель с нижними углами 52 (каталог mr-group). -->
   <section class="panel-b pb-4 pt-6 lg:pb-10 lg:pt-8"><div class="container-n">
     <Breadcrumbs items={crumbs} />
-    <h1 class="display h-page mt-6 lg:mt-8" data-prive-title={meta.h1}>{meta.h1}</h1>
-    <p class="mt-3 max-w-3xl text-[16px] leading-[22px] tracking-[0.2px] text-soft">{lead}</p>
+    <div data-swap="head">
+      <h1 class="display h-page mt-6 lg:mt-8" data-prive-title={meta.h1}>{meta.h1}</h1>
+      <p class="mt-3 max-w-3xl text-[16px] leading-[22px] tracking-[0.2px] text-soft">{lead}</p>
+    </div>
 
     {hub && (
       <ul class="mt-8 grid gap-3 sm:grid-cols-3">

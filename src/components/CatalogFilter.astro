@@ -6,6 +6,8 @@
  * catalog — режим посадочной: выдача обновляется на месте; home — форма на главной ведёт в каталог.
  */
 import Icon from './Icon.astro';
+import Img from './Img.astro';
+import { cityBySlug, districtBySlug } from '../lib/geo';
 import { t } from '../i18n/ui';
 import { INTL } from '../i18n/config';
 import { geoOptions, allowedFeatureMap, itemsOf, rangesOf, filtered, noFilters, getOurComplexes, readyYears, type Cat, type Filters, type Ranges } from '../lib/catalog';
@@ -127,6 +129,8 @@ const ownFields = ownMode;
 const ourProjects = ownFields ? [...(await getOurComplexes())].sort((a, b) => a.title.localeCompare(b.title)) : [];
 const readyOpts = ownFields ? [...new Set([...(await readyYears()).values()].filter((v): v is number => !!v))].sort((a, b) => a - b) : [];
 const ownRg = ownMode ? rangesOf(await filtered({ ...geoCat, type: cat.type }, { ...noFilters(), own: true })) : null;
+const projLabel = ourProjects.filter((c) => f.projects.includes(c.code)).map((c) => c.title).join(', ');
+const placeOf = (c: { city: string; district: string | null }) => [c.district && districtBySlug(c.city, c.district)?.name[lang], cityBySlug(c.city)?.name[lang]].filter(Boolean).join(', ');
 const roomsLabel = rooms.filter((r) => selRooms.has(r.v) || pathRooms === r.v).map((r) => r.l).join(', ');
 const readyLabel = f.readyFrom || f.readyTo ? (f.readyFrom && f.readyFrom === f.readyTo ? `${f.readyFrom}${PJ.y}` : [f.readyFrom && `${PJ.from} ${f.readyFrom}${PJ.y}`, f.readyTo && `${PJ.to} ${f.readyTo}${PJ.y}`].filter(Boolean).join(' ')) : '';
 const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName}: ${classNames.join(', ')}` : typeName;
@@ -295,14 +299,23 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
                 </div>
               </div>
             ))}
-            <label class="fsel" for="f-project">
-              <span>{PJ.project}</span>
-              <select id="f-project" name="project">
-                <option value="">{PJ.allProjects}</option>
-                {ourProjects.map((c) => <option value={c.code} selected={f.projects.includes(c.code)}>{c.title}</option>)}
-              </select>
-              <Icon name="chevronDown" class="fsel-i" />
-            </label>
+            <!-- «Проект» — список наших проектов с фото и местом, галочки (можно несколько), как у образца. -->
+            <div class="fsel ptype" data-drop>
+              <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                {projLabel ? <><em>{PJ.project}</em><strong>{projLabel}</strong></> : <strong class="ptype-ph">{PJ.project}</strong>}
+              </button>
+              <Icon name="chevronDown" class="fsel-i ptype-i" />
+              <div class="ptype-list proj-list">
+                {ourProjects.map((c) => (
+                  <label class="ptype-row proj-row">
+                    <span class="block size-10 shrink-0 overflow-hidden rounded-[8px] bg-page"><Img src={c.image} alt="" class="size-full" width={80} height={80} sizes="40px" /></span>
+                    <span class="ptype-t"><span class="block truncate">{c.title}</span><span class="block truncate text-[13px] text-muted">{placeOf(c)}</span></span>
+                    <input type="checkbox" name="project" value={c.code} checked={f.projects.includes(c.code)} class="peer sr-only" />
+                    <span class="ptype-mark" aria-hidden="true"></span>
+                  </label>
+                ))}
+              </div>
+            </div>
             <!-- «Срок сдачи» — диапазон «с … г / по … г», как у образца. -->
             <div class="fsel ptype" data-drop>
               <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
@@ -624,6 +637,8 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
   @media (min-width: 1024px) { .fsel { width: auto; height: 50px; border-radius: 12px; } }
   .fsel[hidden] { display: none; }
   .drop-range { padding-top: 14px; }
+  .proj-row { min-height: 60px; padding: 8px 18px; }
+  @media (min-width: 1024px) { .proj-list { width: 380px; } }
   /* Пустое поле — подпись по центру, как у образца («Стоимость, млн ₽»). */
   .ptype-btn:has(> .ptype-ph:only-child) { padding-top: 0; display: flex; align-items: center; }
   .ptype-btn .ptype-ph { font-weight: 400; }
