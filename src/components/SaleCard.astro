@@ -13,8 +13,10 @@ import { moneyL, numL } from '../lib/format';
 import { t } from '../i18n/ui';
 import { LABEL_TEXT, LABEL_STYLE } from '../lib/objectsConfig';
 
-interface Props { x: Item; headingLevel?: 'h2' | 'h3' }
-const { x, headingLevel = 'h3' } = Astro.props;
+/** project — карточка квартиры в каталоге STAY PROJECTS, по образцу mr-group (/flats/): цена сразу под заголовком, планировка,
+ *  внизу «проект · блок · этаж», срок сдачи и район (метро у нас нет). */
+interface Props { x: Item; headingLevel?: 'h2' | 'h3'; project?: { title: string; ready: string | null; year: number | null } | null }
+const { x, headingLevel = 'h3', project = null } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const url = itemUrl(lang, x);
@@ -41,7 +43,54 @@ const RIGHTS: Record<string, { cit: string; res: string }> = {
   de: { cit: 'Staatsbürgerschaft', res: 'Aufenthaltstitel' }, sr: { cit: 'Državljanstvo', res: 'Boravišna dozvola' },
 };
 const rights = RIGHTS[lang] ?? RIGHTS.ru;
+// Карточка STAY PROJECTS: блок и номер — из названия лота («…, №3, Блок C, …»), этаж — из базы.
+const PC = ({
+  ru: { or: 'или', ready: 'Срок сдачи', block: 'Блок', floor: (n: number) => `${n} этаж` },
+  en: { or: 'or', ready: 'Completion', block: 'Block', floor: (n: number) => `floor ${n}` },
+  tr: { or: 'veya', ready: 'Teslim', block: 'Blok', floor: (n: number) => `${n}. kat` },
+  de: { or: 'oder', ready: 'Fertigstellung', block: 'Block', floor: (n: number) => `${n}. Etage` },
+  sr: { or: 'ili', ready: 'Rok završetka', block: 'Blok', floor: (n: number) => `${n}. sprat` },
+} as Record<string, { or: string; ready: string; block: string; floor: (n: number) => string }>)[lang] ?? null;
+const blockM = project ? x.titleRu.match(/Блок\s*([A-Za-zА-Яа-я0-9]+)/) : null;
+const numM = project ? x.titleRu.match(/№\s*([0-9A-Za-z-]+)/) : null;
+const pLine = project && PC ? [blockM && `${PC.block} ${blockM[1]}${numM ? `, №${numM[1]}` : ''}`, x.floor ? PC.floor(x.floor) : ''].filter(Boolean).join(' · ') : '';
+const readyText = project ? (lang === 'ru' ? project.ready : project.year ? String(project.year) : null) : null;
+const perM2Short = x.price && x.area && PC ? `${PC.or} ${moneyL(lang, Math.round(x.price / x.area))}/${d.m2}` : '';
+const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|residence-permit/.test(f)).slice(0, 2);
 ---
+<!-- project: карточка квартиры STAY PROJECTS по образцу (mr-group.ru/flats/): заголовок, крупная цена и «или N €/м²», планировка на белом,
+     чипы, внизу проект · блок · этаж, срок сдачи и район; «♡» справа внизу. -->
+{project ? (
+<article class="sale-card group relative flex h-full flex-col rounded-[20px] bg-white p-4 transition-shadow duration-100 ease-in-out hover:shadow-[0_2px_12px_#1c1e261a] lg:p-5">
+  <H class="text-[18px] font-medium leading-[24px] tracking-[0.2px] text-ink-n">
+    <a href={url} class="sc-link after:absolute after:inset-0 after:z-[1] after:rounded-[inherit] after:content-['']">{title}{area ? `, ${area}` : ''}</a>
+  </H>
+  <p class:list={['mt-1 text-[24px] font-medium leading-[30px] tracking-[0.4px] text-ink-n', sold && 'text-muted line-through']}>{price}</p>
+  {perM2Short && <p class="mt-0.5 text-[13px] leading-[18px] text-soft">{perM2Short}</p>}
+  <div class="relative mt-3 aspect-[4/3] overflow-hidden bg-white">
+    <Img src={x.image} alt={alt} class={`size-full !object-contain${sold ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
+    {(citizenship || residence) && (
+      <ul class="sc-rights pointer-events-none absolute right-0 top-0 z-[2] flex gap-1.5">
+        {citizenship && <li class="sc-right sc-right-cit">{rights.cit}</li>}
+        {residence && <li class="sc-right sc-right-res">{rights.res}</li>}
+      </ul>
+    )}
+  </div>
+  <ul class="mt-3 flex min-h-[26px] flex-wrap gap-1.5">
+    {x.label && <li><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></li>}
+    {x.isPrivate && <li><span class="badge badge-solid" style="background:#bc906e">PRIVE</span></li>}
+    {pChips.map((f) => <li><span class="badge">{FEATURE_LABEL[lang][f]}</span></li>)}
+  </ul>
+  <div class="mt-auto pr-16 pt-4 text-[13px] leading-[19px] text-soft">
+    <p class="truncate"><span class="font-medium text-ink-n">{project.title}</span>{pLine && ` · ${pLine}`}</p>
+    {readyText && <p>{PC?.ready}: {readyText}</p>}
+    <p class="truncate">{place}{x.sea ? ` · ${d.toSea(numL(lang, x.sea))}` : ''}</p>
+  </div>
+  <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" aria-label={d.addFav} class="sc-fav absolute bottom-4 right-4 z-10 grid size-12 place-items-center rounded-[14px] bg-white shadow-[var(--shadow-btn)] transition-colors hover:bg-page-n lg:bottom-5 lg:right-5">
+    <Icon name="heart" class="size-5" />
+  </button>
+</article>
+) : (<>
 <!-- Карточка объекта по эталону (каталог mr-group): белая, скругление 20, отступы 20; сверху заголовок 16/500 и район,
      в середине фото, бейджи капсом 11 px, внизу цена 22/500 и цена за м². По наведению — тень и «♡».
      Наш объект (отметка в админке) — светло-фиолетовая карточка с бейджем STAY, по образцу золотого PRIVE. -->
@@ -79,3 +128,4 @@ const rights = RIGHTS[lang] ?? RIGHTS.ru;
     <Icon name="heart" class="size-5" />
   </button>
 </article>
+</>)}

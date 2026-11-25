@@ -334,19 +334,24 @@ export async function getOurComplexes(): Promise<Complex[]> {
   return (await getComplexes()).filter(isOurComplex);
 }
 
-/** Год сдачи ЖК из карточки комплекса («III кв. 2027 г.» → 2027); только наши проекты — фильтр «Срок сдачи». */
-let readyMemo: { at: number; map: Map<string, number | null> } | null = null;
-export async function readyYears(): Promise<Map<string, number | null>> {
-  if (readyMemo && Date.now() - readyMemo.at < 30 * 60_000) return readyMemo.map;
+/** Наши проекты: название, слаг и срок сдачи из карточки ЖК («III кв. 2027 г.» → год 2027) — для карточек квартир и фильтра «Срок сдачи». */
+export interface OwnInfo { title: string; slug: string; ready: string | null; year: number | null }
+let ownMemo: { at: number; map: Map<string, OwnInfo> } | null = null;
+export async function ownInfo(): Promise<Map<string, OwnInfo>> {
+  if (ownMemo && Date.now() - ownMemo.at < 30 * 60_000) return ownMemo.map;
   const ours = await getOurComplexes();
   const pairs = await Promise.all(ours.map(async (c) => {
     const d = await getComplex(c.project.slug).catch(() => null);
-    const v = d?.facts.find((x) => x.label === 'build-end')?.value ?? '';
-    const y = Number(v.match(/20\d\d/)?.[0]);
-    return [c.code, y || null] as const;
+    const v = d?.facts.find((x) => x.label === 'build-end')?.value?.trim() || null;
+    const y = Number(v?.match(/20\d\d/)?.[0]);
+    return [c.code, { title: c.title, slug: c.slug, ready: v, year: y || null }] as const;
   }));
-  readyMemo = { at: Date.now(), map: new Map(pairs) };
-  return readyMemo.map;
+  ownMemo = { at: Date.now(), map: new Map(pairs) };
+  return ownMemo.map;
+}
+/** Год сдачи по коду ЖК (фильтр «Срок сдачи»). */
+export async function readyYears(): Promise<Map<string, number | null>> {
+  return new Map([...(await ownInfo())].map(([k, v]) => [k, v.year]));
 }
 
 export function complexPath(c: Pick<Complex, 'country' | 'city' | 'district' | 'slug'>) {

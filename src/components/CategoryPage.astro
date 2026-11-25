@@ -19,7 +19,7 @@ import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import {
   catUrl, itemUrl, itemsOf, filtered, parseFilters, hasFilters, noFilters, stats, INDEX_MIN, PER_PAGE, SORTS,
-  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, type Cat, type Item,
+  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, ownInfo, type Cat, type Item,
 } from '../lib/catalog';
 import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
 import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '../lib/seo';
@@ -160,6 +160,8 @@ if (ownCat) {
   const lo = list.map((x) => x.price).filter((v): v is number => !!v);
   meta.lead = `${numL(lang, list.length)} ${pluralL(lang, list.length, TYPE_WORDS[lang][ty ?? 'apartments'].n)}${lo.length ? `, ${d.from(moneyL(lang, Math.min(...lo)))}` : ''}`;
 }
+// Карточки квартир STAY PROJECTS — как у образца: проект, блок, этаж, срок сдачи.
+const ownCards = ownCat ? await ownInfo() : null;
 const lead = hub
   ? meta.lead
   : n
@@ -247,7 +249,7 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
         </div>
       )}
       {shown.length ? (
-        <ul data-grid class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{shown.map((x) => <li><SaleCard x={x} /></li>)}</ul>
+        <ul data-grid class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{shown.map((x) => <li><SaleCard x={x} project={ownCards && x.complex ? ownCards.get(x.complex) ?? null : null} /></li>)}</ul>
       ) : (
         <>
           <div class="card-n p-10 text-center">
