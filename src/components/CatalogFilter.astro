@@ -107,9 +107,9 @@ const classOpts = catalog && sale ? await Promise.all((['prive', 'own'] as const
 })) : [];
 const typeName = cat.type ? TYPE_WORDS[lang][cat.type].pl : PT.anyType;
 const classNames = classOpts.filter((c) => c.on).map((c) => c.l);
-/** Сколько фильтров включено (кроме гео, сделки и типа) — число на кнопке «Фильтры», как у образца. */
-const activeCount = [f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
-const resetHref = `/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`;
+/** Сколько фильтров включено (город и район считаются, как «Проект» у образца; страна, сделка и тип — нет) — число на кнопке «Фильтры», как у образца. */
+const activeCount = [cat.city, cat.district, f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
+const resetHref = `/${lang}/${[cat.country, cat.deal].filter(Boolean).join('/')}/`;
 const FR: Record<string, string> = { ru: 'Сбросить фильтры', en: 'Reset filters', tr: 'Filtreleri sıfırla', de: 'Filter zurücksetzen', sr: 'Poništi filtere' };
 const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : typeName;
 ---
