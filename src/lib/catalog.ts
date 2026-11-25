@@ -280,6 +280,40 @@ export async function getComplexes(): Promise<Complex[]> {
   return list;
 }
 
+/**
+ * Наши проекты (STAY PROJECTS) — только они показываются в списках комплексов (…/sale/complexes/).
+ * Список от руководства (папки P000-001…P000-024, VL001). Сверяем по названию (slugify), чтобы проект,
+ * которого пока нет в базе (Euro Residence, Euro City, Balkan Residence), появился сам, когда его заведут.
+ * Страницы отдельных ЖК не трогаем — они открываются по прямой ссылке как раньше.
+ */
+const OUR_PROJECTS = [
+  'Exodus Premium Town', // P000-001 Kargıcak
+  'Exodus Riverside Residence', // P000-002 Demirtaş
+  'Exodus Twins Residence', // P000-003
+  'Exodus Dreams Residence', // P000-004 Payallar
+  'Exodus Panorama Residence Istanbul', // P000-005
+  'Exodus Aqua Deluxe Konakli', // P000-006
+  'Blue Sunlight', // P000-007 Mahmutlar
+  'Prime Garden Residence', // P000-008
+  'Prime Botanic Residence', // P000-009 Mahmutlar
+  'Blue Dream Residence', // P000-010 Gazipaşa
+  'Prime Loft Residence', // P000-014 Mahmutlar
+  'Faralya Residence', // P000-015 Payallar
+  'Prime Stone Residence', // P000-018 Gazipaşa
+  'Blue Sunlight 2 Residence', // P000-020 Mahmutlar
+  'Euro Residence', // P000-021 Avsallar
+  'Euro City', // P000-022 Avsallar
+  'Mostar Residence', // P000-023 Avsallar
+  'Balkan Residence', // P000-024 Mahmutlar
+  'Villa Rabbit Hill', // VL001 Bektaş
+];
+const OUR_SLUGS = new Set(OUR_PROJECTS.map(slugify));
+export const isOurComplex = (c: Pick<Complex, 'title' | 'code'>) => OUR_SLUGS.has(slugify(c.title)) || OUR_SLUGS.has(slugify(c.code));
+/** Комплексы для списков «Новостройки / STAY PROJECTS»: только наши проекты. */
+export async function getOurComplexes(): Promise<Complex[]> {
+  return (await getComplexes()).filter(isOurComplex);
+}
+
 export function complexPath(c: Pick<Complex, 'country' | 'city' | 'district' | 'slug'>) {
   return [c.country, c.city, c.district, 'sale', 'complexes', c.slug].filter(Boolean).join('/');
 }

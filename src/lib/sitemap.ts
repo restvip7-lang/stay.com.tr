@@ -3,7 +3,7 @@
  * (пороги — как на самих страницах), у каждой — hreflang-альтернативы и lastmod.
  */
 import { LANGS, SITE, HREFLANG, type Lang } from '../i18n/config';
-import { getItems, getUnits, getComplexes, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
+import { getItems, getUnits, getComplexes, getOurComplexes, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
 import { translatedIds } from './api';
 import { allServices, serviceUrl } from './services';
 import { BLOG_CATS, blogUrl, postsOf } from './blog';
