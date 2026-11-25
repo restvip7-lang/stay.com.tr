@@ -26,6 +26,8 @@ import type { Robots } from '../lib/page';
 import { pickerFor, pickerReals, PICKER_TEXT } from '../lib/pickers';
 import { COMPLEX_BLOCKS } from '../lib/complexBlocks';
 import ComplexGenplan from './ComplexGenplan.astro';
+import ProjectGenplan from './ProjectGenplan.astro';
+import { plansOf } from '../lib/plans';
 import { site } from '../lib/site';
 import { ownUrl } from '../lib/ownUrl';
 
@@ -86,6 +88,7 @@ const pickerUrl = `${self}/picker/`;
 // STAY PROJECTS и у ЖК с подборщиком (Anuar 25.11.2026). У остальных ЖК — короткая: без генплана и пустых блоков «скоро».
 const ours = isOurComplex(c);
 const full = ours || !!picker;
+const plans = ours ? await plansOf(c.code) : null;
 const real = picker ? await pickerReals(c.code, picker, lang).catch(() => []) : [];
 // Карточки над описанием — по планировкам (тип + комнатность), как у образца: «Студии / от 28 м² / от … / 11 квартир».
 // Клик: у наших проектов — каталог с фильтром «Проект + комнатность», у остальных — список квартир планировки (одна — сразу её страница).
@@ -166,7 +169,7 @@ const month = new Date().getMonth();
           {c.rooms.length > 0 && <span>{c.rooms.join(' · ')}</span>}
         </p>
         <div class="mt-6 flex flex-wrap gap-2.5">
-          {picker ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
+          {picker || ours ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
           {picker && <a href="#lead" class="btn-n btn-n-glass max-sm:w-full">{tc.getPrice}</a>}
         </div>
       </div>
@@ -311,7 +314,8 @@ const month = new Date().getMonth();
   )}
 
   {picker && <ComplexGenplan slug={c.slug} conf={picker} pickerUrl={pickerUrl} units={units} real={real} />}
-  {!picker && full && hero && (
+  {!picker && ours && <ProjectGenplan c={c} objects={objects} plans={plans} image={hero} />}
+  {!picker && full && !ours && hero && (
     <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28">
       <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
         <h2 class="display h-section-n">{tb.genplan}</h2>

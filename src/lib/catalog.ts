@@ -89,7 +89,8 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
     price: (() => { const p = numOrNull(x.price); return p && p < 100_000_000 ? p : null; })(),
     area: numOrNull(x.totalArea),
     sea: numOrNull(x.distanceToSea),
-    floor: x.floor != null && x.floor !== '' ? Math.round(Number(x.floor)) || null : null,
+    // Этаж 0 — цокольный (в базе квартир проектов так записан нижний этаж).
+    floor: x.floor != null && x.floor !== '' && Number.isFinite(Number(x.floor)) ? Math.round(Number(x.floor)) : null,
     ref: x.objectCode ?? null,
     isPrivate: !!x.isPrivate,
     image: fixImage(x.imageUrl),
