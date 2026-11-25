@@ -66,7 +66,7 @@ const area = x.area ? x.area.toLocaleString(loc, { maximumFractionDigits: 2 }) :
 const m2 = lang === 'ru' ? 'м²' : 'm²';
 const title = `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}${area ? `, ${area} ${m2}` : ''}`;
 const floorText = x.floor == null ? null : x.floor === 0 ? L.ground : topFloor && topFloor >= x.floor ? L.floorOf(x.floor, topFloor) : String(x.floor);
-const about = flatText(lang, { rooms: x.rooms, area, block: x.block, project: complex.title, place, floor: x.floor, top: topFloor, sea: x.sea, ready, type: tw.one });
+const about = flatText(lang, { rooms: x.rooms, area, block: x.block ?? null, project: complex.title, place, floor: x.floor, top: topFloor, sea: x.sea, ready, type: tw.one });
 const intro = lang === 'ru' && pd?.introHtml ? sanitize(pd.introHtml) : '';
 const meta = itemMeta(lang, x, g, about);
 const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
@@ -78,7 +78,7 @@ const chips = x.features.filter((f) => !/price-to/.test(f) && f !== 'new').map((
 const params: [string, string | null, string?][] = [
   [L.ppm, perM2 ? `${moneyL(lang, perM2)} ${L.perM2}` : null],
   [L.project, complex.title, ownUrl(lang, 'all', { projectSlugs: [complex.slug] })],
-  [L.block, x.block, x.block ? ownUrl(lang, 'all', { projectSlugs: [complex.slug], blocks: [x.block] }) : undefined],
+  [L.block, x.block ?? null, x.block ? ownUrl(lang, 'all', { projectSlugs: [complex.slug], blocks: [x.block] }) : undefined],
   [L.floor, floorText],
   [L.number, flatNum],
   [L.ready, ready],
@@ -147,7 +147,7 @@ const stepsId = 'flat-steps';
           {fPlan && (
             <div data-panel="floor" role="tabpanel" hidden class="mt-4">
               <div class="relative mx-auto w-fit">
-                <img src={planSrc(fPlan.image)} alt={L.floorAlt(x.floor, x.block)} loading="lazy" class="block max-h-[560px] w-auto max-w-full" />
+                <img src={planSrc(fPlan.image)} alt={L.floorAlt(x.floor, x.block ?? null)} loading="lazy" class="block max-h-[560px] w-auto max-w-full" />
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full" aria-hidden="true">
                   {fShape && <polygon points={polyPoints(fShape.points)} class="fp-me" />}
                 </svg>

@@ -219,15 +219,16 @@ const data = { projects, db };
 
     const finish = () => {
       const p = P();
-      if (draw?.kind === 'poly' && draw.shape.points.length >= 3) {
+      const dr = draw;
+      if (dr?.kind === 'poly' && dr.shape.points.length >= 3) {
         const list = tab === 'genplan' ? (p.genplan ??= { image: '', blocks: [] }).blocks : p.floorPlans![fpIdx].flats;
-        const i = list.findIndex((s) => s.id === draw!.shape.id);
-        if (i >= 0) list[i] = draw.shape; else list.push(draw.shape);
+        const i = list.findIndex((s) => s.id === dr.shape.id);
+        if (i >= 0) list[i] = dr.shape; else list.push(dr.shape);
       }
-      if (draw?.kind === 'mark' && draw.step === 1) {
+      if (dr?.kind === 'mark' && dr.step === 1) {
         const v = (p.view ??= { image: '', marks: [] });
-        const i = v.marks.findIndex((m) => m.block === draw!.mark.block && m.no === draw!.mark.no);
-        if (i >= 0) v.marks[i] = draw.mark; else v.marks.push(draw.mark);
+        const i = v.marks.findIndex((m) => m.block === dr.mark.block && m.no === dr.mark.no);
+        if (i >= 0) v.marks[i] = dr.mark; else v.marks.push(dr.mark);
       }
       draw = null;
     };

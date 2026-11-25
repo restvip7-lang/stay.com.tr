@@ -53,7 +53,7 @@ export const GET: APIRoute = async ({ params, url, request, clientAddress }) => 
   const rows: [string, string | null][] = [
     [L.project, complex.title],
     [L.ready, info?.ready ?? null],
-    [L.block, x.block],
+    [L.block, x.block ?? null],
     [L.floor, x.floor == null ? null : top && top >= x.floor ? L.floorOf(x.floor, top) : String(x.floor)],
     [L.number, no],
     [L.area, area ? `${area} ${m2}` : null],
