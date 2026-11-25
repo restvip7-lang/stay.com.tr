@@ -2,6 +2,8 @@
 // (API dev-сайта, свой API, CRM) — решается здесь. Когда придёт инструкция по
 // своему API, меняется только этот файл.
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { areaRu, cityRu, COUNTRY_BY_CITY, typeInfo, type TypeGroup } from './dict';
 
 import mediaManifest from '../content/media-manifest.json';
@@ -13,6 +15,7 @@ import fxSale from '../content/fixtures/sale.json';
 import fxRental from '../content/fixtures/rental.json';
 import fxUnits from '../content/fixtures/units.json';
 import fxUnitsCitizenship from '../content/fixtures/units-citizenship.json';
+import { devDisabled, snapshotDetail, snapshotList, snapshotTranslatedIds } from './portfolioSnapshot';
 
 const MEDIA = new Set<string>(mediaManifest);
 
@@ -20,7 +23,11 @@ const BASE = (import.meta.env.STAY_API_BASE as string | undefined) || 'https://d
 const TTL = 10 * 60 * 1000;
 const cache = new Map<string, { at: number; value: unknown }>();
 
+/** STAY_DEV_OFF=1 — к dev.stayproperty.com не ходим вообще, данные только из сохранённой копии (STAY_DATA_DIR/api-copy). */
+const devOff = () => ['1', 'true', 'yes'].includes(String(process.env.STAY_DEV_OFF || '').toLowerCase());
+
 export async function getJson<T>(path: string, tries = 3, timeout = 5_000): Promise<T> {
+  if (devOff()) throw new Error('dev отключён (STAY_DEV_OFF)');
   let last: unknown;
   for (let i = 0; i < tries; i++) {
     try {
@@ -38,7 +45,31 @@ export async function getJson<T>(path: string, tries = 3, timeout = 5_000): Prom
   throw last;
 }
 
-/** Берёт данные из API, при ошибке — из сохранённого снимка. */
+/* ---------- Копия ответов на диске ----------
+ * Каждый удачный ответ dev/бэкенда сохраняем в STAY_DATA_DIR/api-copy/<ключ>.json (не чаще раза в 10 минут на ключ).
+ * Если источник недоступен или закрыт (STAY_DEV_OFF=1), сайт берёт последнюю копию — так закрытие dev ничего не ломает.
+ * На Vercel диска нет — ошибки записи молча пропускаем. */
+const copyDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'api-copy');
+const copyFile = (key: string) => path.join(copyDir(), key.replace(/[^\w.-]+/g, '_').slice(0, 150) + '.json');
+const savedAt = new Map<string, number>();
+function saveCopy(key: string, value: unknown) {
+  if (Date.now() - (savedAt.get(key) ?? 0) < TTL) return;
+  savedAt.set(key, Date.now());
+  try {
+    fs.mkdirSync(copyDir(), { recursive: true });
+    const f = copyFile(key);
+    fs.writeFileSync(f + '.tmp', JSON.stringify(value));
+    fs.renameSync(f + '.tmp', f);
+  } catch { /* нет диска — не страшно */ }
+}
+function readCopy<T>(key: string): T | undefined {
+  try {
+    return JSON.parse(fs.readFileSync(copyFile(key), 'utf8')) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Сбросить данные в памяти (после вебхука revalidate). Последняя копия остаётся запасной на случай сбоя API. */
 export function expireCache() {
   for (const v of cache.values()) v.at = 0;
@@ -50,10 +81,17 @@ export async function cached<T>(key: string, load: () => Promise<T>, fallback?: 
   try {
     const value = await load();
     cache.set(key, { at: Date.now(), value });
+    saveCopy(key, value);
     return value;
   } catch (e) {
-    // API недоступен: отдаём последнюю удачную копию, потом снимок (не 404 при первом сбое — ТЗ 2.6 п. 7).
+    // API недоступен: отдаём последнюю удачную копию из памяти, потом с диска, потом встроенный снимок (ТЗ 2.6 п. 7).
+    if ((e as { notFound?: boolean }).notFound && !devOff()) throw e;
     if (hit) return hit.value as T;
+    const disk = readCopy<T>(key);
+    if (disk !== undefined) {
+      cache.set(key, { at: Date.now(), value: disk });
+      return disk;
+    }
     if (fallback) return fallback();
     throw e;
   }
@@ -285,6 +323,10 @@ export type { RawListing };
 
 /** Сырые записи API (все объекты сделки). */
 export async function rawListings(operation: 'sale' | 'rental'): Promise<RawListing[]> {
+  // Свой снимок Portfolio (scripts/portfolio-sync.mjs) — без dev.
+  const snap = snapshotList(operation);
+  if (snap) return snap as RawListing[];
+  if (devDisabled()) return (operation === 'sale' ? fxSale : fxRental) as RawListing[];
   return cached(
     `listings-${operation}`,
     async () => {
@@ -304,6 +346,9 @@ export async function rawListings(operation: 'sale' | 'rental'): Promise<RawList
 
 /** id объектов, у которых есть перевод на язык (непустой title в выдаче этого языка) — для sitemap. */
 export async function translatedIds(operation: 'sale' | 'rental', lang: string): Promise<Set<string>> {
+  const snap = snapshotTranslatedIds(operation, lang);
+  if (snap) return new Set(snap);
+  if (devDisabled()) return new Set(lang === 'ru' ? (await rawListings(operation)).filter((x) => String(x.title || '').trim()).map((x) => String(x.id)) : []);
   const list = await cached(`listings-${operation}-${lang}-ids`, async () => {
     const ids: string[] = [];
     let n = 0;
@@ -371,16 +416,17 @@ const UNIT_WINDOWS: [number, number][] = [[0, 120000], [120001, 180000], [180001
 
 function toUnit(x: RawListing): Listing {
   const duplex = /дуплекс/i.test(x.objectType || '');
+  const villa = /вилл/i.test(x.objectType || '');
   const city = cityRu(x.city);
   const projectSlug = x.projectCode ? String(x.projectCode).replace(/_/g, '-').replace(/-+$/, '').toLowerCase() : null;
   return {
     id: `u${x.id}`,
     code: x.code ?? null,
-    title: (x.title || '').trim() || `${duplex ? 'Дуплекс' : 'Квартира'} ${x.roomLabel ?? ''}`.trim(),
+    title: (x.title || '').trim() || `${villa ? 'Вилла' : duplex ? 'Дуплекс' : 'Квартира'} ${x.roomLabel ?? ''}`.trim(),
     operation: 'sale',
     rooms: x.roomLabel ?? null,
-    typeLabel: duplex ? 'Дуплекс' : 'Квартира',
-    typeGroup: duplex ? 'duplexes' : 'apartments',
+    typeLabel: villa ? 'Вилла' : duplex ? 'Дуплекс' : 'Квартира',
+    typeGroup: villa ? 'villas' : duplex ? 'duplexes' : 'apartments',
     rawType: x.objectType ?? null,
     country: city ? COUNTRY_BY_CITY[city] ?? null : null,
     city,
@@ -497,7 +543,26 @@ export async function getListing(id: string, operation: 'sale' | 'rental'): Prom
     const p = x.project ? await getProject(x.project.code.replace(/_/g, '-').replace(/-+$/, '').toLowerCase()) : null;
     return { ...x, images: x.image ? [x.image] : p?.image ? [p.image] : [], html: '', yearBuilt: null, region: null, infrastructure: [], pricePerSquare: x.price && x.totalArea ? Math.round(x.price / x.totalArea) : null };
   }
+  const snap = snapshotDetail(id, operation);
+  if (snap !== undefined) {
+    if (!snap) return null;
+    const x = snap.card as RawListing;
+    const det = snap.detail;
+    return {
+      ...toListing(x),
+      images: (det?.imageUrls?.length ? det.imageUrls : [x.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
+      html: det?.i18n?.ru?.content || '',
+      yearBuilt: det?.yearBuilt ?? null,
+      region: det?.regionName ?? null,
+      infrastructure: [],
+      pricePerSquare: det?.pricePerSquare ?? null,
+    };
+  }
   const key = `listing-${operation}-${id}`;
+  if (devDisabled()) {
+    const fromList = (await allListings(operation)).find((x) => x.id === id);
+    return fromList ? { ...fromList, images: fromList.image ? [fromList.image] : [], html: '', yearBuilt: null, region: null, infrastructure: [], pricePerSquare: null } : null;
+  }
   try {
     const d = await cached(key, () =>
       getJson<{ item: RawListing }>(`/api/sale/${encodeURIComponent(id)}?source=portfolio&language=ru&operation=${operation}`),
@@ -653,6 +718,23 @@ export interface DetailL {
 
 /** Описание объекта на языке lang; null — перевода нет (API отдаёт пустой заголовок). */
 export async function getDetailL(id: string, operation: 'sale' | 'rental', lang: string): Promise<DetailL | null> {
+  const snap = snapshotDetail(id, operation);
+  if (snap !== undefined || devDisabled()) {
+    const det = snap?.detail;
+    const tr = det?.i18n?.[lang];
+    if (!det || !tr?.title) return null;
+    return {
+      title: tr.title,
+      html: tr.content || '',
+      images: (det.imageUrls.length ? det.imageUrls : [snap!.card.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
+      yearBuilt: det.yearBuilt,
+      region: det.regionName,
+      infrastructure: [],
+      pricePerSquare: det.pricePerSquare,
+      video: det.videoUrl,
+      updated: det.modified,
+    };
+  }
   const key = `detail-${operation}-${id}-${lang}`;
   try {
     const d = await cached(key, () => getJson<{ item: RawListing }>(`/api/sale/${encodeURIComponent(id)}?source=portfolio&language=${lang}&operation=${operation}`, 2, 5_000));

@@ -2,22 +2,27 @@
 /** Карточка жилого комплекса: одна ссылка на всю карточку, заголовок — h3 (ТЗ 10). */
 import Img from './Img.astro';
 import type { Complex } from '../lib/catalog';
-import { complexUrl } from '../lib/catalog';
+import { complexUrl, isVillaComplex } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { moneyL } from '../lib/format';
 import { t } from '../i18n/ui';
-interface Props { p: Complex; big?: boolean; prive?: boolean; headingLevel?: 'h2' | 'h3' | 'p' }
-const { p, big = false, prive = false, headingLevel = 'h3' } = Astro.props;
+/** own — карточка на странице STAY PROJECTS: оформление как у PRIVE, но в фиолетовом и с меткой STAY. */
+interface Props { p: Complex; big?: boolean; prive?: boolean; own?: boolean; headingLevel?: 'h2' | 'h3' | 'p' }
+const { p, big = false, prive: priveP = false, own = false, headingLevel = 'h3' } = Astro.props;
+const prive = priveP || own;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
+/** Проект вилл — метка «Виллы» на фото. */
+const villaW = isVillaComplex(p) ? ({ ru: 'Виллы', en: 'Villas', tr: 'Villalar', de: 'Villen', sr: 'Vile' } as Record<string, string>)[lang] ?? 'Виллы' : null;
 const place = [p.district ? districtBySlug(p.city, p.district)?.name[lang] : null, cityBySlug(p.city)?.name[lang]].filter(Boolean).join(', ');
 const H = headingLevel;
 ---
-<article class:list={['group card relative flex h-full flex-col overflow-hidden p-1 pb-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5', prive && 'card-prive']}>
+<article class:list={['group card relative flex h-full flex-col overflow-hidden p-1 pb-5 shadow-[var(--shadow-card)] transition-transform hover:-translate-y-0.5', priveP && 'card-prive', own && 'card-own']}>
   <span class:list={['relative block overflow-hidden rounded-[16px]', big ? 'aspect-[16/9] md:aspect-[21/8]' : 'aspect-[4/3]']}>
     <Img src={p.image} alt={`${p.title} — ${place}`} class="size-full transition-transform duration-700 group-hover:scale-[1.03]" width={big ? 1280 : 640} height={big ? 560 : 480} sizes={big ? '100vw' : undefined} />
     <span class="absolute left-3 top-3 flex gap-2">
-      {prive && <span class="chip chip-accent">PRIVE</span>}
+      {prive && <span class="chip chip-accent">{own ? 'STAY' : 'PRIVE'}</span>}
+      {villaW && <span class="chip chip-dark">{villaW}</span>}
       {p.action && lang === 'ru' && <span class:list={['chip', prive ? 'chip-dark' : 'chip-accent']}>{p.action}</span>}
     </span>
   </span>

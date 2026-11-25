@@ -4,7 +4,7 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'prive', 'citizenship', 'f', 'sort'];
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -22,29 +22,32 @@ export function buildUrl(form: HTMLFormElement): string {
   const val = (k: string) => String(fd.get(k) ?? '').trim();
   const lang = form.dataset.lang || 'ru';
   const city = val('city');
-  // Страна «Все»: берём страну выбранного города, иначе Турцию.
+  // Страна «Все»: берём страну выбранного города, иначе — все страны (/{lang}/sale/). PRIVE — Турция.
   const cityCountry = city ? form.querySelector<HTMLOptionElement>(`[data-city] option[value="${CSS.escape(city)}"]`)?.dataset.country : '';
-  const country = val('country') || cityCountry || 'turkey';
+  const country = val('country') || cityCountry || (form.dataset.mode === 'prive' ? 'turkey' : '');
   const district = city ? val('district') : '';
   const deal = val('deal') || 'sale';
   const type = val('type');
   const allowed: Allowed = JSON.parse(form.dataset.allowed || '{}');
   const ok = (f: string) => !!type && !!allowed[deal]?.[type]?.includes(f);
 
+  // Одинаковые поля бывают в ряду чипов и в окне «Все фильтры» — значения без повторов.
   const sp = new URLSearchParams();
-  for (const k of PARAMS) for (const v of fd.getAll(k)) {
-    const s = String(v).replace(/\s/g, '');
-    if (s) sp.append(k, s);
+  for (const k of PARAMS) for (const v of new Set(fd.getAll(k).map((x) => String(x).replace(/\s/g, '')))) {
+    if (v) sp.append(k, v);
   }
-  if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); }
+  if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); sp.delete('own'); }
 
   // Фича в адресе: сохранённая из текущего адреса, иначе — из сочетания полей (белый список).
   let feature = val('feature');
+  const fs = () => sp.getAll('f');
+  if (feature && fs().includes(feature)) sp.delete('f', feature);
   if (feature && !ok(feature)) {
-    if (!sp.has('f')) sp.set('f', feature);
+    sp.append('f', feature);
     feature = '';
   }
-  if (!feature && sp.has('f') && ok(sp.get('f')!)) { feature = sp.get('f')!; sp.delete('f'); }
+  // Одна фича из белого списка — в адрес (ЧПУ); несколько — остаются параметрами ?f=…
+  if (!feature && fs().length === 1 && ok(fs()[0])) { feature = fs()[0]; sp.delete('f'); }
   if (!feature && type) {
     const rooms = sp.getAll('rooms');
     const pt = sp.get('price_to') ?? '';
@@ -111,10 +114,12 @@ export function initFilters() {
     const catalog = form.dataset.mode === 'catalog';
 
     // Связанные списки: страна → город → район.
-    const country = form.querySelector<HTMLSelectElement>('[data-country]')!;
-    const city = form.querySelector<HTMLSelectElement>('[data-city]')!;
-    const district = form.querySelector<HTMLSelectElement>('[data-district]')!;
+    const country = form.querySelector<HTMLSelectElement>('[data-country]');
+    const city = form.querySelector<HTMLSelectElement>('[data-city]');
+    const district = form.querySelector<HTMLSelectElement>('[data-district]');
     const cascade = () => {
+      // Фильтр страницы PRIVE — без гео.
+      if (!country || !city || !district) return;
       city.querySelectorAll<HTMLOptionElement>('option[data-country]').forEach((o) => {
         o.hidden = !!country.value && o.dataset.country !== country.value;
         if (o.hidden && o.selected) city.value = '';
@@ -125,28 +130,48 @@ export function initFilters() {
       });
       district.disabled = !city.value;
     };
-    country.addEventListener('change', cascade);
-    city.addEventListener('change', cascade);
+    country?.addEventListener('change', cascade);
+    city?.addEventListener('change', cascade);
     cascade();
     initRanges(form, fmt);
 
     // Тоггл «Лоты PRIVE» и «Гражданство ТР» видны только для продажи; PRIVE красит страницу.
-    const saleOnly = form.querySelector<HTMLElement>('[data-sale-only]');
+    const saleOnly = form.querySelectorAll<HTMLElement>('[data-sale-only]');
     const syncDeal = () => {
       const deal = String(new FormData(form).get('deal') || 'sale');
-      if (saleOnly) saleOnly.hidden = deal !== 'sale';
+      saleOnly.forEach((el) => (el.hidden = deal !== 'sale'));
       const prive = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=prive]')?.checked;
+      const own = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=own]')?.checked;
+      // Шапку подсвечивает только тумблер PRIVE на главной (там он переключает блоки страницы).
+      // В каталоге (общий фильтр) и на страницах PRIVE / STAY PROJECTS шапку не трогаем (Anuar 25.11.2026).
+      if (form.dataset.mode !== 'home') return;
+      void own;
       document.body.classList.toggle('mode-prive', prive);
     };
     syncDeal();
 
-    form.querySelector('[data-chips]')?.addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-chip-field]');
+    // Чипы-фичи в ряду: × снимает фичу (из адреса или галочку в «Все фильтры»).
+    form.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-chip-field],[data-uncheck]');
       if (!b) return;
-      form.querySelector(`input[type=hidden][name="${b.dataset.chipField}"]`)?.remove();
+      if (b.dataset.chipField) {
+        const h = form.querySelector<HTMLInputElement>(`input[type=hidden][name="${b.dataset.chipField}"]`);
+        if (h) form.querySelectorAll<HTMLInputElement>(`input[name=f][value="${CSS.escape(h.value)}"]`).forEach((i) => (i.checked = false));
+        h?.remove();
+      }
+      if (b.dataset.uncheck) form.querySelectorAll<HTMLInputElement>(`input[name=f][value="${CSS.escape(b.dataset.uncheck)}"]`).forEach((i) => (i.checked = false));
       b.remove();
       form.dispatchEvent(new Event('change'));
     });
+    // Поля-двойники (чипы в ряду и в окне) держим в одном состоянии; снятая фича из адреса уходит из адреса.
+    form.addEventListener('change', (e) => {
+      const i = e.target as HTMLInputElement;
+      if (i.matches?.('[data-sync]')) form.querySelectorAll<HTMLInputElement>(`input[name="${i.name}"][value="${CSS.escape(i.value)}"]`).forEach((x) => (x.checked = i.checked));
+      if (i.matches?.('[data-feature]') && !i.checked) {
+        const h = form.querySelector<HTMLInputElement>('input[type=hidden][name=feature]');
+        if (h?.value === i.value) h.remove();
+      }
+    }, true);
 
     // Живой счётчик для формы на главной.
     let timer: number | undefined;
@@ -160,7 +185,7 @@ export function initFilters() {
           form.querySelectorAll('[data-total]').forEach((el) => (el.textContent = fmt(total)));
           const btn = form.querySelector<HTMLElement>('[data-nouns]');
           const noun = form.querySelector('[data-noun]');
-          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type'))];
+          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type') ?? '')];
           if (noun && forms) noun.textContent = pluralW(form.dataset.lang || 'ru', total, forms);
         } catch { /* счётчик не критичен */ }
       }, 250);
@@ -191,20 +216,87 @@ export function initFilters() {
       }, 450);
     };
 
-    form.addEventListener('change', () => { syncDeal(); if (catalog) apply(); else count(); });
+    // Счётчик на кнопке «Фильтры» и «Сбросить фильтры» (как у образца): сколько фильтров включено: город и район считаются, страна, сделка и тип — нет.
+    const fcount = () => {
+      const fd = new FormData(form);
+      const has = (...k: string[]) => k.some((x) => fd.getAll(x).some((v) => String(v).trim()));
+      const n = [has('city'), has('district'), has('rooms'), has('prive'), has('own'), has('citizenship'), has('price_from', 'price_to'), has('area_from', 'area_to'), has('sea_from', 'sea_to'), has('floor_from', 'floor_to'), has('ref'), has('feature')].filter(Boolean).length
+        + new Set(fd.getAll('f').map(String).filter((x) => x !== String(fd.get('feature') ?? ''))).size;
+      form.querySelectorAll<HTMLElement>('[data-fcount]').forEach((el) => { el.textContent = String(n); el.hidden = !n; });
+      form.querySelectorAll<HTMLElement>('[data-freset]').forEach((el) => (el.hidden = !n));
+    };
+    form.addEventListener('change', () => { syncDeal(); if (catalog) { fcount(); apply(); } else count(); });
     form.addEventListener('input', (e) => {
       if (!(e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) return;
-      if (catalog) apply(); else count();
+      if (catalog) { fcount(); apply(); } else count();
     });
-    form.addEventListener('submit', (e) => { e.preventDefault(); location.href = buildUrl(form); });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      // Как у образца: «Показать N» ведёт в каталог. С PRIVE и STAY PROJECTS — с уже стоящей галочкой
+      // PRIVE / «Объекты Stay» в поле «Тип недвижимости», с «Новостроек» — в квартиры в новостройках.
+      location.href = buildUrl(form);
+    });
     if (catalog) addEventListener('popstate', () => location.reload());
+
+    // Каталог: при прокрутке фильтр закрепляется вверху экрана, шапка уезжает (как у образца mr-group.ru/flats/).
+    const holder = form.parentElement;
+    if (catalog && holder) {
+      let stuck = false;
+      const onScroll = () => {
+        const on = holder.getBoundingClientRect().top < 0;
+        if (on === stuck) return;
+        stuck = on;
+        holder.style.minHeight = on ? `${form.offsetHeight}px` : '';
+        form.classList.toggle('is-stuck', on);
+        document.body.classList.toggle('filter-stuck', on);
+      };
+      onScroll();
+      addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('resize', () => { if (stuck) { stuck = false; form.classList.remove('is-stuck'); holder.style.minHeight = ''; } onScroll(); });
+    }
     addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) { cascade(); syncDeal(); } });
+
+    // Маленький фильтр: «Выбрать квартиру ˅» — список типов; выбор меняет слово в заголовке и пересчитывает лоты.
+    form.querySelectorAll<HTMLElement>('[data-tsel]').forEach((box) => {
+      const btn = box.querySelector<HTMLButtonElement>('[data-tsel-btn]')!;
+      const label = box.querySelector<HTMLElement>('[data-tsel-label]')!;
+      const open = (on: boolean) => { box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on)); };
+      btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
+      box.querySelectorAll<HTMLInputElement>('[data-tsel-opt]').forEach((o) => o.addEventListener('change', () => { label.textContent = o.dataset.tselOpt || ''; open(false); }));
+      document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
+      addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+    });
+
+    // Каталог: «Тип недвижимости» — список с галочками PRIVE / «Объекты Stay» и типами (как у образца).
+    form.querySelectorAll<HTMLElement>('[data-ptype]').forEach((box) => {
+      const btn = box.querySelector<HTMLButtonElement>('[data-ptype-btn]')!;
+      const val = box.querySelector<HTMLElement>('[data-ptype-v]')!;
+      const all = box.querySelector<HTMLButtonElement>('[data-ptype-all]');
+      const any = box.querySelector<HTMLElement>('[data-ptype-list]')?.dataset.any ?? '';
+      const open = (on: boolean) => { box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on)); };
+      const sync = () => {
+        const type = box.querySelector<HTMLInputElement>('[data-ptype-type]:checked')?.dataset.ptypeType || any;
+        const cls = [...box.querySelectorAll<HTMLInputElement>('[data-ptype-class]:checked')].map((i) => i.dataset.ptypeClass);
+        val.textContent = cls.length ? `${type}: ${cls.join(', ')}` : type;
+        all?.setAttribute('aria-pressed', String(!cls.length));
+      };
+      btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
+      all?.addEventListener('click', () => {
+        form.querySelectorAll<HTMLInputElement>('input[name=prive],input[name=own]').forEach((i) => (i.checked = false));
+        form.dispatchEvent(new Event('change'));
+      });
+      box.querySelectorAll<HTMLInputElement>('[data-ptype-type]').forEach((i) => i.addEventListener('change', () => open(false)));
+      form.addEventListener('change', sync);
+      document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
+      addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+    });
 
     // «Фильтры»: панель на весь экран; выдача под ней обновляется сразу, кнопка внизу закрывает панель.
     const panel = form.querySelector<HTMLElement>('[data-adv-panel]');
-    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; };
+    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; document.body.classList.toggle('adv-open', open); };
     form.querySelectorAll('[data-adv-open]').forEach((b) => b.addEventListener('click', () => setPanel(true)));
     form.querySelectorAll('[data-adv-close]').forEach((b) => b.addEventListener('click', () => setPanel(false)));
+    form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[name=floor_from],[name=floor_to]') && catalog) apply(); });
     addEventListener('keydown', (e) => { if (e.key === 'Escape') setPanel(false); });
     void L;
   });

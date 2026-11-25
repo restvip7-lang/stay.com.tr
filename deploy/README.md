@@ -88,6 +88,29 @@ Ubuntu 24.04, 2 ядра, 4 ГБ памяти, 40 ГБ диска. Сборка 
 и положить в `/home/stay/data/config/` с теми же именами файлов: `home.json`, `seo.json`, `objects.json`.
 Ключ ИИ-помощника заново ввести в /admin: на сервере он шифруется другим секретом (`STAY_SECRET`).
 
+## Объекты из Portfolio (без dev.stayproperty.com)
+
+Раньше объекты на продажу и в аренду сайт брал у dev.stayproperty.com. Теперь их можно брать прямо из Portfolio API:
+
+1. В `stay.env` заполнить `STAY_PORTFOLIO_USER`, `STAY_PORTFOLIO_PASSWORD`, `STAY_PORTFOLIO_TOKEN` (пользователь с ролью API User в админке Portfolio).
+2. Пробный запуск, ничего не меняет, показывает первую карточку:
+   `cd /home/stay/app && sudo -u stay node --env-file=/home/stay/stay.env scripts/portfolio-sync.mjs --limit=20`
+3. Первый полный запуск (около 1700 объектов, 7 запросов на объект — порядка 10–20 минут):
+   `sudo -u stay node --env-file=/home/stay/stay.env scripts/portfolio-sync.mjs --full`
+   Снимок ложится в `STAY_DATA_DIR/portfolio/` (`sale.json`, `rental.json`, `objects/<id>.json`, `meta.json`).
+4. Cron (ставит `setup-server.sh`): каждые 30 минут — только изменённые объекты, в 04:00 — все заново. Лог: `/home/stay/logs/portfolio-sync.log`.
+5. Пока `STAY_OBJECTS_SOURCE=auto`, сайт берёт объекты из снимка, если он есть, а иначе с dev. Когда снимок проверен,
+   поставить `STAY_OBJECTS_SOURCE=portfolio` и перезапустить сайт: тогда к dev за объектами сайт не ходит вообще.
+
+Защита: если пришло меньше половины объектов от прошлого снимка, снимок не заменяется. При сбое отдельного объекта остаётся его прошлая версия.
+Через dev пока остаются стройки и квартиры из Битрикс24 (`/api/projects`, `source=bitrix`), страницы ЖК, меню и блоки главной: при закрытии dev они берутся из встроенной копии.
+
+## Копия данных dev (стройки, квартиры Б24, страницы ЖК, меню, блоки главной)
+
+Сайт сохраняет каждый удачный ответ dev в `STAY_DATA_DIR/api-copy/<ключ>.json`. Если dev не отвечает, берётся эта копия
+(потом встроенный снимок). Когда dev закроют — поставить `STAY_DEV_OFF=1` в `stay.env` и перезапустить сайт: к dev он больше
+не обращается. Сами данные dev берёт из базы старого сайта на Битриксе на этом же сервере — её не удалять.
+
 ## Картинки
 
 - Свои картинки лежат в `public/media` (перенесены со старого stay.com.tr скриптом `node scripts/import-media.mjs`, ужаты до 1920 px).

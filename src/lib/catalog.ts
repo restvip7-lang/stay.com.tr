@@ -37,6 +37,11 @@ export interface Item {
   label?: Label | null;
   /** Закреплён в админке — первым в выдаче. */
   pinned?: boolean;
+  /** Наш объект (объект компании, отметка в админке): фиолетовое выделение; в общем списке продажи — только через фильтр. */
+  own?: boolean;
+  /** Ручные отметки админки: бейджи «Гражданство» и «ВНЖ» на фото. */
+  citMark?: boolean;
+  resMark?: boolean;
 }
 
 const TYPE_MAP: Record<string, TypeSlug> = {
@@ -54,11 +59,13 @@ function bedrooms(r: string | null): number | null {
 
 const numOrNull = (v: unknown) => (v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 
-function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false): Item | null {
-  const geo = resolveGeo(x.city, x.area);
+function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fallback?: { city: string; district: string | null }): Item | null {
+  const geo = resolveGeo(x.city, x.area) ?? fallback ?? null;
   if (!geo) return null;
   const city = cityBySlug(geo.city)!;
-  const type: TypeSlug = unit ? (/дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
+  // Квартиры проектов: тип по полю базы; проекты вилл (VILLA_PROJECTS, отметка Anuar) — все лоты виллы.
+  const villaProject = unit && !!x.projectCode && VILLA_SLUGS.has(slugify(String(x.projectCode)));
+  const type: TypeSlug = unit ? (villaProject || /вилл/i.test(x.objectType || '') ? 'villas' : /дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
   const rooms = x.roomLabel ?? null;
   const it: Item = {
     id: unit ? `u${x.id}` : String(x.id),
@@ -98,7 +105,16 @@ async function withMarks(list: Item[]) {
   if (hit && hit.marks === marks) return hit;
   const all = list.map((x) => {
     const m = marks[x.id];
-    return m ? { ...x, label: m.label ?? null, pinned: !!m.pinned } : x;
+    // PRIVE: квартиры проектов PRIVE (флаг базы) + любой объект с отметкой «PRIVE» в админке (решение Anuar 25.11.2026).
+    // «Гражданство» и «ВНЖ» — только ручные отметки (по цене не подходит): из фич убираем расчётные, ставим по отметкам.
+    const cit = !!m?.cit, res = !!m?.res;
+    const features = x.features.filter((f) => f !== 'citizenship' && f !== 'residence-permit');
+    if (cit && x.deal === 'sale') features.push('citizenship');
+    if (res && x.deal === 'sale') features.push('residence-permit');
+    // «Объекты Stay»: все квартиры наших проектов (STAY PROJECTS) + объекты с отметкой «Наш объект» в админке.
+    const ourUnit = !!(x.unit && x.complex && OUR_SLUGS.has(slugify(x.complex)));
+    const base = { ...x, features, isPrivate: x.isPrivate || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
+    return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: ourUnit || !!m.own } : base;
   });
   const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);
@@ -139,7 +155,9 @@ async function load() {
     ...sale.map((x) => toItem(x, x.propertyType === 'Rent' ? 'rent' : 'sale')),
     ...rent.map((x) => toItem(x, 'rent')),
   ].filter(Boolean) as Item[];
-  const u = units.map((x) => toItem(x, 'sale', true, cit.has(`u${x.id}`))).filter(Boolean) as Item[];
+  // У части квартир в базе не указан город (например, 79 из 86 в Exodus Panorama Istanbul) — берём город и район их ЖК.
+  const cxGeo = new Map((await getComplexes().catch(() => [] as Complex[])).map((c) => [slugify(c.code), { city: c.city, district: c.district }]));
+  const u = units.map((x) => toItem(x, 'sale', true, cit.has(`u${x.id}`), x.projectCode ? cxGeo.get(slugify(String(x.projectCode))) : undefined)).filter(Boolean) as Item[];
   memo = { at: Date.now(), items, units: u };
   return memo;
 }
@@ -156,7 +174,7 @@ export interface Cat {
 }
 
 export function matchCat(x: Item, c: Cat): boolean {
-  if (x.country !== c.country) return false;
+  if (c.country && x.country !== c.country) return false;
   if (c.city && x.city !== c.city) return false;
   if (c.district && x.district !== c.district) return false;
   if (c.deal && x.deal !== c.deal) return false;
@@ -278,6 +296,44 @@ export async function getComplexes(): Promise<Complex[]> {
   return list;
 }
 
+/**
+ * Наши проекты (STAY PROJECTS) — только они показываются в списках комплексов (…/sale/complexes/).
+ * Список от руководства (папки P000-001…P000-024, VL001). Сверяем по названию (slugify), чтобы проект,
+ * которого пока нет в базе (Euro Residence, Euro City, Balkan Residence), появился сам, когда его заведут.
+ * Страницы отдельных ЖК не трогаем — они открываются по прямой ссылке как раньше.
+ */
+const OUR_PROJECTS = [
+  'Exodus Premium Town', // P000-001 Kargıcak
+  'Exodus Riverside Residence', // P000-002 Demirtaş
+  'Exodus Twins Residence', // P000-003
+  'Exodus Dreams Residence', // P000-004 Payallar
+  'Exodus Panorama Residence Istanbul', // P000-005
+  'Exodus Aqua Deluxe Konakli', // P000-006
+  'Blue Sunlight', // P000-007 Mahmutlar
+  'Prime Garden Residence', // P000-008
+  'Prime Botanic Residence', // P000-009 Mahmutlar
+  'Blue Dream Residence', // P000-010 Gazipaşa
+  'Prime Loft Residence', // P000-014 Mahmutlar
+  'Faralya Residence', // P000-015 Payallar
+  'Prime Stone Residence', // P000-018 Gazipaşa
+  'Blue Sunlight 2 Residence', // P000-020 Mahmutlar
+  'Euro Residence', // P000-021 Avsallar
+  'Euro City', // P000-022 Avsallar
+  'Mostar Residence', // P000-023 Avsallar
+  'Balkan Residence', // P000-024 Mahmutlar
+  'Villa Rabbit Hill', // VL001 Bektaş
+];
+const OUR_SLUGS = new Set(OUR_PROJECTS.map(slugify));
+/** Проекты вилл (Anuar 25.11.2026): их лоты — виллы, на карточке проекта метка «Виллы». */
+const VILLA_PROJECTS = ['Riva Port Villas Side', 'Villa Rabbit Hill'];
+const VILLA_SLUGS = new Set(VILLA_PROJECTS.map(slugify));
+export const isVillaComplex = (c: Pick<Complex, 'title' | 'code'>) => VILLA_SLUGS.has(slugify(c.title)) || VILLA_SLUGS.has(slugify(c.code));
+export const isOurComplex = (c: Pick<Complex, 'title' | 'code'>) => OUR_SLUGS.has(slugify(c.title)) || OUR_SLUGS.has(slugify(c.code));
+/** Комплексы для списков «Новостройки / STAY PROJECTS»: только наши проекты. */
+export async function getOurComplexes(): Promise<Complex[]> {
+  return (await getComplexes()).filter(isOurComplex);
+}
+
 export function complexPath(c: Pick<Complex, 'country' | 'city' | 'district' | 'slug'>) {
   return [c.country, c.city, c.district, 'sale', 'complexes', c.slug].filter(Boolean).join('/');
 }
@@ -315,10 +371,12 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
     if (page < 1) return null;
     s.pop();
   }
-  const country = countryBySlug(s.shift() ?? '');
-  if (!country) return null;
-  const cat: Cat = { country: country.slug };
-  if (s[0] && cityBySlug(s[0])?.country === country.slug) {
+  // /{lang}/sale/… и /{lang}/rent/… — все страны (Stay Property), страна не указана.
+  const world = s[0] === 'sale' || s[0] === 'rent';
+  const country = world ? null : countryBySlug(s.shift() ?? '');
+  if (!world && !country) return null;
+  const cat: Cat = { country: country?.slug ?? '' };
+  if (country && s[0] && cityBySlug(s[0])?.country === country.slug) {
     cat.city = s.shift()!;
     if (s[0] && s[0] !== 'sale' && s[0] !== 'rent') {
       if (!districtBySlug(cat.city, s[0])) return null;
@@ -332,7 +390,7 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
   if (!s.length) return { kind: 'listing', cat: cat as Cat & { deal: Deal }, page };
   const seg = s.shift()!;
   if (seg === 'complexes') {
-    if (deal !== 'sale') return null;
+    if (deal !== 'sale' || world) return null;
     delete cat.deal;
     if (!s.length) return { kind: 'complexes', cat, page };
     if (!pm && s.length === 2 && s[1] === 'picker') return { kind: 'picker', cat, slug: s[0] };
@@ -341,7 +399,7 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
   }
   const idm = seg.match(/^id(u?\d+)$/);
   if (idm) {
-    if (pm || s.length) return null;
+    if (pm || s.length || world) return null;
     return { kind: 'item', cat: cat as Cat & { deal: Deal }, id: idm[1] };
   }
   if (!(TYPES as string[]).includes(seg)) return null;
@@ -359,12 +417,14 @@ export async function childGeo(c: Cat) {
   const all = await getItems();
   const counts = new Map<string, number>();
   for (const x of all) {
+    // Все страны: дочерние — страны.
+    if (!c.country) { counts.set(x.country, (counts.get(x.country) ?? 0) + 1); continue; }
     if (x.country !== c.country) continue;
     if (!c.city) counts.set(x.city, (counts.get(x.city) ?? 0) + 1);
     else if (x.city === c.city && x.district) counts.set(x.district, (counts.get(x.district) ?? 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([slug, n]) => {
-    const sample = all.find((x) => (c.city ? x.city === c.city && x.district === slug : x.city === slug) && x.image);
+    const sample = all.find((x) => (!c.country ? x.country === slug : c.city ? x.city === c.city && x.district === slug : x.city === slug) && x.image);
     return { slug, n, image: sample?.image ?? null };
   });
 }
@@ -376,7 +436,7 @@ export { CITIES };
 export type SortKey = 'new' | 'price-asc' | 'price-desc' | 'area-desc' | 'sea-asc';
 export const SORTS: SortKey[] = ['new', 'price-asc', 'price-desc', 'area-desc', 'sea-asc'];
 /** Параметры, которые считаются фильтром (страница с ними — noindex + canonical на чистый URL). */
-export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'sort', 'prive', 'citizenship', 'ref', 'f', 'view'];
+export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view'];
 
 export interface Filters {
   priceFrom?: number;
@@ -384,12 +444,19 @@ export interface Filters {
   rooms: string[];
   seaFrom?: number;
   seaTo?: number;
+  /** Площадь, м² (фильтр страницы PRIVE). */
+  areaFrom?: number;
+  areaTo?: number;
+  floorFrom?: number;
+  floorTo?: number;
   sort: SortKey;
   prive: boolean;
   citizenship: boolean;
+  /** «Объекты Stay»: только наши объекты. */
+  own?: boolean;
   ref?: string;
-  /** Дополнительная фича, если в адресе уже есть другая. */
-  extra?: FeatureSlug;
+  /** Дополнительные фичи (?f=…, можно несколько — «Все фильтры»), объект должен подходить под все. */
+  extras: FeatureSlug[];
 }
 
 export function parseFilters(sp: URLSearchParams): Filters {
@@ -398,18 +465,22 @@ export function parseFilters(sp: URLSearchParams): Filters {
     return Number.isFinite(v) && v > 0 ? v : undefined;
   };
   const sort = sp.get('sort') as SortKey;
-  const f = featureDef(sp.get('f') || '');
   return {
     priceFrom: n('price_from'),
     priceTo: n('price_to'),
     rooms: sp.getAll('rooms').flatMap((r) => r.split(',')).filter(Boolean),
     seaFrom: n('sea_from'),
     seaTo: n('sea_to'),
+    areaFrom: n('area_from'),
+    areaTo: n('area_to'),
+    floorFrom: n('floor_from'),
+    floorTo: n('floor_to'),
     sort: SORTS.includes(sort) ? sort : 'new',
     prive: sp.get('prive') === '1',
     citizenship: sp.get('citizenship') === '1',
+    own: sp.get('own') === '1',
     ref: sp.get('ref')?.trim() || undefined,
-    extra: f?.slug,
+    extras: [...new Set(sp.getAll('f').flatMap((v) => v.split(',')).map((v) => featureDef(v)?.slug).filter((v): v is FeatureSlug => !!v))],
   };
 }
 
@@ -423,24 +494,47 @@ function roomsBucket(r: string | null): string | null {
   return n >= 4 ? '4+' : `${n}+1`;
 }
 
+/** Включён ли хоть один фильтр (сортировка не в счёт). */
+const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.areaFrom || f.areaTo || f.floorFrom || f.floorTo || f.prive || f.citizenship || f.own || f.ref || f.extras.length);
+
 /** Список категории с учётом GET-фильтров и сортировки. */
 export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   let base: Item[];
-  if (f.prive) base = (await getUnits()).filter((x) => x.isPrivate && matchCat(x, { ...cat, feature: undefined }) && (!cat.feature || x.features.includes(cat.feature)));
-  else base = await itemsOf(cat);
-  // «Под гражданство» включает и квартиры в проектах Stay с отметкой гражданства (как тоггл в фильтре).
-  if ((f.citizenship || cat.feature === 'citizenship') && !f.prive) {
-    const units = (await getUnits()).filter((x) => x.citizenship && matchCat(x, { ...cat, feature: undefined }));
-    base = [...base.filter((x) => x.features.includes('citizenship')), ...units];
-  } else if (f.citizenship) base = base.filter((x) => x.citizenship);
+  const geo = { ...cat, feature: undefined };
+  // «Лоты PRIVE» (тоггл): только PRIVE — квартиры проектов PRIVE и отмеченные в админке. Без тоггла PRIVE-лоты в выдаче не показываем.
+  if (f.prive) base = [...(await getItems()), ...(await getUnits())].filter((x) => x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
+  else base = (await itemsOf(cat)).filter((x) => !x.isPrivate);
+  // Новостройки (…/new/ или ?f=new): кроме объектов Portfolio — квартиры, дуплексы и виллы всех ЖК (кроме PRIVE).
+  if (!f.prive && (cat.feature === 'new' || f.extras.includes('new'))) base = [...base, ...(await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo))];
+  // «Гражданство ТР» (тоггл) и посадочные «под гражданство» / «под ВНЖ»: только объекты с ручной отметкой,
+  // включая квартиры в проектах Stay. Без тоггла показываются все объекты, в том числе отмеченные.
+  const mark = f.citizenship || cat.feature === 'citizenship' ? 'citMark' : cat.feature === 'residence-permit' ? 'resMark' : null;
+  if (mark) {
+    const units = f.prive ? [] : (await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
+    base = [...new Set([...base, ...units])].filter((x) => x[mark]);
+  }
+  // Наши объекты: в общем списке продажи (Stay Property) не показываем; находятся, если включён любой фильтр,
+  // а тумблер «Объекты Stay» оставляет только их.
+  // PRIVE и «Объекты Stay» вместе — как классы у образца (галочки в «Тип недвижимости»): показываем и те, и другие.
+  if (f.own) {
+    const pool = mark && !f.prive ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)) && (!mark || x[mark]));
+    const own = pool.filter((x) => x.own);
+    base = f.prive ? [...new Set([...base, ...own])] : own;
+  }
+  // На «Новостройках» (…/new/) наши проекты показываем всегда — это тоже новостройки.
+  else if (cat.deal === 'sale' && !usesFilter(f) && cat.feature !== 'new') base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();
   let out = base.filter((x) => {
-    if (f.extra && !x.features.includes(f.extra)) return false;
+    if (f.extras.some((e) => !x.features.includes(e))) return false;
     if (ref && !(x.ref?.toLowerCase().includes(ref) || x.id === ref)) return false;
     if (f.priceFrom && (x.price ?? 0) < f.priceFrom) return false;
     if (f.priceTo && (x.price ?? Infinity) > f.priceTo) return false;
     if (f.seaFrom && (x.sea ?? 0) < f.seaFrom) return false;
     if (f.seaTo && (x.sea ?? Infinity) > f.seaTo) return false;
+    if (f.areaFrom && (x.area ?? 0) < f.areaFrom) return false;
+    if (f.areaTo && (x.area ?? Infinity) > f.areaTo) return false;
+    if (f.floorFrom && (x.floor ?? 0) < f.floorFrom) return false;
+    if (f.floorTo && (x.floor ?? Infinity) > f.floorTo) return false;
     if (f.rooms.length && !f.rooms.includes(roomsBucket(x.rooms) ?? '')) return false;
     return true;
   });
@@ -481,6 +575,20 @@ export const noFilters = (): Filters => parseFilters(new URLSearchParams());
 /** Число объектов категории так, как его видит посетитель без фильтров (для порога индексации). */
 export async function countOf(cat: Cat): Promise<number> {
   return (await filtered(cat, noFilters())).length;
+}
+
+export type Ranges = { price: [number, number]; area: [number, number]; sea: [number, number] };
+/** Точные минимум и максимум цены, площади и расстояния до моря по объектам — границы полей «от/до» в фильтре. */
+export function rangesOf(list: Item[], fallback: Partial<Ranges> = {}): Ranges {
+  const span = (v: (number | null)[], fb: [number, number]): [number, number] => {
+    const n = v.filter((x): x is number => typeof x === 'number' && x > 0);
+    return n.length ? [Math.floor(Math.min(...n)), Math.ceil(Math.max(...n))] : fb;
+  };
+  return {
+    price: span(list.map((x) => x.price), fallback.price ?? [0, 1_000_000]),
+    area: span(list.map((x) => x.area), fallback.area ?? [10, 800]),
+    sea: span(list.map((x) => x.sea), fallback.sea ?? [1, 1000]),
+  };
 }
 
 /** Варианты гео для фильтра: страны → города → районы, где есть объекты сделки. */

@@ -4,14 +4,14 @@ import Icon from './Icon.astro';
 import { complexUrl, type Complex } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { t } from '../i18n/ui';
-interface Props { title?: string; projects: Complex[]; visible?: number; moreHref?: string; moreText?: string; prive?: boolean; headingLevel?: 'h2' | 'h1' }
-const { title, projects, visible = 5, moreHref, moreText, prive = false, headingLevel = 'h2' } = Astro.props;
+interface Props { title?: string; projects: Complex[]; visible?: number; moreHref?: string; moreText?: string; prive?: boolean; /** Страница STAY PROJECTS: карточки как у PRIVE, в фиолетовом. */ own?: boolean; headingLevel?: 'h2' | 'h1'; /** Меньший отступ сверху (листинг ЖК сразу под плитками гео). */ tight?: boolean }
+const { title, projects, visible = 5, moreHref, moreText, prive = false, own = false, headingLevel = 'h2', tight = false } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const H = headingLevel;
 const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, u: complexUrl(lang, p), lat: p.lat, lng: p.lng, a: [p.district ? districtBySlug(p.city, p.district)?.name[lang] : null, cityBySlug(p.city)?.name[lang]].filter(Boolean).join(', '), pr: p.priceFrom }));
 ---
-<section class="container-x mt-20 md:mt-28" data-projects>
+<section class:list={['container-x', tight ? 'mt-8 md:mt-10' : 'mt-20 md:mt-28']} data-projects>
   <div class:list={['mb-8 flex flex-wrap items-end gap-4', title ? 'justify-between' : 'justify-end']}>
     {title && <H class="display h-section">{title}</H>}
     <div class="flex rounded-full bg-white p-1 shadow-sm" role="tablist" aria-label={d.complex.viewAria}>
@@ -22,8 +22,8 @@ const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, 
   <div data-view="grid">
     <div class="grid gap-4 md:grid-cols-2">
       {projects.map((p, i) => (
-        <div class:list={[i === 0 && !prive && 'md:col-span-2', i >= visible && 'hidden']} data-more-item={i >= visible ? '' : undefined}>
-          <ProjectCard p={p} big={i === 0 && !prive} prive={prive} />
+        <div class:list={[i === 0 && !prive && !own && 'md:col-span-2', i >= visible && 'hidden']} data-more-item={i >= visible ? '' : undefined}>
+          <ProjectCard p={p} big={i === 0 && !prive && !own} prive={prive} own={own} />
         </div>
       ))}
     </div>

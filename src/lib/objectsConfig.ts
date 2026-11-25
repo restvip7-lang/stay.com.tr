@@ -1,6 +1,8 @@
 /**
  * Отметки объектов из админки поверх базы: скрыть с сайта, ярлык («Продано», «Срочно»…), закрепить вверху.
- * Сама база (Portfolio) не меняется. Хранится в хранилище сайта (store.ts) (config/objects.json): { id: { hidden, label, pinned } }.
+ * Сама база (Portfolio) не меняется. Хранится в хранилище сайта (store.ts) (config/objects.json): { id: { hidden, label, pinned, own } }.
+ * own — «наш объект» (объект компании): фиолетовое выделение в карточке; в общем списке Stay Property скрыт, находится через фильтр.
+ * Временное решение, пока в Portfolio нет признака «объект компании» (позже — из своего API-сервера).
  */
 import type { Lang } from '../i18n/config';
 
@@ -24,7 +26,8 @@ export const LABEL_STYLE: Record<Label, string> = {
   new: 'background:#754be9;color:#fff',
 };
 
-export interface Mark { hidden?: boolean; label?: Label; pinned?: boolean }
+/** cit / res — ручные отметки «Гражданство» и «ВНЖ» (бейджи на фото карточки). */
+export interface Mark { hidden?: boolean; label?: Label; pinned?: boolean; own?: boolean; cit?: boolean; res?: boolean; /** Лот PRIVE (эксклюзив с выгодой). */ prive?: boolean }
 export type Marks = Record<string, Mark>;
 
 const KEY = 'config/objects.json';
@@ -40,6 +43,10 @@ export function normalizeMark(v: any): Mark | null {
   if (v.hidden === true) m.hidden = true;
   if (LABELS.includes(v.label)) m.label = v.label;
   if (v.pinned === true) m.pinned = true;
+  if (v.own === true) m.own = true;
+  if (v.cit === true) m.cit = true;
+  if (v.res === true) m.res = true;
+  if (v.prive === true) m.prive = true;
   return Object.keys(m).length ? m : null;
 }
 

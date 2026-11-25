@@ -1,0 +1,120 @@
+---
+/**
+ * STAY PROJECTS — собственные проекты компании (список OUR_PROJECTS в lib/catalog.ts). Главная страница направления,
+ * «лицо» компании (Anuar 25.11.2026): устроена как PRIVE, но в фиолетовом. Слайдер наших проектов, цифры, фильтр лотов,
+ * проекты, «Объекты Stay» (квартиры наших проектов + отметка «Наш объект»), гарантия, о компании, заявка.
+ * «Новостройки» (…/sale/complexes/) — отдельно, там все ЖК.
+ */
+import Base from '../../layouts/Base.astro';
+import HomeHero from '../../components/HomeHero.astro';
+import CatalogFilter from '../../components/CatalogFilter.astro';
+import ProjectsBlock from '../../components/ProjectsBlock.astro';
+import StayGuarantee from '../../components/StayGuarantee.astro';
+import CompanySpotlight from '../../components/CompanySpotlight.astro';
+import LeadSection from '../../components/LeadSection.astro';
+import SaleCard from '../../components/SaleCard.astro';
+import Icon from '../../components/Icon.astro';
+import Breadcrumbs from '../../components/Breadcrumbs.astro';
+import { isLang, SITE } from '../../i18n/config';
+import { t } from '../../i18n/ui';
+import { getHomeSections } from '../../lib/api';
+import { getHomeConfig } from '../../lib/homeConfig';
+import { getOurComplexes, complexUrl, filtered, parseFilters, noFilters, rangesOf } from '../../lib/catalog';
+import { geoOf, projectsMeta } from '../../lib/seo';
+import { itemListLd } from '../../lib/ld';
+import { moneyL, numL, pluralL } from '../../lib/format';
+import { allLangs } from '../../lib/page';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const d = t(lang);
+const [home, ours, sections] = await Promise.all([getHomeConfig(), getOurComplexes(), getHomeSections()]);
+// Порядок: как в блоке проектов на главной (админка), затем остальные наши — от дешёвых.
+const order = new Map((home.projects ?? []).map((c, i) => [c, i]));
+const list = [...ours].sort((a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+const hero = list.filter((p) => p.image); // слайдер — все наши проекты (Anuar 25.11.2026)
+const turkeySale = { country: 'turkey', deal: 'sale' as const };
+// Фильтр: стоимость, комнаты, площадь (из адреса), всегда только «Объекты Stay».
+const sp = new URLSearchParams();
+for (const k of ['price_from', 'price_to', 'rooms', 'area_from', 'area_to']) for (const v of Astro.url.searchParams.getAll(k)) sp.append(k, v);
+// Тип лота из заголовка «Выбрать квартиру ˅»: квартира (по умолчанию), пентхаус, дуплекс.
+const qType = Astro.url.searchParams.get('type');
+const lotType = (['penthouses', 'duplexes', 'villas', 'townhouses'] as const).find((x) => x === qType) ?? 'apartments';
+if (lotType !== 'apartments') sp.set('type', lotType);
+const query = sp.toString();
+sp.delete('type');
+sp.set('own', '1');
+const f = parseFilters(sp);
+const all = await filtered(turkeySale, { ...noFilters(), own: true });
+const typeCounts: Record<string, number> = {};
+for (const x of all) typeCounts[x.type] = (typeCounts[x.type] ?? 0) + 1;
+const lotCat = { ...turkeySale, type: lotType } as const;
+const lots = await filtered(lotCat, f);
+const total = lots.length;
+// Блок лотов внизу — витрина: 6 лотов всех типов и кнопка в каталог с галочкой (как у образца).
+// Старые ссылки с параметрами (?rooms=…#lots) показывают отобранные лоты.
+const SHOW = 6;
+const blockList = query ? lots : all;
+const ranges = rangesOf(all);
+const catalogHref = query ? `/${lang}/turkey/sale/${lotType}/?${sp}` : `/${lang}/turkey/sale/?own=1`;
+const prices = list.map((x) => x.priceFrom).filter((p): p is number => !!p);
+const minPrice = prices.length ? Math.min(...prices) : null;
+const cities = new Set(list.map((x) => x.city)).size;
+const meta = projectsMeta(lang, geoOf({ country: 'turkey' }), list.length, minPrice);
+const base = `/${lang}/stay-projects/`;
+const T = {
+  ru: { choose: ['Выбрать', 'квартиру'], projects: 'Проекты Stay', lots: 'Объекты Stay', all: 'Все объекты Stay в каталоге', none: 'По этим параметрам квартир нет — измените фильтр.', st: [['проект', 'проекта', 'проектов'], ['квартира в продаже', 'квартиры в продаже', 'квартир в продаже'], ['город', 'города', 'городов']], from: 'цены от' },
+  en: { choose: ['Choose', 'an apartment'], projects: 'Stay projects', lots: 'Stay properties', all: 'All Stay properties in the catalogue', none: 'No apartments match these filters — try changing them.', st: [['project', 'projects', 'projects'], ['apartment for sale', 'apartments for sale', 'apartments for sale'], ['city', 'cities', 'cities']], from: 'prices from' },
+  tr: { choose: ['Daire', 'seçin'], projects: 'Stay projeleri', lots: 'Stay daireleri', all: 'Katalogdaki tüm Stay daireleri', none: 'Bu kriterlere uygun daire yok — filtreyi değiştirin.', st: [['proje', 'proje', 'proje'], ['satılık daire', 'satılık daire', 'satılık daire'], ['şehir', 'şehir', 'şehir']], from: 'başlangıç fiyatı' },
+  de: { choose: ['Wohnung', 'wählen'], projects: 'Stay-Projekte', lots: 'Stay-Objekte', all: 'Alle Stay-Objekte im Katalog', none: 'Keine Wohnungen mit diesen Kriterien — ändern Sie den Filter.', st: [['Projekt', 'Projekte', 'Projekte'], ['Wohnung im Verkauf', 'Wohnungen im Verkauf', 'Wohnungen im Verkauf'], ['Stadt', 'Städte', 'Städte']], from: 'Preise ab' },
+  sr: { choose: ['Izaberite', 'stan'], projects: 'Stay projekti', lots: 'Stay nekretnine', all: 'Sve Stay nekretnine u katalogu', none: 'Nema stanova po ovim kriterijumima — promenite filter.', st: [['projekat', 'projekta', 'projekata'], ['stan u prodaji', 'stana u prodaji', 'stanova u prodaji'], ['grad', 'grada', 'gradova']], from: 'cene od' },
+}[lang];
+const stats = [
+  { v: numL(lang, list.length), l: pluralL(lang, list.length, T.st[0] as [string, string, string]) },
+  { v: numL(lang, all.length), l: pluralL(lang, all.length, T.st[1] as [string, string, string]) },
+  { v: numL(lang, cities), l: pluralL(lang, cities, T.st[2] as [string, string, string]) },
+  ...(minPrice ? [{ v: moneyL(lang, minPrice), l: T.from }] : []),
+];
+---
+<Base title={meta.title} description={meta.description} canonical={base} alternates={allLangs(base)} robots={query ? 'noindex,follow' : 'index,follow'} overlayHeader bodyClass="theme-own mode-own" jsonLd={list.length ? itemListLd(list.map((x) => ({ url: SITE + complexUrl(lang, x), name: x.title }))) : undefined}>
+  <div class="own-page">
+    <HomeHero slides={hero} h1={meta.h1} lead={meta.lead} />
+    <section class="container-x mt-10">
+      <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: 'STAY PROJECTS' }]} />
+    </section>
+    <!-- Цифры направления: тёмно-фиолетовая плашка. -->
+    <section class="container-x mt-8">
+      <ul class="own-stats grid grid-cols-2 overflow-hidden rounded-[var(--radius-big)] lg:grid-cols-4">
+        {stats.map((s) => (
+          <li class="px-5 py-6 lg:px-8 lg:py-8">
+            <p class="display text-[28px] leading-none text-white lg:text-[40px]">{s.v}</p>
+            <p class="mt-2 text-[14px] text-white/70 lg:text-[15px]">{s.l}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+    <section class="container-x mt-14 md:mt-20">
+      <CatalogFilter cat={lotCat} f={f} total={total} mode="prive" typeCounts={typeCounts} lots="own" ranges={ranges} />
+    </section>
+    <ProjectsBlock title={T.projects} projects={list} visible={8} own />
+    <section id="lots" class="container-x mt-20 scroll-mt-28 md:mt-28">
+      <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <h2 class="display h-section">{T.lots} <span class="text-accent">{numL(lang, blockList.length)}</span></h2>
+        {query && <a href={`${base}#lots`} class="text-sm text-muted underline-offset-4 hover:text-accent hover:underline">{d.filter.reset} ✕</a>}
+      </div>
+      {blockList.length > 0 ? (
+        <>
+          <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{blockList.slice(0, SHOW).map((x) => <li><SaleCard x={x} /></li>)}</ul>
+          {blockList.length > SHOW && <div class="mt-10 flex justify-center"><a href={catalogHref} class="btn btn-accent h-[52px] px-8">{T.all}: {numL(lang, blockList.length)}<Icon name="chevronRight" class="size-3.5" /></a></div>}
+        </>
+      ) : <div class="card p-10 text-center"><p class="text-[17px]">{T.none}</p></div>}
+    </section>
+    <StayGuarantee />
+    <CompanySpotlight company={sections.company} />
+    <LeadSection context="stay-projects" title={d.catalog.ctaTitle} subtitle={d.catalog.ctaText} />
+  </div>
+</Base>
+<style>
+  .own-stats { background: radial-gradient(120% 160% at 100% 0%, #6a45e0 0%, #3a2590 45%, #1f1838 100%); }
+  .own-stats li { box-shadow: inset 1px 0 #ffffff1a, inset 0 1px #ffffff1a; }
+</style>

@@ -28,12 +28,15 @@ const menuProjects = (picked.length ? picked : complexes.filter((c) => !c.isPriv
 const path = Astro.url.pathname;
 const home = `/${lang}/`;
 const brands = [
-  { label: 'STAY PROJECTS', href: catUrl(lang, { country: 'turkey' }, { complexes: true }) },
-  { label: 'STAY PROPERTY', href: catUrl(lang, { country: 'turkey', deal: 'sale' }) },
+  { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, // только наши проекты; «Новостройки» — все ЖК
+  { label: 'STAY PROPERTY', href: catUrl(lang, { country: '', deal: 'sale' }) },
   { label: 'PRIVE', href: `/${lang}/prive/` },
-  { label: 'RENTAL', href: catUrl(lang, { country: 'turkey', deal: 'rent' }) },
+  // RENTAL убран из шапки (правки руководства 24.11.2026): аренда остаётся в нижнем меню «Аренда».
   { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
+  { label: 'S-CLUB', href: `/${lang}/s-club/` }, // пока заглушка «Скоро открытие»
 ];
+// Подсвечиваем один пункт: самый длинный подходящий адрес (адрес новостроек …/sale/complexes/ начинается с адреса продажи …/sale/).
+const bestMatch = (list: { href: string }[]) => list.filter((x) => path.startsWith(x.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
 const nav = [
   { label: d.nav.rent, href: catUrl(lang, { country: 'turkey', deal: 'rent' }) },
   { label: d.nav.complexes, href: catUrl(lang, { country: 'turkey' }, { complexes: true }) },
@@ -42,13 +45,23 @@ const nav = [
   { label: d.nav.about, href: `/${lang}/about/` },
   { label: d.nav.contacts, href: `/${lang}/contacts/` },
 ];
+// Раздел страницы по адресу (любой город/район): /stay-projects/ → STAY PROJECTS; новостройки и ЖК → «Новостройки»
+// (и STAY PROPERTY — там все объекты), продажа → STAY PROPERTY, аренда → «Аренда» (Anuar 25.11.2026: активный пункт подсвечен, как при наведении).
+const seg = path.split('/');
+const isComplexes = seg.includes('complexes') && seg.includes('sale');
+const isSale = !isComplexes && seg.includes('sale');
+const isRent = seg.includes('rent');
+// Каталог (общий фильтр) бренд в шапке не подсвечивает, в том числе при переходе со страниц STAY PROJECTS и PRIVE;
+// STAY PROPERTY подсвечен только на своей странице (Anuar 25.11.2026).
+const currentBrand = isComplexes ? brands[1].href : isSale ? (path === brands[1].href ? brands[1].href : undefined) : bestMatch(brands);
+const currentNav = isComplexes ? nav[1].href : isRent ? nav[0].href : bestMatch(nav);
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
 const here = Astro.url.pathname;
 const langHref = (l: Lang) => alternates?.[l] ?? (/^\/(ru|en|tr|de|sr)\//.test(here) ? here.replace(/^\/(ru|en|tr|de|sr)\//, `/${l}/`) + Astro.url.search : `/${l}/`);
 const saleHref = catUrl(lang, { country: 'turkey', deal: 'sale' });
 const realty = [{ label: d.nav.sale, href: saleHref }, ...nav.slice(0, 2), { label: 'PRIVE', href: `/${lang}/prive/` }, { label: d.favorites, href: `/${lang}/favorites/` }];
-const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }];
+const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }, { label: 'S-Club', href: `/${lang}/s-club/` }];
 const groups = [
   { title: d.nav.realty, links: realty },
   { title: d.nav.cities, links: cities.map((c) => ({ label: c.name, href: c.href })) },
@@ -66,7 +79,7 @@ const groups = [
             data-brand={b.label}
             target={b.external ? '_blank' : undefined}
             rel={b.external ? 'noopener' : undefined}
-            class:list={['brand-link flex items-center font-display text-[13px] font-normal leading-none', path.startsWith(b.href) && 'is-current']}
+            class:list={['brand-link flex items-center font-display text-[13px] font-normal leading-none', b.href === currentBrand && 'is-current']}
           ><span class="brand-sep mx-4 h-[18px] w-px" aria-hidden="true"></span>{b.label}</a>
         ))}
       </nav>
@@ -92,8 +105,8 @@ const groups = [
         <button type="button" data-menu-open class="icon-hover" aria-label={d.menu}><Icon name="menu" class="size-5" /></button>
       </div>
     </div>
-    <!-- Главное меню — с 1280px. Ниже всё уходит в бургер. -->
-    <nav class="main-nav hidden h-11 items-start gap-6 text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
+    <!-- Главное меню — с 1280px. Ниже всё уходит в бургер. Над ним тонкая линия от логотипа до бургера, как у образца. -->
+    <nav class="main-nav hidden h-11 items-start gap-6 pt-[13px] text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
       <div class="group relative">
         <a href={saleHref} class="nav-item inline-flex items-center gap-1" aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-3.5" /></a>
         <div class="hover-pop invisible absolute left-0 top-full z-10 pt-3 opacity-0 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
@@ -110,7 +123,7 @@ const groups = [
         </div>
       </div>
       {nav.map((x) => (
-        <a href={x.href} class:list={['nav-item whitespace-nowrap', path.startsWith(x.href) && 'is-current']}>{x.label}</a>
+        <a href={x.href} class:list={['nav-item whitespace-nowrap', x.href === currentNav && 'is-current']}>{x.label}</a>
       ))}
     </nav>
   </div>
@@ -174,13 +187,17 @@ const groups = [
   /* Выпадающие окна по наведению: открываются сразу, закрываются с задержкой, чтобы успеть довести курсор. */
   .hover-pop { transition: opacity .15s ease .3s, visibility 0s linear .45s; }
   .group:hover > .hover-pop, .group:focus-within > .hover-pop { transition: opacity .15s ease, visibility 0s; }
-  .site-header { transition: background-color .3s, color .3s; }
+  .site-header { transition: transform .3s ease, background-color .3s, color .3s; }
   .site-header.is-solid { background: #fff; color: var(--color-ink); }
   .site-header.is-overlay { background: transparent; color: #fff; }
   .site-header .brand-sep { background: currentColor; opacity: .3; }
   .site-header .brand-link { transition: color .3s; }
   .site-header.is-solid .brand-link:hover, .site-header.is-solid .brand-link.is-current { color: var(--color-accent); }
   .site-header.is-overlay .brand-link:hover { opacity: .7; }
+  /* PRIVE подсвечивается золотом, как MR PRIVATE у образца (Anuar 25.11.2026). */
+  .site-header .brand-link[data-brand="PRIVE"].is-current, .site-header.is-solid .brand-link[data-brand="PRIVE"]:hover { color: #bc906e; }
+  .site-header .main-nav { border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+  .site-header.is-overlay .main-nav { border-top-color: #ffffff2e; }
   .site-header .nav-item { transition: color .3s; }
   .site-header.is-solid .nav-item { color: var(--color-menu); }
   .site-header.is-solid .nav-item:hover, .site-header.is-solid .nav-item.is-current { color: var(--color-ink-2); }

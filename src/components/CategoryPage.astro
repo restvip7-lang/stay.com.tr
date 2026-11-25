@@ -24,7 +24,7 @@ import {
 import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
 import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '../lib/seo';
 import { DEAL_WORDS, FEATURE_LABEL, TYPE_WORDS, featureDef, featureAllowed, type Deal } from '../lib/segments';
-import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
+import { catCrumbs, SERVICE_TITLES, footerColumns } from '../lib/nav';
 import { itemListLd } from '../lib/ld';
 import { moneyL, numL, dateL } from '../lib/format';
 import { allLangs, type Robots } from '../lib/page';
@@ -79,8 +79,9 @@ if (!hub && n === 0) {
 
 // Дочерние гео: города страны или районы города.
 const children = !cat.district ? (await childGeo(cat)).slice(0, hub ? 12 : 24) : [];
-const childCat = (slug: string): Cat => (cat.city ? { ...cat, district: slug } : { country: cat.country, city: slug, deal: cat.deal, type: cat.type, feature: cat.feature });
-const childName = (slug: string) => (cat.city ? districtBySlug(cat.city, slug)?.name[lang] : cityBySlug(slug)?.name[lang]) ?? slug;
+const world = !cat.country;
+const childCat = (slug: string): Cat => (world ? { country: slug, deal: cat.deal, type: cat.type, feature: cat.feature } : cat.city ? { ...cat, district: slug } : { country: cat.country, city: slug, deal: cat.deal, type: cat.type, feature: cat.feature });
+const childName = (slug: string) => (world ? countryBySlug(slug)?.name[lang] : cat.city ? districtBySlug(cat.city, slug)?.name[lang] : cityBySlug(slug)?.name[lang]) ?? slug;
 const childLinks = hub ? [] : (await Promise.all(children.map(async (ch) => {
   const cc = childCat(ch.slug);
   const k = await countOf({ ...cc, deal });
@@ -150,6 +151,13 @@ const lead = hub
     ? meta.lead
     : `${c.empty}. ${c.alternatives}.`;
 const updated = dateL(lang, new Date());
+// Блок «Выбрать недвижимость» для страницы всех стран.
+const COUNTRIES_T = { ru: 'Страны', en: 'Countries', tr: 'Ülkeler', de: 'Länder', sr: 'Zemlje' };
+const CHOOSE_T = { ru: 'Выбрать недвижимость', en: 'Choose a property', tr: 'Gayrimenkul seçin', de: 'Immobilie wählen', sr: 'Izaberite nekretninu' };
+const POPULAR_T = { ru: 'Популярные запросы', en: 'Popular searches', tr: 'Popüler aramalar', de: 'Beliebte Suchen', sr: 'Popularne pretrage' };
+const chooserType = cat.type && ['apartments', 'villas', 'duplexes'].includes(cat.type) ? cat.type : 'apartments';
+const chooserTotal = world && !hub ? (await filtered({ ...listCat, type: chooserType }, f)).length : 0;
+const landings = world && !hub ? (await footerColumns(lang)).landings : [];
 const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(async (dl) => ({ dl, k: (await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal: dl })).length })))).filter((x) => x.k > 0) : [];
 ---
 <Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={ld} system="new">
@@ -185,9 +193,18 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
     )}
 
     {!hub && (
-      <div class="mt-6 lg:mt-8"><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
+      <div class:list={['mt-6 lg:mt-8', world && 'lg:hidden']}><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
     )}
   </div></section>
+
+  <!-- Все страны (Stay Property): на компьютере сверху блок «Выбрать недвижимость» как на главной (Anuar 25.11.2026). -->
+  {world && !hub && (
+    <section class="container-n mt-12 hidden lg:block lg:mt-10" aria-label={CHOOSE_T[lang]}>
+      <!-- Без своего заголовка: рядом с H1 он спорил с ним (Anuar 25.11.2026). Вкладки идут сразу под подписью. -->
+      <CatalogFilter cat={{ ...listCat, type: chooserType }} f={f} total={chooserTotal} mode="home" preset />
+      <LinkCloud title={POPULAR_T[lang]} links={landings} />
+    </section>
+  )}
 
   <section class="mt-12 lg:mt-16">
     <div class="container-n transition-opacity" data-swap="results">
@@ -205,7 +222,7 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
               {SORTS.map((k) => <li><a href={sortHref(k)} rel="nofollow" class:list={['block rounded-[8px] px-3 py-2 text-[14px] transition-colors hover:bg-page-n', f.sort === k && 'font-medium']} aria-current={f.sort === k ? 'true' : undefined}>{d.sorts[k]}</a></li>)}
             </ul>
           </details>
-          <p class="text-[14px] text-soft" data-swap="count">{d.filter.found} <b class="font-normal text-ink">{numL(lang, n)}</b></p>
+          <p class="text-[14px] text-soft" data-swap="count">{d.filter.found} <b class="font-normal text-ink">{numL(lang, hub ? n : list.length)}</b></p>
           <div class="ml-auto hidden gap-1 rounded-[12px] bg-white p-1 shadow-[var(--shadow-btn)] sm:flex" role="group" aria-label={c.view}>
             <button type="button" data-layout="grid" class="view-btn" aria-label={c.grid} title={c.grid}><Icon name="grid" /></button>
             <button type="button" data-layout="list" class="view-btn" aria-label={c.list} title={c.list}><Icon name="list" /></button>
@@ -239,12 +256,12 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
   <section class="container-n mt-6">
     {refine.length > 0 && <LinkCloud title={c.refine} links={refine} />}
     {!cat.type && typeLinks.length > 1 && <LinkCloud title={c.refine} links={typeLinks} />}
-    {childLinks.length > 0 && <LinkCloud title={cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))} links={childLinks} />}
+    {childLinks.length > 0 && <LinkCloud title={world ? COUNTRIES_T[lang] : cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))} links={childLinks} />}
   </section>
 
   {text && (
     <section class="container-n mt-20 lg:mt-28">
-      <div class="grid gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <div class="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
         <div class="prose-stay text-[17px]" set:html={text} />
         {priceRows.length > 0 && (
           <div>

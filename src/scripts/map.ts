@@ -27,7 +27,9 @@ export async function mountMap(el: HTMLElement) {
     maxZoom: 18,
     attribution: '&copy; OpenStreetMap',
   }).addTo(map);
-  const icon = L.divIcon({ className: '', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:#754be9;border:3px solid #fff;box-shadow:0 2px 8px #0005"></span>', iconSize: [18, 18] });
+  // Цвет меток — акцент страницы (на PRIVE — золото).
+  const accent = getComputedStyle(el).getPropertyValue('--color-accent').trim() || '#754be9';
+  const icon = L.divIcon({ className: '', html: '<span style="display:block;width:18px;height:18px;border-radius:50%;background:' + accent + ';border:3px solid #fff;box-shadow:0 2px 8px #0005"></span>', iconSize: [18, 18] });
   const markers = pts.map((p) =>
     L.marker([p.lat, p.lng], { icon }).bindPopup(
       (p.u ? `<a href="${p.u}" style="font-weight:600;color:#090714">${p.t}</a>` : `<b>${p.t}</b>`) + `${p.a ? `<br><span style="color:#8e909a">${p.a}</span>` : ''}${p.pr ? `<br>${el.dataset.from ?? ''} ${p.pr.toLocaleString(document.documentElement.lang || 'ru')} €` : ''}`,

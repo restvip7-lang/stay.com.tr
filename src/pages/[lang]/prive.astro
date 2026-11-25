@@ -5,12 +5,15 @@ import HomeHero from '../../components/HomeHero.astro';
 import CatalogFilter from '../../components/CatalogFilter.astro';
 import ProjectsBlock from '../../components/ProjectsBlock.astro';
 import CompanySpotlight from '../../components/CompanySpotlight.astro';
+import SaleCard from '../../components/SaleCard.astro';
+import Icon from '../../components/Icon.astro';
 import Breadcrumbs from '../../components/Breadcrumbs.astro';
 import { isLang } from '../../i18n/config';
 import { t } from '../../i18n/ui';
 import { getHomeSections } from '../../lib/api';
 import { getHomeConfig } from '../../lib/homeConfig';
-import { getComplexes, filtered, parseFilters } from '../../lib/catalog';
+import { getComplexes, filtered, parseFilters, noFilters, rangesOf } from '../../lib/catalog';
+import { numL } from '../../lib/format';
 import { allLangs } from '../../lib/page';
 
 const lang = Astro.params.lang;
@@ -23,27 +26,59 @@ const hero = cfg.hero.map(byCode).filter(Boolean) as typeof complexes;
 const ordered = cfg.projects.map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
 const list = [...ordered, ...complexes.filter((p) => p.isPrivate && !ordered.includes(p))];
 const turkeySale = { country: 'turkey', deal: 'sale' as const };
-const f = parseFilters(new URLSearchParams('prive=1'));
-const total = (await filtered(turkeySale, f)).length;
+// Фильтр страницы: стоимость, комнаты, площадь (из адреса), всегда только PRIVE-лоты.
+const sp = new URLSearchParams();
+for (const k of ['price_from', 'price_to', 'rooms', 'area_from', 'area_to']) for (const v of Astro.url.searchParams.getAll(k)) sp.append(k, v);
+// Тип лота из заголовка «Выбрать квартиру ˅»: квартира (по умолчанию), пентхаус, дуплекс.
+const qType = Astro.url.searchParams.get('type');
+const lotType = (['penthouses', 'duplexes', 'villas', 'townhouses'] as const).find((x) => x === qType) ?? 'apartments';
+if (lotType !== 'apartments') sp.set('type', lotType);
+const query = sp.toString();
+sp.delete('type');
+sp.set('prive', '1');
+const f = parseFilters(sp);
+const all = await filtered(turkeySale, { ...noFilters(), prive: true });
+const typeCounts: Record<string, number> = {};
+for (const x of all) typeCounts[x.type] = (typeCounts[x.type] ?? 0) + 1;
+const lotCat = { ...turkeySale, type: lotType } as const;
+const lots = await filtered(lotCat, f);
+const total = lots.length;
+// Блок лотов внизу — витрина: 6 лотов всех типов и кнопка в каталог с галочкой (как у образца).
+// Старые ссылки с параметрами (?rooms=…#lots) показывают отобранные лоты.
+const SHOW = 6;
+const blockList = query ? lots : all;
+const ranges = rangesOf(all);
+const catalogHref = query ? `/${lang}/turkey/sale/${lotType}/?${sp}` : `/${lang}/turkey/sale/?prive=1`;
 const T = {
-  ru: { title: 'PRIVE — закрытые проекты Stay Property', h1: 'PRIVE: закрытые проекты Stay Property', lead: 'Специальные условия и лоты, которых нет в открытой продаже.' },
-  en: { title: 'PRIVE — Stay Property private projects', h1: 'PRIVE: Stay Property private projects', lead: 'Special terms and units that are not on open sale.' },
-  tr: { title: 'PRIVE — Stay Property özel projeleri', h1: 'PRIVE: Stay Property özel projeleri', lead: 'Stay Property PRIVE: açık satışta olmayan özel koşullar ve daireler.' },
-  de: { title: 'PRIVE — exklusive Projekte von Stay Property', h1: 'PRIVE: exklusive Projekte von Stay Property', lead: 'Sonderkonditionen und Einheiten, die nicht im offenen Verkauf sind.' },
-  sr: { title: 'PRIVE — zatvoreni projekti Stay Property', h1: 'PRIVE: zatvoreni projekti Stay Property', lead: 'Posebni uslovi i jedinice kojih nema u otvorenoj prodaji.' },
+  ru: { title: 'PRIVE — закрытые проекты Stay Property', h1: 'PRIVE: закрытые проекты Stay Property', lead: 'Специальные условия и лоты, которых нет в открытой продаже.', choose: ['Выбрать', 'квартиру'], lots: 'Лоты PRIVE', all: 'Все лоты PRIVE в каталоге', none: 'По этим параметрам лотов нет — измените фильтр.' },
+  en: { title: 'PRIVE — Stay Property private projects', h1: 'PRIVE: Stay Property private projects', lead: 'Special terms and units that are not on open sale.', choose: ['Choose', 'an apartment'], lots: 'PRIVE units', all: 'All PRIVE units in the catalogue', none: 'No units match these filters — try changing them.' },
+  tr: { title: 'PRIVE — Stay Property özel projeleri', h1: 'PRIVE: Stay Property özel projeleri', lead: 'Stay Property PRIVE: açık satışta olmayan özel koşullar ve daireler.', choose: ['Daire', 'seçin'], lots: 'PRIVE daireler', all: 'Katalogdaki tüm PRIVE daireler', none: 'Bu kriterlere uygun daire yok — filtreyi değiştirin.' },
+  de: { title: 'PRIVE — exklusive Projekte von Stay Property', h1: 'PRIVE: exklusive Projekte von Stay Property', lead: 'Sonderkonditionen und Einheiten, die nicht im offenen Verkauf sind.', choose: ['Wohnung', 'wählen'], lots: 'PRIVE-Einheiten', all: 'Alle PRIVE-Einheiten im Katalog', none: 'Keine Einheiten mit diesen Kriterien — ändern Sie den Filter.' },
+  sr: { title: 'PRIVE — zatvoreni projekti Stay Property', h1: 'PRIVE: zatvoreni projekti Stay Property', lead: 'Posebni uslovi i jedinice kojih nema u otvorenoj prodaji.', choose: ['Izaberite', 'stan'], lots: 'PRIVE jedinice', all: 'Sve PRIVE jedinice u katalogu', none: 'Nema jedinica po ovim kriterijumima — promenite filter.' },
 }[lang];
 ---
-<Base title={T.title} description={T.lead} alternates={allLangs(`/${lang}/prive/`)} overlayHeader>
-  <div class="theme-prive">
+<Base title={T.title} description={T.lead} alternates={allLangs(`/${lang}/prive/`)} robots={query ? 'noindex,follow' : 'index,follow'} overlayHeader bodyClass="theme-prive mode-prive">
+  <div class="prive-page">
     <HomeHero slides={hero} h1={T.h1} lead={T.lead} />
     <section class="container-x mt-10">
       <Breadcrumbs items={[{ label: d.home, href: `/${lang}/` }, { label: 'PRIVE' }]} />
     </section>
     <section class="container-x mt-10 md:mt-16">
-      <h2 class="display h-section mb-6">{d.hp.choose}</h2>
-      <CatalogFilter cat={turkeySale} f={f} total={total} mode="home" />
+      <CatalogFilter cat={lotCat} f={f} total={total} mode="prive" typeCounts={typeCounts} ranges={ranges} />
     </section>
     <ProjectsBlock title={d.hp.priveProjects} projects={list} visible={cfg.projectsVisible} prive />
+    <section id="lots" class="container-x mt-20 scroll-mt-28 md:mt-28">
+      <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <h2 class="display h-section">{T.lots} <span class="text-accent">{numL(lang, blockList.length)}</span></h2>
+        {query && <a href={`/${lang}/prive/#lots`} class="text-sm text-muted underline-offset-4 hover:text-accent hover:underline">{d.filter.reset} ✕</a>}
+      </div>
+      {blockList.length > 0 ? (
+        <>
+          <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{blockList.slice(0, SHOW).map((x) => <li><SaleCard x={x} /></li>)}</ul>
+          {blockList.length > SHOW && <div class="mt-10 flex justify-center"><a href={catalogHref} class="btn btn-accent h-[52px] px-8">{T.all}: {numL(lang, blockList.length)}<Icon name="chevronRight" class="size-3.5" /></a></div>}
+        </>
+      ) : <div class="card p-10 text-center"><p class="text-[17px]">{T.none}</p></div>}
+    </section>
     <CompanySpotlight company={sections.company} />
   </div>
 </Base>

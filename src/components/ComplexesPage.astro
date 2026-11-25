@@ -7,9 +7,10 @@ import Pagination from './Pagination.astro';
 import LinkCloud from './LinkCloud.astro';
 import LeadSection from './LeadSection.astro';
 import Faq from './Faq.astro';
+import CatalogFilter from './CatalogFilter.astro';
 import { t } from '../i18n/ui';
 import { SITE } from '../i18n/config';
-import { getComplexes, matchComplex, catUrl, complexUrl, INDEX_MIN, type Cat } from '../lib/catalog';
+import { getComplexes, isOurComplex, matchComplex, catUrl, complexUrl, filtered, noFilters, rangesOf, INDEX_MIN, type Cat } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { complexesMeta, geoOf, geoIn } from '../lib/seo';
 import { complexFaq } from '../lib/complexText';
@@ -22,7 +23,7 @@ const { cat, page } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const g = geoOf(cat);
-const all = (await getComplexes()).filter((x) => matchComplex(x, cat)).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+const all = (await getComplexes()).filter((x) => matchComplex(x, cat)).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || Number(isOurComplex(b)) - Number(isOurComplex(a)) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
 const PER = 24;
 const pages = Math.max(1, Math.ceil(all.length / PER));
 const shown = all.slice((page - 1) * PER, page * PER);
@@ -32,19 +33,32 @@ const base = catUrl(lang, cat, { complexes: true });
 const robots: Robots = all.length >= INDEX_MIN ? 'index,follow' : 'noindex,follow';
 const canonical = page > 1 ? `${base}page-${page}/` : base;
 
-// Районы/города, где есть комплексы.
-const counts = new Map<string, number>();
+// Два уровня плиток: города страны (всегда, текущий выделен — можно вернуться к выбору города) и районы выбранного города.
+const cityCounts = new Map<string, number>();
+const districtCounts = new Map<string, number>();
 for (const x of await getComplexes()) {
   if (x.country !== cat.country) continue;
-  if (cat.city && x.city === cat.city && x.district) counts.set(x.district, (counts.get(x.district) ?? 0) + 1);
-  if (!cat.city) counts.set(x.city, (counts.get(x.city) ?? 0) + 1);
+  cityCounts.set(x.city, (cityCounts.get(x.city) ?? 0) + 1);
+  if (cat.city && x.city === cat.city && x.district) districtCounts.set(x.district, (districtCounts.get(x.district) ?? 0) + 1);
 }
-const geoLinks = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([s, n]) => ({
-  href: catUrl(lang, cat.city ? { country: cat.country, city: cat.city, district: s } : { country: cat.country, city: s }, { complexes: true }),
-  text: (cat.city ? districtBySlug(cat.city, s)?.name[lang] : cityBySlug(s)?.name[lang]) ?? s,
+const byCount = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);
+const cityLinks = byCount(cityCounts).map(([s, n]) => ({
+  href: catUrl(lang, { country: cat.country, city: s }, { complexes: true }),
+  text: cityBySlug(s)?.name[lang] ?? s,
   n,
-  current: s === (cat.city ? cat.district : cat.city),
+  current: s === cat.city,
 }));
+const districtLinks = cat.city ? byCount(districtCounts).map(([s, n]) => ({
+  href: catUrl(lang, { country: cat.country, city: cat.city, district: s }, { complexes: true }),
+  text: districtBySlug(cat.city!, s)?.name[lang] ?? s,
+  n,
+  current: s === cat.district,
+})) : [];
+// Маленький фильтр «Выбрать квартиру ˅» (как на PRIVE): квартиры в новостройках этого гео, «Показать N» ведёт в каталог.
+const newCat = { country: cat.country, city: cat.city, district: cat.district, deal: 'sale' as const, feature: 'new' as const };
+const newAll = page === 1 ? await filtered(newCat, noFilters()) : [];
+const newTypes: Record<string, number> = {};
+for (const x of newAll) newTypes[x.type] = (newTypes[x.type] ?? 0) + 1;
 const crumbs = catCrumbs(lang, { ...cat, complexes: true });
 if (page > 1) crumbs.push({ label: d.page(page) });
 const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang), prices.length ? Math.min(...prices) : null, null, null).slice(1) : [];
@@ -54,10 +68,16 @@ const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang
     <Breadcrumbs items={crumbs} />
     <h1 class="display h-page mt-6">{meta.h1}</h1>
     <p class="mt-4 max-w-3xl text-[17px] text-ink/80">{meta.lead}</p>
-    {geoLinks.length > 1 && <LinkCloud title={cat.city ? d.catalog.districts(cityBySlug(cat.city)!.name[lang], cityBySlug(cat.city)!.gen) : d.catalog.cities(geoIn(lang, g))} links={geoLinks} />}
+    {cityLinks.length > 1 && <LinkCloud title={d.catalog.cities(geoIn(lang, geoOf({ country: cat.country })))} links={cityLinks} />}
+    {districtLinks.length > 1 && <LinkCloud title={d.catalog.districts(cityBySlug(cat.city!)!.name[lang], cityBySlug(cat.city!)!.gen)} links={districtLinks} />}
   </section>
+  {newAll.length > 0 && (
+    <section class="container-x mt-12 md:mt-16">
+      <CatalogFilter cat={{ ...newCat, type: 'apartments' }} f={noFilters()} total={newTypes.apartments ?? 0} mode="prive" lots="new" typeCounts={newTypes} ranges={rangesOf(newAll)} />
+    </section>
+  )}
   {shown.length > 0
-    ? <ProjectsBlock projects={shown} visible={PER} />
+    ? <ProjectsBlock projects={shown} visible={PER} tight />
     : <section class="container-x mt-12"><div class="card p-10 text-center"><p class="display text-2xl">{d.catalog.empty}</p><a href={catUrl(lang, { country: cat.country, city: cat.city }, { complexes: true })} class="btn btn-ghost mt-6">{d.complex.all}</a></div></section>}
   <div class="container-x"><Pagination page={page} pages={pages} base={base} /></div>
   <section class="container-x">
