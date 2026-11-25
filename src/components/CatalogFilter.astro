@@ -9,7 +9,8 @@ import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import { INTL } from '../i18n/config';
 import { geoOptions, allowedFeatureMap, type Cat, type Filters } from '../lib/catalog';
-import { DEAL_WORDS, FEATURE_LABEL, TYPES, TYPE_WORDS, type Deal } from '../lib/segments';
+import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type FeatureSlug } from '../lib/segments';
+const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
 import { numL, pluralL } from '../lib/format';
 
 interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: { price: [number, number]; area: [number, number] } }
@@ -47,6 +48,22 @@ const nouns = Object.fromEntries(homeTypes.map((x) => [x, TYPE_WORDS[lang][x].n]
 const allW = ({ ru: 'Все', en: 'All', tr: 'Tümü', de: 'Alle', sr: 'Sve' } as Record<string, string>)[lang] ?? 'Все';
 /** Тумблер «наши объекты» (объекты компании). */
 const OWN_LABEL: Record<string, string> = { ru: 'Объекты Stay', en: 'Stay properties', tr: 'Stay ilanları', de: 'Stay-Objekte', sr: 'Stay nekretnine' };
+/** «Все фильтры»: подписи и колонки «Расширенных» (только фичи, допустимые для сделки). */
+const A = ({
+  ru: { main: 'Основные', more: 'Расширенные', area: 'Площадь', floor: 'Этаж', resetAll: 'Сбросить все', general: 'Общее', object: 'Объект', place: 'Расположение и класс', buy: 'Особенности покупки', market: 'Рынок', props: 'Характеристики', loc: 'Расположение', cls: 'Класс' },
+  en: { main: 'Main', more: 'Advanced', area: 'Area', floor: 'Floor', resetAll: 'Reset all', general: 'General', object: 'Property', place: 'Location and class', buy: 'Purchase', market: 'Market', props: 'Features', loc: 'Location', cls: 'Class' },
+  tr: { main: 'Temel', more: 'Gelişmiş', area: 'Alan', floor: 'Kat', resetAll: 'Tümünü sıfırla', general: 'Genel', object: 'Mülk', place: 'Konum ve sınıf', buy: 'Satın alma', market: 'Pazar', props: 'Özellikler', loc: 'Konum', cls: 'Sınıf' },
+  de: { main: 'Basis', more: 'Erweitert', area: 'Fläche', floor: 'Etage', resetAll: 'Alle zurücksetzen', general: 'Allgemein', object: 'Objekt', place: 'Lage und Klasse', buy: 'Kauf', market: 'Markt', props: 'Ausstattung', loc: 'Lage', cls: 'Klasse' },
+  sr: { main: 'Osnovni', more: 'Prošireni', area: 'Površina', floor: 'Sprat', resetAll: 'Poništi sve', general: 'Opšte', object: 'Nekretnina', place: 'Lokacija i klasa', buy: 'Kupovina', market: 'Tržište', props: 'Karakteristike', loc: 'Lokacija', cls: 'Klasa' },
+} as Record<string, Record<string, string>>)[lang] ?? {};
+const fdeal = (slugs: string[]) => slugs.filter((x) => x === 'citizenship' ? cat.deal === 'sale' && cat.country === 'turkey' : (allowedDeals[x] ?? []).includes(cat.deal) && (x !== 'residence-permit' || cat.country === 'turkey'))
+  .map((x) => ({ name: x, label: FEATURE_LABEL[lang][x as FeatureSlug] }));
+const advCols: { title: string; groups: { title: string; items: { name: string; label: string }[]; floor?: boolean }[] }[] = [
+  // Этажа в базе Portfolio нет — фильтр по этажу не показываем (параметры floor_from/floor_to поддержаны на будущее).
+  { title: A.general, groups: [{ title: A.buy, items: fdeal(['citizenship', 'residence-permit', 'installment', 'from-developer']) }] },
+  { title: A.object, groups: [{ title: A.market, items: fdeal(['new', 'resale']) }, { title: A.props, items: fdeal(['furnished', 'with-pool']) }] },
+  { title: A.place, groups: [{ title: A.loc, items: fdeal(['near-sea', 'first-line', 'sea-view']) }, { title: A.cls, items: fdeal(['luxury', 'cheap', 'investment']) }] },
+].map((c) => ({ ...c, groups: c.groups.filter((g) => g.floor || g.items.length) }));
 const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), prive: tf.onlyPrive, citizenship: tf.citizenship };
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
@@ -144,29 +161,43 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
       <div class="scroll-x -mx-5 mt-4 flex gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
         {rooms.map((r) => (
           <label class="shrink-0 cursor-pointer">
-            <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} class="peer sr-only" />
+            <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
             <span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
           </label>
         ))}
         <span data-sale-only hidden={cat.deal !== 'sale'} class="contents">
-          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="prive" value="1" checked={f.prive} class="peer sr-only" /><span class="chip-n peer-checked:!bg-prive peer-checked:text-white">PRIVE</span></label>
-          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} class="peer sr-only" /><span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white">{tf.citizenship}</span></label>
-          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="own" value="1" checked={f.own} class="peer sr-only" /><span class="chip-n peer-checked:!bg-own peer-checked:text-white">{OWN_LABEL[lang]}</span></label>
+          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="prive" value="1" checked={f.prive} data-sync class="peer sr-only" /><span class="chip-n peer-checked:!bg-prive peer-checked:text-white">PRIVE</span></label>
+          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} data-sync class="peer sr-only" /><span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white">{tf.citizenship}</span></label>
+          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="own" value="1" checked={f.own} data-sync class="peer sr-only" /><span class="chip-n peer-checked:!bg-own peer-checked:text-white">{OWN_LABEL[lang]}</span></label>
         </span>
         {hiddenFeature && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="feature" aria-label={tf.remove(FEATURE_LABEL[lang][hiddenFeature])}>{FEATURE_LABEL[lang][hiddenFeature]} <span aria-hidden="true">×</span></button>}
-        {f.extra && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="f" aria-label={tf.remove(FEATURE_LABEL[lang][f.extra])}>{FEATURE_LABEL[lang][f.extra]} <span aria-hidden="true">×</span></button>}
+        {f.extras.filter((e) => e !== cat.feature).map((e) => <button type="button" class="chip-n shrink-0 !bg-lime" data-uncheck={e} aria-label={tf.remove(FEATURE_LABEL[lang][e])}>{FEATURE_LABEL[lang][e]} <span aria-hidden="true">×</span></button>)}
       </div>
 
-      <!-- «Фильтры»: панель на весь экран поверх страницы. Выдача обновляется сразу, кнопка внизу закрывает панель. -->
+      <!-- «Все фильтры»: окно на весь экран по образцу (mr-group.ru/flats/): «Основные» и «Расширенные» в три колонки, только наши поля.
+           Выдача под окном обновляется сразу; внизу «Показать N» закрывает окно, «Сбросить все» — чистый адрес раздела. -->
       <div data-adv-panel class="fixed inset-0 z-[60] hidden overflow-y-auto bg-white" role="dialog" aria-modal="true" aria-label={tf.all}>
-        <div class="mx-auto max-w-[1392px] px-3 pb-32 pt-3 lg:px-[42px] lg:pt-5">
+        <div class="mx-auto max-w-[1392px] px-4 pb-36 pt-3 lg:px-[42px] lg:pt-5">
           <div class="relative flex h-12 items-center justify-center rounded-[16px] bg-page-n/70 text-[16px] font-medium shadow-[var(--shadow-btn)] lg:h-[50px] lg:text-[14px]">
             {tf.all}
             <button type="button" data-adv-close class="icon-hover absolute right-4" aria-label={d.closeMenu}><Icon name="close" class="size-5" /></button>
           </div>
-          <div class="mt-8 grid gap-8 px-2 lg:grid-cols-2 lg:gap-0 lg:divide-x lg:divide-line lg:px-0">
-            <fieldset class="range lg:pr-8" data-range data-min={priceMin} data-max={priceMax} data-step={step} aria-labelledby="f-price-l">
-              <legend id="f-price-l" class="mb-3 text-[16px] font-medium leading-[19px] tracking-[0.1px] lg:text-[14px]">{tf.price}</legend>
+
+          <h3 class="adv-h2">{A.main}</h3>
+          <div class="grid gap-6 lg:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] lg:gap-8">
+            <fieldset>
+              <legend class="adv-h4">{tf.rooms}</legend>
+              <div class="flex flex-wrap gap-2">
+                {rooms.map((r) => (
+                  <label class="cursor-pointer">
+                    <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
+                    <span class="adv-chip peer-checked:!bg-ink-n peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset class="range" data-range data-min={priceMin} data-max={priceMax} data-step={step}>
+              <legend class="adv-h4">{tf.price}</legend>
               <div class="grid grid-cols-2 gap-2">
                 <input class="field" name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
                 <input class="field" name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} />
@@ -176,8 +207,19 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
                 <input type="range" min={priceMin} max={priceMax} step={step} value={priceTo ?? priceMax} data-shi tabindex="-1" />
               </div>
             </fieldset>
-            <fieldset class="range lg:pl-8" data-range data-min={seaMin} data-max={seaMax} data-step="10">
-              <legend class="mb-3 text-[16px] font-medium leading-[19px] tracking-[0.1px] lg:text-[14px]">{tf.sea}</legend>
+            <fieldset class="range" data-range data-min="10" data-max="800" data-step="5">
+              <legend class="adv-h4">{A.area}, {d.m2}</legend>
+              <div class="grid grid-cols-2 gap-2">
+                <input class="field" name="area_from" inputmode="numeric" placeholder={`${tf.fromW} 10`} value={f.areaFrom ?? ''} data-lo aria-label={`${A.area} ${tf.fromW}`} />
+                <input class="field" name="area_to" inputmode="numeric" placeholder={`${tf.toW} 800`} value={f.areaTo ?? ''} data-hi aria-label={`${A.area} ${tf.toW}`} />
+              </div>
+              <div class="dual mt-4" aria-hidden="true">
+                <input type="range" min="10" max="800" step="5" value={f.areaFrom ?? 10} data-slo tabindex="-1" />
+                <input type="range" min="10" max="800" step="5" value={f.areaTo ?? 800} data-shi tabindex="-1" />
+              </div>
+            </fieldset>
+            <fieldset class="range" data-range data-min={seaMin} data-max={seaMax} data-step="10">
+              <legend class="adv-h4">{tf.sea}</legend>
               <div class="grid grid-cols-2 gap-2">
                 <input class="field" name="sea_from" inputmode="numeric" placeholder={`${tf.fromW} ${seaMin}`} value={f.seaFrom ?? ''} data-lo aria-label={tf.seaFrom} />
                 <input class="field" name="sea_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, seaMax)}`} value={f.seaTo ?? ''} data-hi aria-label={tf.seaTo} />
@@ -188,11 +230,48 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
               </div>
             </fieldset>
           </div>
+          {cat.deal === 'sale' && (
+            <div class="mt-5 flex flex-wrap gap-2">
+              <label class="cursor-pointer"><input type="checkbox" name="prive" value="1" checked={f.prive} data-sync class="peer sr-only" /><span class="adv-chip peer-checked:!bg-prive peer-checked:text-white">{tf.prive}</span></label>
+              <label class="cursor-pointer"><input type="checkbox" name="own" value="1" checked={f.own} data-sync class="peer sr-only" /><span class="adv-chip peer-checked:!bg-own peer-checked:text-white">{OWN_LABEL[lang]}</span></label>
+            </div>
+          )}
+
+          <h3 class="adv-h2 mt-14">{A.more}</h3>
+          <div class="grid gap-10 lg:grid-cols-3 lg:gap-0 lg:divide-x lg:divide-line">
+            {advCols.map((col, i) => (
+              <div class:list={[i > 0 && 'lg:pl-8', i < 2 && 'lg:pr-8']}>
+                <h4 class="adv-h3">{col.title}</h4>
+                {col.groups.map((g) => (
+                  <div class="mt-6">
+                    <p class="adv-h4">{g.title}</p>
+                    {g.floor ? (
+                      <div class="grid grid-cols-2 gap-2">
+                        <input class="field" name="floor_from" inputmode="numeric" placeholder={tf.fromW} value={f.floorFrom ?? ''} aria-label={`${A.floor} ${tf.fromW}`} />
+                        <input class="field" name="floor_to" inputmode="numeric" placeholder={tf.toW} value={f.floorTo ?? ''} aria-label={`${A.floor} ${tf.toW}`} />
+                      </div>
+                    ) : (
+                      <div class="flex flex-wrap gap-2">
+                        {g.items.map((it) => (
+                          <label class="cursor-pointer">
+                            {it.name === 'citizenship'
+                              ? <input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} data-sync class="peer sr-only" />
+                              : <input type="checkbox" name="f" value={it.name} checked={f.extras.includes(it.name as FeatureSlug) || cat.feature === it.name} data-feature class="peer sr-only" />}
+                            <span class="adv-chip peer-checked:!bg-ink-n peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{it.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
         <div class="fixed inset-x-0 bottom-0 border-t border-line bg-white">
-          <div class="mx-auto flex max-w-[1392px] items-center gap-3 px-3 pb-6 pt-5 lg:flex-row-reverse lg:justify-start lg:px-[42px]">
-            <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="btn-n btn-n-soft lg:!h-auto lg:!bg-transparent lg:!px-2">{tf.reset} ✕</a>
-            <button type="button" data-adv-close class="btn-n btn-n-dark flex-1 !bg-ink-n lg:w-[320px] lg:flex-none"><span data-swap="count-btn">{tf.show}: {numL(lang, total)}</span></button>
+          <div class="mx-auto flex max-w-[1392px] items-center gap-6 px-4 pb-6 pt-5 lg:px-[42px]">
+            <button type="button" data-adv-close class="btn-n btn-n-dark flex-1 !bg-ink-n sm:w-[360px] sm:flex-none"><span data-swap="count-btn">{tf.show}: {numL(lang, total)}</span></button>
+            <a href={`/${lang}/${[cat.country, cat.city, cat.district, cat.deal].filter(Boolean).join('/')}/`} class="text-[15px] font-medium hover:text-accent">{A.resetAll} ✕</a>
           </div>
         </div>
       </div>
@@ -293,13 +372,17 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
     </>
   )}
   {catalog && hiddenFeature && <input type="hidden" name="feature" value={hiddenFeature} />}
-  {f.extra && <input type="hidden" name="f" value={f.extra} />}
   {f.sort !== 'new' && <input type="hidden" name="sort" value={f.sort} />}
   <div data-chips hidden></div>
   <noscript><button type="submit" class="btn-n btn-n-dark mt-4">{tf.show}</button></noscript>
 </form>
 
 <style>
+  .adv-h2 { margin: 36px 0 24px; font-size: 26px; line-height: 32px; font-weight: 500; letter-spacing: -.3px; }
+  .adv-h3 { font-size: 22px; line-height: 28px; font-weight: 500; }
+  .adv-h4 { display: block; margin-bottom: 12px; font-size: 16px; line-height: 20px; font-weight: 500; }
+  .adv-chip { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: #f0f1f4; font-size: 15px; transition: background-color .2s, color .2s; }
+  .adv-chip:hover { background: #e4e5ea; }
   .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px; color: var(--color-muted); white-space: nowrap; }
   .switch input { appearance: none; position: relative; width: 26px; height: 16px; border-radius: 999px; background: #d9dbe1; transition: background-color .2s; cursor: pointer; flex: none; }
   .switch input::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: transform .2s; box-shadow: 0 1px 2px #0003; }

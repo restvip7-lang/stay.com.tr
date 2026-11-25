@@ -205,7 +205,7 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
               {SORTS.map((k) => <li><a href={sortHref(k)} rel="nofollow" class:list={['block rounded-[8px] px-3 py-2 text-[14px] transition-colors hover:bg-page-n', f.sort === k && 'font-medium']} aria-current={f.sort === k ? 'true' : undefined}>{d.sorts[k]}</a></li>)}
             </ul>
           </details>
-          <p class="text-[14px] text-soft" data-swap="count">{d.filter.found} <b class="font-normal text-ink">{numL(lang, n)}</b></p>
+          <p class="text-[14px] text-soft" data-swap="count">{d.filter.found} <b class="font-normal text-ink">{numL(lang, hub ? n : list.length)}</b></p>
           <div class="ml-auto hidden gap-1 rounded-[12px] bg-white p-1 shadow-[var(--shadow-btn)] sm:flex" role="group" aria-label={c.view}>
             <button type="button" data-layout="grid" class="view-btn" aria-label={c.grid} title={c.grid}><Icon name="grid" /></button>
             <button type="button" data-layout="list" class="view-btn" aria-label={c.list} title={c.list}><Icon name="list" /></button>
