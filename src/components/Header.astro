@@ -35,6 +35,8 @@ const brands = [
   { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
   { label: 'S-CLUB', href: `/${lang}/s-club/` }, // пока заглушка «Скоро открытие»
 ];
+// Подсвечиваем один пункт: самый длинный подходящий адрес (адрес новостроек …/sale/complexes/ начинается с адреса продажи …/sale/).
+const bestMatch = (list: { href: string }[]) => list.filter((x) => path.startsWith(x.href)).sort((a, b) => b.href.length - a.href.length)[0]?.href;
 const nav = [
   { label: d.nav.rent, href: catUrl(lang, { country: 'turkey', deal: 'rent' }) },
   { label: d.nav.complexes, href: catUrl(lang, { country: 'turkey' }, { complexes: true }) },
@@ -43,6 +45,8 @@ const nav = [
   { label: d.nav.about, href: `/${lang}/about/` },
   { label: d.nav.contacts, href: `/${lang}/contacts/` },
 ];
+const currentBrand = bestMatch(brands);
+const currentNav = bestMatch(nav);
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
 const here = Astro.url.pathname;
@@ -67,7 +71,7 @@ const groups = [
             data-brand={b.label}
             target={b.external ? '_blank' : undefined}
             rel={b.external ? 'noopener' : undefined}
-            class:list={['brand-link flex items-center font-display text-[13px] font-normal leading-none', path.startsWith(b.href) && 'is-current']}
+            class:list={['brand-link flex items-center font-display text-[13px] font-normal leading-none', b.href === currentBrand && 'is-current']}
           ><span class="brand-sep mx-4 h-[18px] w-px" aria-hidden="true"></span>{b.label}</a>
         ))}
       </nav>
@@ -111,7 +115,7 @@ const groups = [
         </div>
       </div>
       {nav.map((x) => (
-        <a href={x.href} class:list={['nav-item whitespace-nowrap', path.startsWith(x.href) && 'is-current']}>{x.label}</a>
+        <a href={x.href} class:list={['nav-item whitespace-nowrap', x.href === currentNav && 'is-current']}>{x.label}</a>
       ))}
     </nav>
   </div>
