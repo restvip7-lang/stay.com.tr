@@ -248,19 +248,6 @@ export interface Complex {
 
 let cxMemo: { at: number; list: Complex[] } | null = null;
 
-/**
- * Наши проекты (застройщик — Stay), список от Anuar 25.11.2026 (папки P000-001 … P000-024, VL001).
- * Только они показываются в «Новостройках» / STAY PROJECTS. Временно, пока признак не придёт из своего API.
- * В базе пока нет: Euro Residence Avsallar (P000-021), Euro City Avsallar (P000-022), Balkan Residence Mahmutlar (P000-024).
- */
-export const OWN_PROJECTS = new Set([
-  'exodus_premium_town', 'exodus_riverside_residence', 'exodus_twins_residence', 'exodus_dreams_residence',
-  'exodus_panorama_residence_istanbul', 'exodus_aqua_deluxe_konakli', 'blue_sunlight_', 'prime_garden_residence',
-  'prime_botanic_residence', 'blue_dream_residence', 'prime_loft_residence', 'faralya_residence', 'prime_stone_residence',
-  'blue_sunlight_2_residence', 'mostar_residence_', 'villa_rabbit_hill',
-]);
-export const isOwnProject = (c: { code: string | null }) => !!c.code && OWN_PROJECTS.has(c.code);
-
 export async function getComplexes(): Promise<Complex[]> {
   if (cxMemo && Date.now() - cxMemo.at < 5 * 60_000) return cxMemo.list;
   const projects = await getProjects();
