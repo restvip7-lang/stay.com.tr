@@ -40,4 +40,5 @@ export async function mountMap(el: HTMLElement) {
   if (markers.length === 1) map.setView([pts[0].lat, pts[0].lng], Number(el.dataset.zoom || 14));
   else if (markers.length) map.fitBounds(group.getBounds().pad(0.15));
   else map.setView([36.54, 32.0], 11);
+  return { map, markers };
 }
