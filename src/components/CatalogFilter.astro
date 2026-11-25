@@ -118,21 +118,29 @@ const FR: Record<string, string> = { ru: 'Сбросить фильтры', en: 
  * только для STAY PROJECTS (Anuar 25.11.2026): поля видны, когда в «Тип недвижимости» стоит галочка «Объекты Stay».
  */
 const PJ = ({
-  ru: { project: 'Проект', allProjects: 'Все проекты', ready: 'Срок сдачи', from: 'с', to: 'по', y: ' г' },
-  en: { project: 'Project', allProjects: 'All projects', ready: 'Completion', from: 'from', to: 'to', y: '' },
-  tr: { project: 'Proje', allProjects: 'Tüm projeler', ready: 'Teslim tarihi', from: 'başl.', to: 'bitiş', y: '' },
-  de: { project: 'Projekt', allProjects: 'Alle Projekte', ready: 'Fertigstellung', from: 'von', to: 'bis', y: '' },
-  sr: { project: 'Projekat', allProjects: 'Svi projekti', ready: 'Rok završetka', from: 'od', to: 'do', y: '' },
+  ru: { quick: 'Быстрый фильтр', done: 'Сдан', year: 'До конца года', project: 'Проект', allProjects: 'Все проекты', ready: 'Срок сдачи', from: 'с', to: 'по', y: ' г' },
+  en: { quick: 'Quick filter', done: 'Completed', year: 'By year end', project: 'Project', allProjects: 'All projects', ready: 'Completion', from: 'from', to: 'to', y: '' },
+  tr: { quick: 'Hızlı filtre', done: 'Teslim edildi', year: 'Yıl sonuna kadar', project: 'Proje', allProjects: 'Tüm projeler', ready: 'Teslim tarihi', from: 'başl.', to: 'bitiş', y: '' },
+  de: { quick: 'Schnellfilter', done: 'Fertiggestellt', year: 'Bis Jahresende', project: 'Projekt', allProjects: 'Alle Projekte', ready: 'Fertigstellung', from: 'von', to: 'bis', y: '' },
+  sr: { quick: 'Brzi filter', done: 'Završen', year: 'Do kraja godine', project: 'Projekat', allProjects: 'Svi projekti', ready: 'Rok završetka', from: 'od', to: 'do', y: '' },
 } as Record<string, Record<string, string>>)[lang] ?? {};
 const ownMode = catalog && sale && !!f.own;
 const ownFields = ownMode;
 const ourProjects = ownFields ? [...(await getOurComplexes())].sort((a, b) => a.title.localeCompare(b.title)) : [];
 const readyOpts = ownFields ? [...new Set([...(await readyYears()).values()].filter((v): v is number => !!v))].sort((a, b) => a - b) : [];
 const ownRg = ownMode ? rangesOf(await filtered({ ...geoCat, type: cat.type }, { ...noFilters(), own: true })) : null;
+// Список «Проект» сужается по «Срок сдачи» (как у образца: «До конца года» — только проекты, которые сдаются до конца года).
+const years = ownMode ? await readyYears() : new Map<string, number | null>();
+const inRange = (y: number | null) => (!f.readyFrom && !f.readyTo) || (y != null && (!f.readyFrom || y >= f.readyFrom) && (!f.readyTo || y <= f.readyTo));
 const projLabel = ourProjects.filter((c) => f.projects.includes(c.code)).map((c) => c.title).join(', ');
 const placeOf = (c: { city: string; district: string | null }) => [c.district && districtBySlug(c.city, c.district)?.name[lang], cityBySlug(c.city)?.name[lang]].filter(Boolean).join(', ');
 const roomsLabel = rooms.filter((r) => selRooms.has(r.v) || pathRooms === r.v).map((r) => r.l).join(', ');
-const readyLabel = f.readyFrom || f.readyTo ? (f.readyFrom && f.readyFrom === f.readyTo ? `${f.readyFrom}${PJ.y}` : [f.readyFrom && `${PJ.from} ${f.readyFrom}${PJ.y}`, f.readyTo && `${PJ.to} ${f.readyTo}${PJ.y}`].filter(Boolean).join(' ')) : '';
+const Y = new Date().getFullYear();
+const rMin = Math.min(readyOpts[0] ?? Y, Y - 1);
+const rMax = Math.max(readyOpts.at(-1) ?? Y, Y);
+// Быстрый фильтр, как у образца: «Сдан» = по прошлый год, «До конца года» = по текущий год.
+const quickOn = !f.readyFrom && f.readyTo === Y - 1 ? 'done' : !f.readyFrom && f.readyTo === Y ? 'year' : null;
+const readyLabel = quickOn ? (quickOn === 'done' ? PJ.done : PJ.year) : f.readyFrom || f.readyTo ? (f.readyFrom && f.readyFrom === f.readyTo ? `${f.readyFrom}${PJ.y}` : [f.readyFrom && `${PJ.from} ${f.readyFrom}${PJ.y}`, f.readyTo && `${PJ.to} ${f.readyTo}${PJ.y}`].filter(Boolean).join(' ')) : '';
 const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName}: ${classNames.join(', ')}` : typeName;
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-lots={prive ? lots : undefined} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
@@ -305,9 +313,12 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
                 {projLabel ? <><em>{PJ.project}</em><strong>{projLabel}</strong></> : <strong class="ptype-ph">{PJ.project}</strong>}
               </button>
               <Icon name="chevronDown" class="fsel-i ptype-i" />
-              <div class="ptype-list proj-list">
+              <div class="ptype-list proj-list" data-proj-list>
+                <button type="button" class="ptype-row proj-all" data-proj-all aria-pressed={f.projects.length ? 'false' : 'true'}>
+                  <span class="ptype-t">{PJ.allProjects}</span><span class="ptype-mark ptype-round" aria-hidden="true"></span>
+                </button>
                 {ourProjects.map((c) => (
-                  <label class="ptype-row proj-row">
+                  <label class="ptype-row proj-row" data-year={years.get(c.code) ?? ''} hidden={!inRange(years.get(c.code) ?? null)}>
                     <span class="block size-10 shrink-0 overflow-hidden rounded-[8px] bg-page"><Img src={c.image} alt="" class="size-full" width={80} height={80} sizes="40px" /></span>
                     <span class="ptype-t"><span class="block truncate">{c.title}</span><span class="block truncate text-[13px] text-muted">{placeOf(c)}</span></span>
                     <input type="checkbox" name="project" value={c.code} checked={f.projects.includes(c.code)} class="peer sr-only" />
@@ -317,25 +328,31 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
               </div>
             </div>
             <!-- «Срок сдачи» — диапазон «с … г / по … г», как у образца. -->
-            <div class="fsel ptype" data-drop>
+            {/* Как у образца: «Срок сдачи» — только когда выбраны все проекты; у одного проекта срок один, он в карточке ЖК. */}
+            {f.projects.length === 0 && <div class="fsel ptype" data-drop>
               <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
                 {readyLabel ? <><em>{PJ.ready}</em><strong>{readyLabel}</strong></> : <strong class="ptype-ph">{PJ.ready}</strong>}
               </button>
               <Icon name="chevronDown" class="fsel-i ptype-i" />
-              <div class="ptype-list drop-range">
-                <div class="grid grid-cols-2 gap-2 px-4 pb-2 pt-1">
-                  {(['from', 'to'] as const).map((k) => (
-                    <label class="field fld relative">
-                      <span>{PJ[k]}</span>
-                      <select name={`ready_${k}`} class="min-w-0 flex-1 appearance-none bg-transparent font-medium outline-none">
-                        <option value="">—</option>
-                        {readyOpts.map((y) => <option value={y} selected={(k === 'from' ? f.readyFrom : f.readyTo) === y}>{y}{PJ.y}</option>)}
-                      </select>
-                    </label>
-                  ))}
-                </div>
+              <div class="ptype-list drop-range" data-ready-box data-t={JSON.stringify({ label: PJ.ready, done: PJ.done, year: PJ.year, from: PJ.from, to: PJ.to, y: PJ.y, Y })}>
+                <fieldset class="range min-w-0 px-4 pb-3 pt-1" data-range data-year data-min={rMin} data-max={rMax} data-step="1">
+                  <div class="grid grid-cols-2 gap-2">
+                    <label class="field fld"><span>{PJ.from}</span><input name="ready_from" inputmode="numeric" maxlength="4" placeholder={`${rMin}`} value={f.readyFrom ?? ''} data-lo aria-label={`${PJ.ready} ${PJ.from}`} /><span class="!text-ink">{PJ.y.trim()}</span></label>
+                    <label class="field fld"><span>{PJ.to}</span><input name="ready_to" inputmode="numeric" maxlength="4" placeholder={`${rMax}`} value={f.readyTo ?? ''} data-hi aria-label={`${PJ.ready} ${PJ.to}`} /><span class="!text-ink">{PJ.y.trim()}</span>
+                      <button type="button" class="ml-1 grid size-6 shrink-0 place-items-center text-muted hover:text-ink" data-ready-clear aria-label={d.close}><Icon name="close" class="size-3.5" /></button></label>
+                  </div>
+                  <div class="dual mt-4" aria-hidden="true">
+                    <input type="range" min={rMin} max={rMax} step="1" value={f.readyFrom ?? rMin} data-slo tabindex="-1" />
+                    <input type="range" min={rMin} max={rMax} step="1" value={f.readyTo ?? rMax} data-shi tabindex="-1" />
+                  </div>
+                  <p class="mt-5 text-[13px] text-muted">{PJ.quick}</p>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <button type="button" class:list={['chip-n !h-8 !px-3 !text-[13px]', quickOn === 'done' && 'chip-on']} data-ready-quick data-from="" data-to={String(Y - 1)}>{PJ.done}</button>
+                    <button type="button" class:list={['chip-n !h-8 !px-3 !text-[13px]', quickOn === 'year' && 'chip-on']} data-ready-quick data-from="" data-to={String(Y)}>{PJ.year}</button>
+                  </div>
+                </fieldset>
               </div>
-            </div>
+            </div>}
           </>
         )}
         {!ownMode && (
@@ -637,7 +654,10 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
   @media (min-width: 1024px) { .fsel { width: auto; height: 50px; border-radius: 12px; } }
   .fsel[hidden] { display: none; }
   .drop-range { padding-top: 14px; }
+  .chip-on { background: #fff !important; box-shadow: inset 0 0 0 1.5px var(--color-ink); }
   .proj-row { min-height: 60px; padding: 8px 18px; }
+  .proj-row[hidden] { display: none; }
+  .proj-all { margin: 0 8px 4px; width: calc(100% - 16px); border-radius: 12px; background: #f3f4f6; min-height: 52px; }
   @media (min-width: 1024px) { .proj-list { width: 380px; } }
   /* Пустое поле — подпись по центру, как у образца («Стоимость, млн ₽»). */
   .ptype-btn:has(> .ptype-ph:only-child) { padding-top: 0; display: flex; align-items: center; }
