@@ -9,7 +9,7 @@ import LeadSection from './LeadSection.astro';
 import Faq from './Faq.astro';
 import { t } from '../i18n/ui';
 import { SITE } from '../i18n/config';
-import { getComplexes, matchComplex, catUrl, complexUrl, INDEX_MIN, type Cat } from '../lib/catalog';
+import { getOurComplexes, matchComplex, catUrl, complexUrl, INDEX_MIN, type Cat } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { complexesMeta, geoOf, geoIn } from '../lib/seo';
 import { complexFaq } from '../lib/complexText';
@@ -22,7 +22,7 @@ const { cat, page } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const g = geoOf(cat);
-const all = (await getComplexes()).filter((x) => matchComplex(x, cat)).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+const all = (await getOurComplexes()).filter((x) => matchComplex(x, cat)).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
 const PER = 24;
 const pages = Math.max(1, Math.ceil(all.length / PER));
 const shown = all.slice((page - 1) * PER, page * PER);
@@ -34,7 +34,7 @@ const canonical = page > 1 ? `${base}page-${page}/` : base;
 
 // Районы/города, где есть комплексы.
 const counts = new Map<string, number>();
-for (const x of await getComplexes()) {
+for (const x of await getOurComplexes()) {
   if (x.country !== cat.country) continue;
   if (cat.city && x.city === cat.city && x.district) counts.set(x.district, (counts.get(x.district) ?? 0) + 1);
   if (!cat.city) counts.set(x.city, (counts.get(x.city) ?? 0) + 1);
