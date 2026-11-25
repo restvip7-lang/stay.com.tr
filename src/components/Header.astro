@@ -51,7 +51,9 @@ const seg = path.split('/');
 const isComplexes = seg.includes('complexes') && seg.includes('sale');
 const isSale = !isComplexes && seg.includes('sale');
 const isRent = seg.includes('rent');
-const currentBrand = (isComplexes || isSale) ? brands[1].href : bestMatch(brands);
+// Каталог (общий фильтр) бренд в шапке не подсвечивает, в том числе при переходе со страниц STAY PROJECTS и PRIVE;
+// STAY PROPERTY подсвечен только на своей странице (Anuar 25.11.2026).
+const currentBrand = isComplexes ? brands[1].href : isSale ? (path === brands[1].href ? brands[1].href : undefined) : bestMatch(brands);
 const currentNav = isComplexes ? nav[1].href : isRent ? nav[0].href : bestMatch(nav);
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
