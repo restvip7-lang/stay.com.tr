@@ -103,7 +103,8 @@ async function withMarks(list: Item[]) {
   if (hit && hit.marks === marks) return hit;
   const all = list.map((x) => {
     const m = marks[x.id];
-    return m ? { ...x, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own, citMark: !!m.cit, resMark: !!m.res } : x;
+    // PRIVE — только отметка в админке (решение Anuar 25.11.2026: эксклюзивных лотов немного; флаг квартир Битрикса больше не учитываем).
+    return m ? { ...x, isPrivate: !!m.prive, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own, citMark: !!m.cit, resMark: !!m.res } : x.isPrivate ? { ...x, isPrivate: false } : x;
   });
   const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);
@@ -471,7 +472,8 @@ const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length
 /** Список категории с учётом GET-фильтров и сортировки. */
 export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   let base: Item[];
-  if (f.prive) base = (await getUnits()).filter((x) => x.isPrivate && matchCat(x, { ...cat, feature: undefined }) && (!cat.feature || x.features.includes(cat.feature)));
+  // «Лоты PRIVE»: любые объекты (из Portfolio и квартиры ЖК), отмеченные PRIVE в админке.
+  if (f.prive) base = [...(await getItems()), ...(await getUnits())].filter((x) => x.isPrivate && matchCat(x, { ...cat, feature: undefined }) && (!cat.feature || x.features.includes(cat.feature)));
   else base = await itemsOf(cat);
   // «Под гражданство» включает и квартиры в проектах Stay с отметкой гражданства (как тоггл в фильтре).
   if ((f.citizenship || cat.feature === 'citizenship') && !f.prive) {

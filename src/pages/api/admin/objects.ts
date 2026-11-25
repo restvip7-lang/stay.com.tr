@@ -48,7 +48,7 @@ export const GET: APIRoute = async ({ url, cookies }) => {
   return Response.json({ total: list.length, items: list.slice(0, 60).map((x) => row(x, marks)), marked: Object.keys(marks).length }, { headers: { 'Cache-Control': 'no-store' } });
 };
 
-/** Сохранить отметку одного объекта: { id, mark: { hidden?, label?, pinned?, own?, cit?, res? } }. */
+/** Сохранить отметку одного объекта: { id, mark: { hidden?, label?, pinned?, own?, cit?, res?, prive? } }. */
 export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
   const user = await userCan(cookies, 'objects');
   if (!user) return new Response('Нет доступа', { status: 403 });
