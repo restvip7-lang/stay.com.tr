@@ -45,8 +45,14 @@ const nav = [
   { label: d.nav.about, href: `/${lang}/about/` },
   { label: d.nav.contacts, href: `/${lang}/contacts/` },
 ];
-const currentBrand = bestMatch(brands);
-const currentNav = bestMatch(nav);
+// Раздел страницы по адресу (любой город/район): новостройки и ЖК → STAY PROJECTS / «Новостройки»,
+// продажа и объекты продажи → STAY PROPERTY, аренда → «Аренда» (Anuar 25.11.2026: активный пункт подсвечен, как при наведении).
+const seg = path.split('/');
+const isComplexes = seg.includes('complexes') && seg.includes('sale');
+const isSale = !isComplexes && seg.includes('sale');
+const isRent = seg.includes('rent');
+const currentBrand = isComplexes ? brands[0].href : isSale ? brands[1].href : bestMatch(brands);
+const currentNav = isComplexes ? nav[1].href : isRent ? nav[0].href : bestMatch(nav);
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
 const here = Astro.url.pathname;
