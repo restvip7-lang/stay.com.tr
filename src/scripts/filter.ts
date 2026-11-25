@@ -4,7 +4,7 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'project', 'ready_from', 'ready_to', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -37,6 +37,8 @@ export function buildUrl(form: HTMLFormElement): string {
     if (v) sp.append(k, v);
   }
   if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); sp.delete('own'); }
+  // «Проект» и «Срок сдачи» — только для STAY PROJECTS (галочка «Объекты Stay»).
+  if (!sp.has('own')) { sp.delete('project'); sp.delete('ready_from'); sp.delete('ready_to'); }
 
   // Фича в адресе: сохранённая из текущего адреса, иначе — из сочетания полей (белый список).
   let feature = val('feature');
@@ -195,12 +197,14 @@ export function initFilters() {
     // если только параметры — подменяем выдачу и адрес (кнопка «Назад» работает).
     let seq = 0;
     let go: number | undefined;
+    const ownAtLoad = new URLSearchParams(location.search).has('own');
     const apply = () => {
       clearTimeout(go);
       go = window.setTimeout(async () => {
         const url = buildUrl(form);
         const next = new URL(url, location.origin);
-        if (next.pathname !== location.pathname) { location.href = url; return; }
+        // Галочка «Объекты Stay» меняет набор полей (фильтр STAY PROJECTS) — страницу перезагружаем целиком.
+        if (next.pathname !== location.pathname || next.searchParams.has('own') !== ownAtLoad) { location.href = url; return; }
         const my = ++seq;
         const box = document.querySelector<HTMLElement>('[data-swap="results"]');
         box?.classList.add('opacity-50');
@@ -220,7 +224,7 @@ export function initFilters() {
     const fcount = () => {
       const fd = new FormData(form);
       const has = (...k: string[]) => k.some((x) => fd.getAll(x).some((v) => String(v).trim()));
-      const n = [has('city'), has('district'), has('rooms'), has('prive'), has('own'), has('citizenship'), has('price_from', 'price_to'), has('area_from', 'area_to'), has('sea_from', 'sea_to'), has('floor_from', 'floor_to'), has('ref'), has('feature')].filter(Boolean).length
+      const n = [has('city'), has('district'), has('rooms'), has('prive'), has('own'), has('citizenship'), has('price_from', 'price_to'), has('area_from', 'area_to'), has('sea_from', 'sea_to'), has('floor_from', 'floor_to'), has('ref'), has('feature'), has('own') && has('project'), has('own') && has('ready_from', 'ready_to')].filter(Boolean).length
         + new Set(fd.getAll('f').map(String).filter((x) => x !== String(fd.get('feature') ?? ''))).size;
       form.querySelectorAll<HTMLElement>('[data-fcount]').forEach((el) => { el.textContent = String(n); el.hidden = !n; });
       form.querySelectorAll<HTMLElement>('[data-freset]').forEach((el) => (el.hidden = !n));
@@ -267,6 +271,24 @@ export function initFilters() {
       addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
     });
 
+    // STAY PROJECTS: выпадающие поля «Комнатность», «Стоимость», «Площадь», «Срок сдачи» (как у образца).
+    form.querySelectorAll<HTMLElement>('[data-drop]').forEach((box) => {
+      const btn = box.querySelector<HTMLButtonElement>('[data-drop-btn]')!;
+      const open = (on: boolean) => {
+        if (on) form.querySelectorAll<HTMLElement>('[data-drop][data-open]').forEach((x) => x !== box && x.removeAttribute('data-open'));
+        box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on));
+      };
+      btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
+      document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
+      addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+    });
+    // Поля-двойники «от / до» (в ряду и в окне «Все фильтры») — одно значение.
+    form.addEventListener('input', (e) => {
+      const i = e.target as HTMLInputElement;
+      if (!i.name || !i.matches('[data-lo],[data-hi]')) return;
+      form.querySelectorAll<HTMLInputElement>(`input[name="${i.name}"]`).forEach((x) => { if (x !== i) x.value = i.value; });
+    });
+
     // Каталог: «Тип недвижимости» — список с галочками PRIVE / «Объекты Stay» и типами (как у образца).
     form.querySelectorAll<HTMLElement>('[data-ptype]').forEach((box) => {
       const btn = box.querySelector<HTMLButtonElement>('[data-ptype-btn]')!;
@@ -277,7 +299,7 @@ export function initFilters() {
       const sync = () => {
         const type = box.querySelector<HTMLInputElement>('[data-ptype-type]:checked')?.dataset.ptypeType || any;
         const cls = [...box.querySelectorAll<HTMLInputElement>('[data-ptype-class]:checked')].map((i) => i.dataset.ptypeClass);
-        val.textContent = cls.length ? `${type}: ${cls.join(', ')}` : type;
+        val.textContent = cls.length && !box.hasAttribute('data-plain') ? `${type}: ${cls.join(', ')}` : type;
         all?.setAttribute('aria-pressed', String(!cls.length));
       };
       btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
