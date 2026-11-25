@@ -103,8 +103,14 @@ async function withMarks(list: Item[]) {
   if (hit && hit.marks === marks) return hit;
   const all = list.map((x) => {
     const m = marks[x.id];
-    // PRIVE — только отметка в админке (решение Anuar 25.11.2026: эксклюзивных лотов немного; флаг квартир Битрикса больше не учитываем).
-    return m ? { ...x, isPrivate: !!m.prive, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own, citMark: !!m.cit, resMark: !!m.res } : x.isPrivate ? { ...x, isPrivate: false } : x;
+    // PRIVE: квартиры проектов PRIVE (флаг базы) + любой объект с отметкой «PRIVE» в админке (решение Anuar 25.11.2026).
+    // «Гражданство» и «ВНЖ» — только ручные отметки (по цене не подходит): из фич убираем расчётные, ставим по отметкам.
+    const cit = !!m?.cit, res = !!m?.res;
+    const features = x.features.filter((f) => f !== 'citizenship' && f !== 'residence-permit');
+    if (cit && x.deal === 'sale') features.push('citizenship');
+    if (res && x.deal === 'sale') features.push('residence-permit');
+    const base = { ...x, features, isPrivate: x.isPrivate || !!m?.prive, citMark: cit, resMark: res };
+    return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own } : base;
   });
   const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);
@@ -416,7 +422,7 @@ export { CITIES };
 export type SortKey = 'new' | 'price-asc' | 'price-desc' | 'area-desc' | 'sea-asc';
 export const SORTS: SortKey[] = ['new', 'price-asc', 'price-desc', 'area-desc', 'sea-asc'];
 /** Параметры, которые считаются фильтром (страница с ними — noindex + canonical на чистый URL). */
-export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view'];
+export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view'];
 
 export interface Filters {
   priceFrom?: number;
@@ -424,14 +430,19 @@ export interface Filters {
   rooms: string[];
   seaFrom?: number;
   seaTo?: number;
+  /** Площадь, м² (фильтр страницы PRIVE). */
+  areaFrom?: number;
+  areaTo?: number;
+  floorFrom?: number;
+  floorTo?: number;
   sort: SortKey;
   prive: boolean;
   citizenship: boolean;
   /** «Объекты Stay»: только наши объекты. */
   own?: boolean;
   ref?: string;
-  /** Дополнительная фича, если в адресе уже есть другая. */
-  extra?: FeatureSlug;
+  /** Дополнительные фичи (?f=…, можно несколько — «Все фильтры»), объект должен подходить под все. */
+  extras: FeatureSlug[];
 }
 
 export function parseFilters(sp: URLSearchParams): Filters {
@@ -440,19 +451,22 @@ export function parseFilters(sp: URLSearchParams): Filters {
     return Number.isFinite(v) && v > 0 ? v : undefined;
   };
   const sort = sp.get('sort') as SortKey;
-  const f = featureDef(sp.get('f') || '');
   return {
     priceFrom: n('price_from'),
     priceTo: n('price_to'),
     rooms: sp.getAll('rooms').flatMap((r) => r.split(',')).filter(Boolean),
     seaFrom: n('sea_from'),
     seaTo: n('sea_to'),
+    areaFrom: n('area_from'),
+    areaTo: n('area_to'),
+    floorFrom: n('floor_from'),
+    floorTo: n('floor_to'),
     sort: SORTS.includes(sort) ? sort : 'new',
     prive: sp.get('prive') === '1',
     citizenship: sp.get('citizenship') === '1',
     own: sp.get('own') === '1',
     ref: sp.get('ref')?.trim() || undefined,
-    extra: f?.slug,
+    extras: [...new Set(sp.getAll('f').flatMap((v) => v.split(',')).map((v) => featureDef(v)?.slug).filter((v): v is FeatureSlug => !!v))],
   };
 }
 
@@ -467,31 +481,38 @@ function roomsBucket(r: string | null): string | null {
 }
 
 /** Включён ли хоть один фильтр (сортировка не в счёт). */
-const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.prive || f.citizenship || f.own || f.ref || f.extra);
+const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.areaFrom || f.areaTo || f.floorFrom || f.floorTo || f.prive || f.citizenship || f.own || f.ref || f.extras.length);
 
 /** Список категории с учётом GET-фильтров и сортировки. */
 export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   let base: Item[];
-  // «Лоты PRIVE»: любые объекты (из Portfolio и квартиры ЖК), отмеченные PRIVE в админке.
-  if (f.prive) base = [...(await getItems()), ...(await getUnits())].filter((x) => x.isPrivate && matchCat(x, { ...cat, feature: undefined }) && (!cat.feature || x.features.includes(cat.feature)));
-  else base = await itemsOf(cat);
-  // «Под гражданство» включает и квартиры в проектах Stay с отметкой гражданства (как тоггл в фильтре).
-  if ((f.citizenship || cat.feature === 'citizenship') && !f.prive) {
-    const units = (await getUnits()).filter((x) => x.citizenship && matchCat(x, { ...cat, feature: undefined }));
-    base = [...base.filter((x) => x.features.includes('citizenship')), ...units];
-  } else if (f.citizenship) base = base.filter((x) => x.citizenship);
+  const geo = { ...cat, feature: undefined };
+  // «Лоты PRIVE» (тоггл): только PRIVE — квартиры проектов PRIVE и отмеченные в админке. Без тоггла PRIVE-лоты в выдаче не показываем.
+  if (f.prive) base = [...(await getItems()), ...(await getUnits())].filter((x) => x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
+  else base = (await itemsOf(cat)).filter((x) => !x.isPrivate);
+  // «Гражданство ТР» (тоггл) и посадочные «под гражданство» / «под ВНЖ»: только объекты с ручной отметкой,
+  // включая квартиры в проектах Stay. Без тоггла показываются все объекты, в том числе отмеченные.
+  const mark = f.citizenship || cat.feature === 'citizenship' ? 'citMark' : cat.feature === 'residence-permit' ? 'resMark' : null;
+  if (mark) {
+    const units = f.prive ? [] : (await getUnits()).filter((x) => !x.isPrivate && matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)));
+    base = [...base, ...units].filter((x) => x[mark]);
+  }
   // Наши объекты: в общем списке продажи (Stay Property) не показываем; находятся, если включён любой фильтр,
   // а тумблер «Объекты Stay» оставляет только их.
   if (f.own) base = base.filter((x) => x.own);
   else if (cat.deal === 'sale' && !usesFilter(f)) base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();
   let out = base.filter((x) => {
-    if (f.extra && !x.features.includes(f.extra)) return false;
+    if (f.extras.some((e) => !x.features.includes(e))) return false;
     if (ref && !(x.ref?.toLowerCase().includes(ref) || x.id === ref)) return false;
     if (f.priceFrom && (x.price ?? 0) < f.priceFrom) return false;
     if (f.priceTo && (x.price ?? Infinity) > f.priceTo) return false;
     if (f.seaFrom && (x.sea ?? 0) < f.seaFrom) return false;
     if (f.seaTo && (x.sea ?? Infinity) > f.seaTo) return false;
+    if (f.areaFrom && (x.area ?? 0) < f.areaFrom) return false;
+    if (f.areaTo && (x.area ?? Infinity) > f.areaTo) return false;
+    if (f.floorFrom && (x.floor ?? 0) < f.floorFrom) return false;
+    if (f.floorTo && (x.floor ?? Infinity) > f.floorTo) return false;
     if (f.rooms.length && !f.rooms.includes(roomsBucket(x.rooms) ?? '')) return false;
     return true;
   });

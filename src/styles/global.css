@@ -223,3 +223,14 @@
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* Страница PRIVE — золото по образцу mr-group.ru/private/ (Anuar 25.11.2026): тёмно-коричневый текст,
+   золотые кнопки, переключатель «Плитка / На карте», бейджи, ссылки и подвал. Класс стоит на body. */
+body.theme-prive { --color-ink: #2d241e; }
+.theme-prive .mode-btn[aria-selected='true'] { background: var(--color-accent) !important; color: #fff; }
+.theme-prive .sale-card:not(.ring-1) { background: #f6f1ec; }
+.theme-prive .h-section .text-accent { color: var(--color-accent); }
+.theme-prive footer a:hover, .theme-prive footer a[aria-current] { color: var(--color-accent); }
+
+/* Пока открыто окно «Все фильтры», Доми не перекрывает кнопку «Показать». */
+body.adv-open .chat-root { display: none; }

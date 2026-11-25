@@ -29,6 +29,8 @@ interface Props {
   /** Новая дизайн-система образца (каталог, объект, ЖК): фон #f0f1f6. */
   system?: 'old' | 'new';
   jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Доп. класс на body (например, theme-prive — золото на странице PRIVE, включая подвал). */
+  bodyClass?: string;
 }
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
@@ -41,6 +43,7 @@ const {
   overlayHeader = false,
   system = 'old',
   jsonLd,
+  bodyClass,
 } = Astro.props;
 // Переопределения из админки (ТЗ 14) — для страницы без параметров.
 const ov = Astro.url.search ? null : await overrideFor(Astro.url.pathname).catch(() => null);
@@ -90,7 +93,7 @@ const clientDict = { form: d.form, loading: d.loading, showMore: d.showMore, fil
     <script type="application/ld+json" set:html={JSON.stringify(lds.length === 1 ? lds[0] : lds)} />
     <script type="application/json" id="i18n" set:html={JSON.stringify(clientDict)} />
   </head>
-  <body id="top" class:list={['min-h-dvh', system === 'new' && 'sys-n']}>
+  <body id="top" class:list={['min-h-dvh', system === 'new' && 'sys-n', bodyClass]}>
     <Header overlay={overlayHeader} alternates={alts} />
     <main class:list={[!overlayHeader && 'pt-[51px] lg:pt-[78px] xl:pt-[122px]']}>
       <slot />

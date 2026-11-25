@@ -4,7 +4,7 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -31,20 +31,23 @@ export function buildUrl(form: HTMLFormElement): string {
   const allowed: Allowed = JSON.parse(form.dataset.allowed || '{}');
   const ok = (f: string) => !!type && !!allowed[deal]?.[type]?.includes(f);
 
+  // Одинаковые поля бывают в ряду чипов и в окне «Все фильтры» — значения без повторов.
   const sp = new URLSearchParams();
-  for (const k of PARAMS) for (const v of fd.getAll(k)) {
-    const s = String(v).replace(/\s/g, '');
-    if (s) sp.append(k, s);
+  for (const k of PARAMS) for (const v of new Set(fd.getAll(k).map((x) => String(x).replace(/\s/g, '')))) {
+    if (v) sp.append(k, v);
   }
   if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); sp.delete('own'); }
 
   // Фича в адресе: сохранённая из текущего адреса, иначе — из сочетания полей (белый список).
   let feature = val('feature');
+  const fs = () => sp.getAll('f');
+  if (feature && fs().includes(feature)) sp.delete('f', feature);
   if (feature && !ok(feature)) {
-    if (!sp.has('f')) sp.set('f', feature);
+    sp.append('f', feature);
     feature = '';
   }
-  if (!feature && sp.has('f') && ok(sp.get('f')!)) { feature = sp.get('f')!; sp.delete('f'); }
+  // Одна фича из белого списка — в адрес (ЧПУ); несколько — остаются параметрами ?f=…
+  if (!feature && fs().length === 1 && ok(fs()[0])) { feature = fs()[0]; sp.delete('f'); }
   if (!feature && type) {
     const rooms = sp.getAll('rooms');
     const pt = sp.get('price_to') ?? '';
@@ -111,10 +114,12 @@ export function initFilters() {
     const catalog = form.dataset.mode === 'catalog';
 
     // Связанные списки: страна → город → район.
-    const country = form.querySelector<HTMLSelectElement>('[data-country]')!;
-    const city = form.querySelector<HTMLSelectElement>('[data-city]')!;
-    const district = form.querySelector<HTMLSelectElement>('[data-district]')!;
+    const country = form.querySelector<HTMLSelectElement>('[data-country]');
+    const city = form.querySelector<HTMLSelectElement>('[data-city]');
+    const district = form.querySelector<HTMLSelectElement>('[data-district]');
     const cascade = () => {
+      // Фильтр страницы PRIVE — без гео.
+      if (!country || !city || !district) return;
       city.querySelectorAll<HTMLOptionElement>('option[data-country]').forEach((o) => {
         o.hidden = !!country.value && o.dataset.country !== country.value;
         if (o.hidden && o.selected) city.value = '';
@@ -125,8 +130,8 @@ export function initFilters() {
       });
       district.disabled = !city.value;
     };
-    country.addEventListener('change', cascade);
-    city.addEventListener('change', cascade);
+    country?.addEventListener('change', cascade);
+    city?.addEventListener('change', cascade);
     cascade();
     initRanges(form, fmt);
 
@@ -140,13 +145,28 @@ export function initFilters() {
     };
     syncDeal();
 
-    form.querySelector('[data-chips]')?.addEventListener('click', (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-chip-field]');
+    // Чипы-фичи в ряду: × снимает фичу (из адреса или галочку в «Все фильтры»).
+    form.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLElement>('[data-chip-field],[data-uncheck]');
       if (!b) return;
-      form.querySelector(`input[type=hidden][name="${b.dataset.chipField}"]`)?.remove();
+      if (b.dataset.chipField) {
+        const h = form.querySelector<HTMLInputElement>(`input[type=hidden][name="${b.dataset.chipField}"]`);
+        if (h) form.querySelectorAll<HTMLInputElement>(`input[name=f][value="${CSS.escape(h.value)}"]`).forEach((i) => (i.checked = false));
+        h?.remove();
+      }
+      if (b.dataset.uncheck) form.querySelectorAll<HTMLInputElement>(`input[name=f][value="${CSS.escape(b.dataset.uncheck)}"]`).forEach((i) => (i.checked = false));
       b.remove();
       form.dispatchEvent(new Event('change'));
     });
+    // Поля-двойники (чипы в ряду и в окне) держим в одном состоянии; снятая фича из адреса уходит из адреса.
+    form.addEventListener('change', (e) => {
+      const i = e.target as HTMLInputElement;
+      if (i.matches?.('[data-sync]')) form.querySelectorAll<HTMLInputElement>(`input[name="${i.name}"][value="${CSS.escape(i.value)}"]`).forEach((x) => (x.checked = i.checked));
+      if (i.matches?.('[data-feature]') && !i.checked) {
+        const h = form.querySelector<HTMLInputElement>('input[type=hidden][name=feature]');
+        if (h?.value === i.value) h.remove();
+      }
+    }, true);
 
     // Живой счётчик для формы на главной.
     let timer: number | undefined;
@@ -160,7 +180,7 @@ export function initFilters() {
           form.querySelectorAll('[data-total]').forEach((el) => (el.textContent = fmt(total)));
           const btn = form.querySelector<HTMLElement>('[data-nouns]');
           const noun = form.querySelector('[data-noun]');
-          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type'))];
+          const forms = btn && JSON.parse(btn.dataset.nouns || '{}')[String(new FormData(form).get('type') ?? '')];
           if (noun && forms) noun.textContent = pluralW(form.dataset.lang || 'ru', total, forms);
         } catch { /* счётчик не критичен */ }
       }, 250);
@@ -196,15 +216,27 @@ export function initFilters() {
       if (!(e.target as HTMLElement).matches('[data-lo],[data-hi],[name=ref]')) return;
       if (catalog) apply(); else count();
     });
-    form.addEventListener('submit', (e) => { e.preventDefault(); location.href = buildUrl(form); });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      // Страница PRIVE: выдача лотов на ней же, ниже проектов.
+      if (form.dataset.mode === 'prive') {
+        const sp = new URL(buildUrl(form), location.origin).searchParams;
+        sp.delete('prive');
+        const q = sp.toString();
+        location.href = `${location.pathname}${q ? `?${q}` : ''}#lots`;
+        return;
+      }
+      location.href = buildUrl(form);
+    });
     if (catalog) addEventListener('popstate', () => location.reload());
     addEventListener('pageshow', (e) => { if ((e as PageTransitionEvent).persisted) { cascade(); syncDeal(); } });
 
     // «Фильтры»: панель на весь экран; выдача под ней обновляется сразу, кнопка внизу закрывает панель.
     const panel = form.querySelector<HTMLElement>('[data-adv-panel]');
-    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; };
+    const setPanel = (open: boolean) => { panel?.classList.toggle('hidden', !open); document.body.style.overflow = open ? 'hidden' : ''; document.body.classList.toggle('adv-open', open); };
     form.querySelectorAll('[data-adv-open]').forEach((b) => b.addEventListener('click', () => setPanel(true)));
     form.querySelectorAll('[data-adv-close]').forEach((b) => b.addEventListener('click', () => setPanel(false)));
+    form.addEventListener('input', (e) => { if ((e.target as HTMLElement).matches('[name=floor_from],[name=floor_to]') && catalog) apply(); });
     addEventListener('keydown', (e) => { if (e.key === 'Escape') setPanel(false); });
     void L;
   });
