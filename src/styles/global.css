@@ -233,12 +233,16 @@ body.theme-prive { --color-ink: #2d241e; }
 .theme-prive footer a:hover, .theme-prive footer a[aria-current] { color: var(--color-accent); }
 
 /* Страница STAY PROJECTS — как PRIVE, но в фиолетовом (Anuar 25.11.2026): тёмно-фиолетовый текст и вуаль слайдера,
-   фиолетовые кнопки, карточки проектов и лотов с лавандовым фоном; шапка — как на остальных страницах. Класс стоит на body. */
+   фиолетовые кнопки, карточки проектов и лотов с лавандовым фоном, в шапке выделен STAY PROJECTS. Класс стоит на body. */
 body.theme-own { --color-ink: #1f1838; --color-accent: #754be9; --color-accent-2: #5c32cd; }
 .card-own { background: #f4f0fd; border-color: #754be91f; }
 .theme-own .mode-btn[aria-selected='true'] { background: var(--color-accent) !important; color: #fff; }
 .theme-own .h-section .text-accent { color: var(--color-accent); }
 .theme-own footer a:hover, .theme-own footer a[aria-current] { color: var(--color-accent); }
+/* В шапке выделен STAY PROJECTS (как PRIVE на своей странице). Поверх фото — светлый фиолетовый, чтобы читался на тёмном фоне. */
+.mode-own [data-brand="STAY PROJECTS"] { opacity: 1; color: #754be9; }
+.mode-own .is-overlay [data-brand="STAY PROJECTS"] { color: #c3afff; text-shadow: 0 1px 12px #1f183899; }
+.mode-own [data-brand]:not([data-brand="STAY PROJECTS"]) { opacity: .45; }
 
 /* Пока открыто окно «Все фильтры», Доми не перекрывает кнопку «Показать». */
 body.adv-open .chat-root { display: none; }
