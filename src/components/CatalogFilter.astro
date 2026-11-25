@@ -8,8 +8,9 @@
 import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import { INTL } from '../i18n/config';
-import { geoOptions, allowedFeatureMap, itemsOf, rangesOf, type Cat, type Filters, type Ranges } from '../lib/catalog';
-import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type FeatureSlug } from '../lib/segments';
+import { geoOptions, allowedFeatureMap, itemsOf, rangesOf, filtered, noFilters, type Cat, type Filters, type Ranges } from '../lib/catalog';
+import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type FeatureSlug, type TypeSlug } from '../lib/segments';
+import { moneyL } from '../lib/format';
 const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
 import { numL, pluralL } from '../lib/format';
 
@@ -81,6 +82,32 @@ const advCols: { title: string; groups: { title: string; items: { name: string; 
   { title: A.place, groups: [{ title: A.loc, items: fdeal(['near-sea', 'first-line', 'sea-view']) }, { title: A.cls, items: fdeal(['luxury', 'cheap', 'investment']) }] },
 ].map((c) => ({ ...c, groups: c.groups.filter((g) => g.floor || g.items.length) }));
 const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), prive: tf.onlyPrive, citizenship: tf.citizenship };
+/**
+ * Каталог: поле «Тип недвижимости» по образцу (mr-group.ru/flats/class-deluxe/) — в одном списке
+ * «Все объекты» / PRIVE / «Объекты Stay» (галочки, как классы у образца) и ниже типы с ценой «от».
+ * Страница PRIVE или STAY PROJECTS — это каталог с уже стоящей галочкой.
+ */
+const PT = ({
+  ru: { label: 'Тип недвижимости', all: 'Все объекты', anyType: 'Все типы' },
+  en: { label: 'Property type', all: 'All properties', anyType: 'All types' },
+  tr: { label: 'Mülk türü', all: 'Tüm ilanlar', anyType: 'Tüm türler' },
+  de: { label: 'Immobilientyp', all: 'Alle Objekte', anyType: 'Alle Typen' },
+  sr: { label: 'Tip nekretnine', all: 'Sve nekretnine', anyType: 'Svi tipovi' },
+} as Record<string, { label: string; all: string; anyType: string }>)[lang] ?? { label: 'Тип недвижимости', all: 'Все объекты', anyType: 'Все типы' };
+const minPrice = (list: { price: number | null }[]) => { const p = list.map((x) => x.price).filter((x): x is number => !!x && x > 0); return p.length ? Math.min(...p) : null; };
+const geoCat = { country: cat.country, city: cat.city, district: cat.district, deal: cat.deal };
+const sale = cat.deal === 'sale';
+const typeOpts = catalog ? (await Promise.all(types.map(async (x) => {
+  const list = await filtered({ ...geoCat, type: x as TypeSlug }, { ...noFilters(), prive: f.prive, own: f.own });
+  return { v: x, l: TYPE_WORDS[lang][x as TypeSlug].pl, n: list.length, from: minPrice(list) };
+}))).filter((o) => o.n > 0 || o.v === cat.type) : [];
+const classOpts = catalog && sale ? await Promise.all((['prive', 'own'] as const).map(async (k) => {
+  const list = await filtered({ ...geoCat, type: cat.type }, { ...noFilters(), [k]: true });
+  return { k, l: k === 'prive' ? 'PRIVE' : OWN_LABEL[lang], brand: k === 'prive' ? '' : 'STAY PROJECTS', n: list.length, from: minPrice(list), on: f[k] };
+})) : [];
+const typeName = cat.type ? TYPE_WORDS[lang][cat.type].pl : PT.anyType;
+const classNames = classOpts.filter((c) => c.on).map((c) => c.l);
+const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : typeName;
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-lots={prive ? lots : undefined} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
   {prive ? (
@@ -156,14 +183,43 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           <select id="f-deal" name="deal">{(['sale', 'rent'] as Deal[]).map((x) => <option value={x} selected={cat.deal === x}>{DEAL_WORDS[lang][x].name}</option>)}</select>
           <Icon name="chevronDown" class="fsel-i" />
         </label>
-        <label class="fsel" for="f-type">
-          <span>{tf.type}</span>
-          <select id="f-type" name="type">
-            <option value="">{tf.anyType}</option>
-            {types.map((x) => <option value={x} selected={cat.type === x}>{TYPE_WORDS[lang][x as keyof typeof TYPE_WORDS.ru].pl}</option>)}
-          </select>
-          <Icon name="chevronDown" class="fsel-i" />
-        </label>
+        <div class="fsel ptype" data-ptype>
+          <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" aria-controls="f-ptype" data-ptype-btn>
+            <em>{PT.label}</em><strong data-ptype-v>{ptSummary}</strong>
+          </button>
+          <Icon name="chevronDown" class="fsel-i ptype-i" />
+          <div id="f-ptype" class="ptype-list" data-ptype-list data-any={PT.anyType}>
+            {classOpts.length > 0 && (
+              <div data-sale-only hidden={!sale}>
+                <button type="button" class="ptype-row" data-ptype-all aria-pressed={classNames.length ? 'false' : 'true'}>
+                  <span class="ptype-t">{PT.all}</span><span class="ptype-mark ptype-round" aria-hidden="true"></span>
+                </button>
+                {classOpts.filter((c) => c.n > 0 || c.on).map((c) => (
+                  <label class="ptype-row">
+                    <span class="ptype-t">{c.brand ? <>{c.l} <i class="ptype-brand text-own">{c.brand}</i></> : <b class="ptype-prive">{c.l}</b>}</span>
+                    {c.from && <span class="ptype-from">{d.from(moneyL(lang, c.from))}</span>}
+                    <input type="checkbox" name={c.k} value="1" checked={c.on} data-sync data-ptype-class={c.l} class="peer sr-only" />
+                    <span class="ptype-mark" aria-hidden="true"></span>
+                  </label>
+                ))}
+                <hr class="ptype-hr" />
+              </div>
+            )}
+            <label class="ptype-row">
+              <span class="ptype-t">{PT.anyType}</span>
+              <input type="radio" name="type" value="" checked={!cat.type} data-ptype-type={PT.anyType} class="peer sr-only" />
+              <span class="ptype-mark ptype-round" aria-hidden="true"></span>
+            </label>
+            {typeOpts.map((o) => (
+              <label class="ptype-row">
+                <span class="ptype-t">{o.l}</span>
+                {o.from && <span class="ptype-from">{d.from(moneyL(lang, o.from))}</span>}
+                <input type="radio" name="type" value={o.v} checked={cat.type === o.v} data-ptype-type={o.l} class="peer sr-only" />
+                <span class="ptype-mark ptype-round" aria-hidden="true"></span>
+              </label>
+            ))}
+          </div>
+        </div>
         <label class="fsel" for="f-country">
           <span>{tf.country}</span>
           <select id="f-country" name="country" data-country><option value="" selected={!cat.country}>{tf.allCountries ?? allW}</option>{opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}</select>
@@ -200,10 +256,9 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
             <span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
           </label>
         ))}
+        <!-- PRIVE и «Объекты Stay» — в поле «Тип недвижимости» (как классы у образца). -->
         <span data-sale-only hidden={cat.deal !== 'sale'} class="contents">
-          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="prive" value="1" checked={f.prive} data-sync class="peer sr-only" /><span class="chip-n peer-checked:!bg-prive peer-checked:text-white">PRIVE</span></label>
           <label class="shrink-0 cursor-pointer"><input type="checkbox" name="citizenship" value="1" checked={f.citizenship || cat.feature === 'citizenship'} data-sync class="peer sr-only" /><span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white">{tf.citizenship}</span></label>
-          <label class="shrink-0 cursor-pointer"><input type="checkbox" name="own" value="1" checked={f.own} data-sync class="peer sr-only" /><span class="chip-n peer-checked:!bg-own peer-checked:text-white">{OWN_LABEL[lang]}</span></label>
         </span>
         {hiddenFeature && <button type="button" class="chip-n shrink-0 !bg-lime" data-chip-field="feature" aria-label={tf.remove(FEATURE_LABEL[lang][hiddenFeature])}>{FEATURE_LABEL[lang][hiddenFeature]} <span aria-hidden="true">×</span></button>}
         {f.extras.filter((e) => e !== cat.feature).map((e) => <button type="button" class="chip-n shrink-0 !bg-lime" data-uncheck={e} aria-label={tf.remove(FEATURE_LABEL[lang][e])}>{FEATURE_LABEL[lang][e]} <span aria-hidden="true">×</span></button>)}
@@ -459,14 +514,39 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
   @media (min-width: 1024px) { .fsel { width: auto; height: 50px; border-radius: 12px; } }
   .fsel:hover, .fsel:focus-within { border-color: var(--color-ink); }
   .fsel > span { position: absolute; left: 12px; top: 6px; font-size: 11px; line-height: 15px; letter-spacing: .2px; color: var(--color-muted); pointer-events: none; }
-  .fsel select, .fsel input { appearance: none; width: 100%; height: 100%; padding: 18px 32px 0 12px; background: transparent; border: 0; outline: none; font-size: 16px; font-weight: 500; letter-spacing: .1px; color: var(--color-ink); text-overflow: ellipsis; cursor: pointer; }
-  @media (min-width: 1024px) { .fsel select, .fsel input { font-size: 14px; } }
-  .fsel input { cursor: text; padding-right: 12px; }
-  .fsel input::placeholder { font-weight: 400; color: #1c1e26cc; }
+  .fsel > select, .fsel > input { appearance: none; width: 100%; height: 100%; padding: 18px 32px 0 12px; background: transparent; border: 0; outline: none; font-size: 16px; font-weight: 500; letter-spacing: .1px; color: var(--color-ink); text-overflow: ellipsis; cursor: pointer; }
+  @media (min-width: 1024px) { .fsel > select, .fsel > input { font-size: 14px; } }
+  .fsel > input { cursor: text; padding-right: 12px; }
+  .fsel > input::placeholder { font-weight: 400; color: #1c1e26cc; }
   :global(.fsel-i) { position: absolute; right: 10px; top: 50%; width: 16px; height: 16px; transform: translateY(-50%); color: var(--color-ink); pointer-events: none; }
   .dual input { position: absolute; inset: 0; width: 100%; appearance: none; background: none; pointer-events: none; margin: 0; }
   .dual input::-webkit-slider-thumb { appearance: none; pointer-events: auto; width: 18px; height: 18px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; box-shadow: 0 0 0 1px var(--color-line-2); cursor: pointer; transition: background-color .2s; }
   .dual input::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--color-ink); border: 3px solid #fff; cursor: pointer; }
+  /* «Тип недвижимости» по образцу: кнопка как поле, список — карточка с галочками (PRIVE, «Объекты Stay») и типами с ценой «от». */
+  .ptype { width: 220px; }
+  @media (min-width: 1024px) { .ptype { width: auto; } }
+  .ptype[data-open] { border-color: var(--color-ink); }
+  .ptype-btn { display: block; width: 100%; height: 100%; padding: 18px 32px 0 12px; text-align: left; cursor: pointer; }
+  .ptype-btn em { position: absolute; left: 12px; top: 6px; font-style: normal; font-size: 11px; line-height: 15px; letter-spacing: .2px; color: var(--color-muted); }
+  .ptype-btn strong { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 16px; font-weight: 500; letter-spacing: .1px; color: var(--color-ink); }
+  @media (min-width: 1024px) { .ptype-btn strong { font-size: 14px; } }
+  .ptype[data-open] :global(.ptype-i) { transform: translateY(-50%) rotate(180deg); }
+  .ptype-list { display: none; position: fixed; z-index: 70; left: 12px; right: 12px; bottom: 12px; max-height: 75vh; overflow-y: auto; padding: 10px 0; border-radius: 20px; background: #fff; box-shadow: 0 12px 40px #1c1e2633; cursor: default; }
+  @media (min-width: 1024px) { .ptype-list { position: absolute; left: 0; right: auto; bottom: auto; top: calc(100% + 8px); width: 400px; max-height: 70vh; } }
+  .ptype[data-open] .ptype-list { display: block; }
+  .ptype-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 46px; padding: 0 22px; text-align: left; font-size: 16px; color: var(--color-ink); cursor: pointer; transition: background-color .15s; }
+  .ptype-row:hover { background: #f5f6f8; }
+  .ptype-t { flex: 1; min-width: 0; }
+  .ptype-brand { white-space: nowrap; margin-left: 4px; font-style: normal; font-size: 10px; font-weight: 600; letter-spacing: .12em; }
+  .ptype-prive { font-weight: 600; letter-spacing: .14em; color: var(--color-prive); }
+  .ptype-from { flex: none; font-size: 13px; color: var(--color-muted); white-space: nowrap; }
+  .ptype-mark { flex: none; position: relative; width: 22px; height: 22px; border-radius: 5px; border: 1.5px solid #c9cbd2; background: #fff; transition: background-color .15s, border-color .15s; }
+  .ptype-round { border-radius: 50%; }
+  .ptype-row input:checked + .ptype-mark, .ptype-row[aria-pressed="true"] .ptype-mark { border-color: var(--color-ink); background: var(--color-ink); }
+  .ptype-row input:checked + .ptype-mark::after, .ptype-row[aria-pressed="true"] .ptype-mark::after { content: ''; position: absolute; left: 6.5px; top: 2.5px; width: 6px; height: 11px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .ptype-row input:checked + .ptype-round::after, .ptype-row[aria-pressed="true"] .ptype-round::after { left: 5px; top: 5px; width: 9px; height: 9px; border: 0; border-radius: 50%; background: #fff; transform: none; }
+  .ptype-row input:focus-visible + .ptype-mark { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .ptype-hr { margin: 8px 22px; border: 0; border-top: 1px solid var(--color-line); }
 </style>
 
 <script>

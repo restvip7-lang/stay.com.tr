@@ -136,12 +136,16 @@ export function initFilters() {
     initRanges(form, fmt);
 
     // Тоггл «Лоты PRIVE» и «Гражданство ТР» видны только для продажи; PRIVE красит страницу.
-    const saleOnly = form.querySelector<HTMLElement>('[data-sale-only]');
+    const saleOnly = form.querySelectorAll<HTMLElement>('[data-sale-only]');
     const syncDeal = () => {
       const deal = String(new FormData(form).get('deal') || 'sale');
-      if (saleOnly) saleOnly.hidden = deal !== 'sale';
+      saleOnly.forEach((el) => (el.hidden = deal !== 'sale'));
       const prive = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=prive]')?.checked;
+      const own = deal === 'sale' && !!form.querySelector<HTMLInputElement>('[name=own]')?.checked;
+      // Маленький фильтр PRIVE / STAY PROJECTS не трогает тему своей страницы.
+      if (form.dataset.mode === 'prive') return;
       document.body.classList.toggle('mode-prive', prive);
+      document.body.classList.toggle('mode-own', own && !prive);
     };
     syncDeal();
 
@@ -218,18 +222,8 @@ export function initFilters() {
     });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      // Страницы PRIVE и STAY PROJECTS: выдача лотов на ней же, ниже проектов (тип — параметром ?type=).
-      // «Новостройки»: маленький фильтр ведёт в каталог квартир в новостройках.
-      if (form.dataset.mode === 'prive' && form.dataset.lots !== 'new') {
-        const sp = new URL(buildUrl(form), location.origin).searchParams;
-        sp.delete('prive');
-        sp.delete('own');
-        const type = String(new FormData(form).get('type') || '');
-        if (type && type !== 'apartments') sp.set('type', type);
-        const q = sp.toString();
-        location.href = `${location.pathname}${q ? `?${q}` : ''}#lots`;
-        return;
-      }
+      // Как у образца: «Показать N» ведёт в каталог. С PRIVE и STAY PROJECTS — с уже стоящей галочкой
+      // PRIVE / «Объекты Stay» в поле «Тип недвижимости», с «Новостроек» — в квартиры в новостройках.
       location.href = buildUrl(form);
     });
     if (catalog) addEventListener('popstate', () => location.reload());
@@ -242,6 +236,30 @@ export function initFilters() {
       const open = (on: boolean) => { box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on)); };
       btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
       box.querySelectorAll<HTMLInputElement>('[data-tsel-opt]').forEach((o) => o.addEventListener('change', () => { label.textContent = o.dataset.tselOpt || ''; open(false); }));
+      document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
+      addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+    });
+
+    // Каталог: «Тип недвижимости» — список с галочками PRIVE / «Объекты Stay» и типами (как у образца).
+    form.querySelectorAll<HTMLElement>('[data-ptype]').forEach((box) => {
+      const btn = box.querySelector<HTMLButtonElement>('[data-ptype-btn]')!;
+      const val = box.querySelector<HTMLElement>('[data-ptype-v]')!;
+      const all = box.querySelector<HTMLButtonElement>('[data-ptype-all]');
+      const any = box.querySelector<HTMLElement>('[data-ptype-list]')?.dataset.any ?? '';
+      const open = (on: boolean) => { box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on)); };
+      const sync = () => {
+        const type = box.querySelector<HTMLInputElement>('[data-ptype-type]:checked')?.dataset.ptypeType || any;
+        const cls = [...box.querySelectorAll<HTMLInputElement>('[data-ptype-class]:checked')].map((i) => i.dataset.ptypeClass);
+        val.textContent = cls.length ? `${type}: ${cls.join(', ')}` : type;
+        all?.setAttribute('aria-pressed', String(!cls.length));
+      };
+      btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
+      all?.addEventListener('click', () => {
+        form.querySelectorAll<HTMLInputElement>('input[name=prive],input[name=own]').forEach((i) => (i.checked = false));
+        form.dispatchEvent(new Event('change'));
+      });
+      box.querySelectorAll<HTMLInputElement>('[data-ptype-type]').forEach((i) => i.addEventListener('change', () => open(false)));
+      form.addEventListener('change', sync);
       document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
       addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
     });

@@ -515,7 +515,12 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   }
   // Наши объекты: в общем списке продажи (Stay Property) не показываем; находятся, если включён любой фильтр,
   // а тумблер «Объекты Stay» оставляет только их.
-  if (f.own) base = [...(f.prive || mark ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature))))].filter((x) => x.own);
+  // PRIVE и «Объекты Stay» вместе — как классы у образца (галочки в «Тип недвижимости»): показываем и те, и другие.
+  if (f.own) {
+    const pool = mark && !f.prive ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature)) && (!mark || x[mark]));
+    const own = pool.filter((x) => x.own);
+    base = f.prive ? [...new Set([...base, ...own])] : own;
+  }
   // На «Новостройках» (…/new/) наши проекты показываем всегда — это тоже новостройки.
   else if (cat.deal === 'sale' && !usesFilter(f) && cat.feature !== 'new') base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();

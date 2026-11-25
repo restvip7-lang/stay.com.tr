@@ -51,9 +51,12 @@ for (const x of all) typeCounts[x.type] = (typeCounts[x.type] ?? 0) + 1;
 const lotCat = { ...turkeySale, type: lotType } as const;
 const lots = await filtered(lotCat, f);
 const total = lots.length;
-const SHOW = 12;
+// Блок лотов внизу — витрина: 6 лотов всех типов и кнопка в каталог с галочкой (как у образца).
+// Старые ссылки с параметрами (?rooms=…#lots) показывают отобранные лоты.
+const SHOW = 6;
+const blockList = query ? lots : all;
 const ranges = rangesOf(all);
-const catalogHref = `/${lang}/turkey/sale/${lotType}/?${sp}`;
+const catalogHref = query ? `/${lang}/turkey/sale/${lotType}/?${sp}` : `/${lang}/turkey/sale/?own=1`;
 const prices = list.map((x) => x.priceFrom).filter((p): p is number => !!p);
 const minPrice = prices.length ? Math.min(...prices) : null;
 const cities = new Set(list.map((x) => x.city)).size;
@@ -96,13 +99,13 @@ const stats = [
     <ProjectsBlock title={T.projects} projects={list} visible={8} own />
     <section id="lots" class="container-x mt-20 scroll-mt-28 md:mt-28">
       <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <h2 class="display h-section">{T.lots} <span class="text-accent">{numL(lang, total)}</span></h2>
+        <h2 class="display h-section">{T.lots} <span class="text-accent">{numL(lang, blockList.length)}</span></h2>
         {query && <a href={`${base}#lots`} class="text-sm text-muted underline-offset-4 hover:text-accent hover:underline">{d.filter.reset} ✕</a>}
       </div>
-      {total > 0 ? (
+      {blockList.length > 0 ? (
         <>
-          <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{lots.slice(0, SHOW).map((x) => <li><SaleCard x={x} /></li>)}</ul>
-          {total > SHOW && <div class="mt-10 flex justify-center"><a href={catalogHref} class="btn btn-accent h-[52px] px-8">{T.all}: {numL(lang, total)}<Icon name="chevronRight" class="size-3.5" /></a></div>}
+          <ul class="results-grid grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{blockList.slice(0, SHOW).map((x) => <li><SaleCard x={x} /></li>)}</ul>
+          {blockList.length > SHOW && <div class="mt-10 flex justify-center"><a href={catalogHref} class="btn btn-accent h-[52px] px-8">{T.all}: {numL(lang, blockList.length)}<Icon name="chevronRight" class="size-3.5" /></a></div>}
         </>
       ) : <div class="card p-10 text-center"><p class="text-[17px]">{T.none}</p></div>}
     </section>
