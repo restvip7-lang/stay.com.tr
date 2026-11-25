@@ -66,7 +66,7 @@ const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang
     {districtLinks.length > 1 && <LinkCloud title={d.catalog.districts(cityBySlug(cat.city!)!.name[lang], cityBySlug(cat.city!)!.gen)} links={districtLinks} />}
   </section>
   {shown.length > 0
-    ? <ProjectsBlock projects={shown} visible={PER} />
+    ? <ProjectsBlock projects={shown} visible={PER} tight />
     : <section class="container-x mt-12"><div class="card p-10 text-center"><p class="display text-2xl">{d.catalog.empty}</p><a href={catUrl(lang, { country: cat.country, city: cat.city }, { complexes: true })} class="btn btn-ghost mt-6">{d.complex.all}</a></div></section>}
   <div class="container-x"><Pagination page={page} pages={pages} base={base} /></div>
   <section class="container-x">
