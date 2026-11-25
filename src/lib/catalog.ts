@@ -59,8 +59,8 @@ function bedrooms(r: string | null): number | null {
 
 const numOrNull = (v: unknown) => (v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 
-function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false): Item | null {
-  const geo = resolveGeo(x.city, x.area);
+function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fallback?: { city: string; district: string | null }): Item | null {
+  const geo = resolveGeo(x.city, x.area) ?? fallback ?? null;
   if (!geo) return null;
   const city = cityBySlug(geo.city)!;
   const type: TypeSlug = unit ? (/дуплекс/i.test(x.objectType || '') ? 'duplexes' : /пентхаус/i.test(x.objectType || '') ? 'penthouses' : 'apartments') : TYPE_MAP[x.propertyType] ?? 'apartments';
@@ -109,8 +109,10 @@ async function withMarks(list: Item[]) {
     const features = x.features.filter((f) => f !== 'citizenship' && f !== 'residence-permit');
     if (cit && x.deal === 'sale') features.push('citizenship');
     if (res && x.deal === 'sale') features.push('residence-permit');
-    const base = { ...x, features, isPrivate: x.isPrivate || !!m?.prive, citMark: cit, resMark: res };
-    return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own } : base;
+    // «Объекты Stay»: все квартиры наших проектов (STAY PROJECTS) + объекты с отметкой «Наш объект» в админке.
+    const ourUnit = !!(x.unit && x.complex && OUR_SLUGS.has(slugify(x.complex)));
+    const base = { ...x, features, isPrivate: x.isPrivate || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
+    return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: ourUnit || !!m.own } : base;
   });
   const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);
@@ -151,7 +153,9 @@ async function load() {
     ...sale.map((x) => toItem(x, x.propertyType === 'Rent' ? 'rent' : 'sale')),
     ...rent.map((x) => toItem(x, 'rent')),
   ].filter(Boolean) as Item[];
-  const u = units.map((x) => toItem(x, 'sale', true, cit.has(`u${x.id}`))).filter(Boolean) as Item[];
+  // У части квартир в базе не указан город (например, 79 из 86 в Exodus Panorama Istanbul) — берём город и район их ЖК.
+  const cxGeo = new Map((await getComplexes().catch(() => [] as Complex[])).map((c) => [slugify(c.code), { city: c.city, district: c.district }]));
+  const u = units.map((x) => toItem(x, 'sale', true, cit.has(`u${x.id}`), x.projectCode ? cxGeo.get(slugify(String(x.projectCode))) : undefined)).filter(Boolean) as Item[];
   memo = { at: Date.now(), items, units: u };
   return memo;
 }
@@ -499,7 +503,7 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   }
   // Наши объекты: в общем списке продажи (Stay Property) не показываем; находятся, если включён любой фильтр,
   // а тумблер «Объекты Stay» оставляет только их.
-  if (f.own) base = base.filter((x) => x.own);
+  if (f.own) base = [...(f.prive || mark ? base : [...(await getItems()), ...(await getUnits())].filter((x) => matchCat(x, geo) && (!cat.feature || x.features.includes(cat.feature))))].filter((x) => x.own);
   else if (cat.deal === 'sale' && !usesFilter(f)) base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();
   let out = base.filter((x) => {
