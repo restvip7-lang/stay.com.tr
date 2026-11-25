@@ -146,16 +146,19 @@ const sortHref = (k: string) => {
   return base + (q ? `?${q}` : '');
 };
 // STAY PROJECTS с одним выбранным проектом — заголовок под проект, как у образца («Квартиры в ЖК МИРА однокомнатные»).
-const pj = !hub && f.own && f.projects.length === 1 ? (await getComplexes()).find((x) => x.code === f.projects[0]) : null;
-if (pj) {
-  const ty = cat.type ?? 'apartments';
+const ownCat = !hub && f.own && !f.prive && cat.deal === 'sale';
+const pj = ownCat && f.projects.length === 1 ? (await getComplexes()).find((x) => x.code === f.projects[0]) : null;
+if (ownCat) {
+  const ty = cat.type ?? null;
   const rm = f.rooms.length === 1 ? f.rooms[0] : ({ '1-bedroom': '1+1', '2-bedrooms': '2+1', '3-bedrooms': '3+1', '4-bedrooms': '4+' } as Record<string, string>)[cat.feature ?? ''];
   const studio = rm === 'studio';
   const STU: Record<string, string> = { ru: 'Студии', en: 'Studios', tr: 'Stüdyolar', de: 'Studios', sr: 'Garsonjere' };
-  const what = studio && ty === 'apartments' ? STU[lang] : `${TYPE_WORDS[lang][ty].pl}${rm && !studio ? ` ${rm}` : ''}`;
-  meta.h1 = ({ ru: `${what} в ${pj.title}`, en: `${what} in ${pj.title}`, tr: `${pj.title}: ${what}`, de: `${what} in ${pj.title}`, sr: `${what} u ${pj.title}` } as Record<string, string>)[lang] ?? `${what} — ${pj.title}`;
+  const ALL: Record<string, string> = { ru: 'Объекты', en: 'Properties', tr: 'İlanlar', de: 'Objekte', sr: 'Nekretnine' };
+  const what = studio && ty === 'apartments' ? STU[lang] : `${ty ? TYPE_WORDS[lang][ty].pl : ALL[lang]}${rm && !studio ? ` ${rm}` : ''}`;
+  // Без проекта (или несколько) — просто «Квартиры» / «Квартиры 1+1», как у образца.
+  meta.h1 = !pj ? what : ({ ru: `${what} в ${pj.title}`, en: `${what} in ${pj.title}`, tr: `${pj.title}: ${what}`, de: `${what} in ${pj.title}`, sr: `${what} u ${pj.title}` } as Record<string, string>)[lang] ?? `${what} — ${pj.title}`;
   const lo = list.map((x) => x.price).filter((v): v is number => !!v);
-  meta.lead = `${numL(lang, list.length)} ${pluralL(lang, list.length, TYPE_WORDS[lang][ty].n)}${lo.length ? `, ${d.from(moneyL(lang, Math.min(...lo)))}` : ''}`;
+  meta.lead = `${numL(lang, list.length)} ${pluralL(lang, list.length, TYPE_WORDS[lang][ty ?? 'apartments'].n)}${lo.length ? `, ${d.from(moneyL(lang, Math.min(...lo)))}` : ''}`;
 }
 const lead = hub
   ? meta.lead

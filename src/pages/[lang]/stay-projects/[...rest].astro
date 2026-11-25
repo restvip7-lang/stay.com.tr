@@ -1,0 +1,40 @@
+---
+/**
+ * Каталог квартир STAY PROJECTS с короткими адресами, как у образца (mr-group.ru/flats/zhk-mira/rooms-1/,
+ * несколько проектов — /flats/zhk-mira-or-cityzen/; сброшенный фильтр — /flats/):
+ *   /{lang}/stay-projects/{тип}/                         — все наши квартиры (тип: apartments, duplexes, …; all — все типы)
+ *   /{lang}/stay-projects/{тип}/{проект}[-or-{проект}]/  — выбранные проекты (слаги ЖК)
+ *   …/{комнатность}[-or-…]/                              — studio, 1-bedroom, 2-bedrooms, 3-bedrooms, 4-bedrooms
+ * Остальные параметры фильтра — в ?строке. Страница — это общий каталог с галочкой «Объекты Stay» (Astro.rewrite).
+ */
+import { isLang } from '../../../i18n/config';
+import { getOurComplexes } from '../../../lib/catalog';
+import { TYPES } from '../../../lib/segments';
+import { OWN_ROOMS } from '../../../lib/ownUrl';
+
+const lang = Astro.params.lang;
+if (!isLang(lang)) return Astro.rewrite('/404');
+const segs = (Astro.params.rest ?? '').split('/').filter(Boolean);
+const [typeSeg, ...more] = segs;
+if (!typeSeg || (typeSeg !== 'all' && !(TYPES as readonly string[]).includes(typeSeg)) || more.length > 2) return Astro.rewrite('/404');
+const ours = await getOurComplexes();
+const sp = new URLSearchParams(Astro.url.search);
+sp.delete('own'); sp.delete('project'); sp.delete('rooms');
+sp.set('own', '1');
+let rest = more;
+// Проекты: слаги наших ЖК через -or-.
+if (rest[0] && !rest[0].split('-or-').every((x) => x in OWN_ROOMS)) {
+  const slugs = rest[0].split('-or-');
+  const codes = slugs.map((s) => ours.find((c) => c.slug === s)?.code);
+  if (codes.some((c) => !c)) return Astro.rewrite('/404');
+  for (const c of codes) sp.append('project', c!);
+  rest = rest.slice(1);
+}
+// Комнатность.
+if (rest[0]) {
+  const rooms = rest[0].split('-or-').map((x) => OWN_ROOMS[x]);
+  if (rooms.some((r) => !r) || rest.length > 1) return Astro.rewrite('/404');
+  for (const r of rooms) sp.append('rooms', r);
+}
+return Astro.rewrite(`/${lang}/turkey/sale/${typeSeg === 'all' ? '' : `${typeSeg}/`}?${sp}`);
+---

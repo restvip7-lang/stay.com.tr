@@ -5,25 +5,26 @@
  * проекты, «Объекты Stay» (квартиры наших проектов + отметка «Наш объект»), гарантия, о компании, заявка.
  * «Новостройки» (…/sale/complexes/) — отдельно, там все ЖК.
  */
-import Base from '../../layouts/Base.astro';
-import HomeHero from '../../components/HomeHero.astro';
-import CatalogFilter from '../../components/CatalogFilter.astro';
-import ProjectsBlock from '../../components/ProjectsBlock.astro';
-import StayGuarantee from '../../components/StayGuarantee.astro';
-import CompanySpotlight from '../../components/CompanySpotlight.astro';
-import LeadSection from '../../components/LeadSection.astro';
-import SaleCard from '../../components/SaleCard.astro';
-import Icon from '../../components/Icon.astro';
-import Breadcrumbs from '../../components/Breadcrumbs.astro';
-import { isLang, SITE } from '../../i18n/config';
-import { t } from '../../i18n/ui';
-import { getHomeSections } from '../../lib/api';
-import { getHomeConfig } from '../../lib/homeConfig';
-import { getOurComplexes, complexUrl, filtered, parseFilters, noFilters, rangesOf } from '../../lib/catalog';
-import { geoOf, projectsMeta } from '../../lib/seo';
-import { itemListLd } from '../../lib/ld';
-import { moneyL, numL, pluralL } from '../../lib/format';
-import { allLangs } from '../../lib/page';
+import Base from '../../../layouts/Base.astro';
+import HomeHero from '../../../components/HomeHero.astro';
+import CatalogFilter from '../../../components/CatalogFilter.astro';
+import ProjectsBlock from '../../../components/ProjectsBlock.astro';
+import StayGuarantee from '../../../components/StayGuarantee.astro';
+import CompanySpotlight from '../../../components/CompanySpotlight.astro';
+import LeadSection from '../../../components/LeadSection.astro';
+import SaleCard from '../../../components/SaleCard.astro';
+import Icon from '../../../components/Icon.astro';
+import Breadcrumbs from '../../../components/Breadcrumbs.astro';
+import { isLang, SITE } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
+import { getHomeSections } from '../../../lib/api';
+import { getHomeConfig } from '../../../lib/homeConfig';
+import { getOurComplexes, complexUrl, filtered, parseFilters, noFilters, rangesOf } from '../../../lib/catalog';
+import { geoOf, projectsMeta } from '../../../lib/seo';
+import { itemListLd } from '../../../lib/ld';
+import { moneyL, numL, pluralL } from '../../../lib/format';
+import { allLangs } from '../../../lib/page';
+import { ownUrl } from '../../../lib/ownUrl';
 
 const lang = Astro.params.lang;
 if (!isLang(lang)) return Astro.rewrite('/404');
@@ -56,7 +57,9 @@ const total = lots.length;
 const SHOW = 6;
 const blockList = query ? lots : all;
 const ranges = rangesOf(all);
-const catalogHref = query ? `/${lang}/turkey/sale/${lotType}/?${sp}` : `/${lang}/turkey/sale/?own=1`;
+// Каталог STAY PROJECTS — короткие адреса /{lang}/stay-projects/{тип}/… (как /flats/ у образца).
+const rest = new URLSearchParams(sp); rest.delete('own'); rest.delete('rooms');
+const catalogHref = query ? ownUrl(lang, lotType, [], f.rooms, rest.toString()) : ownUrl(lang, 'all');
 const prices = list.map((x) => x.priceFrom).filter((p): p is number => !!p);
 const minPrice = prices.length ? Math.min(...prices) : null;
 const cities = new Set(list.map((x) => x.city)).size;

@@ -4,6 +4,7 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
+const OWN_ROOM_SLUG: Record<string, string> = { studio: 'studio', '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'project', 'ready_from', 'ready_to', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
@@ -41,6 +42,17 @@ export function buildUrl(form: HTMLFormElement): string {
   if (!sp.has('own')) sp.delete('project');
   // «Срок сдачи» — только когда выбраны все проекты (как у образца).
   if (!sp.has('own') || sp.has('project')) { sp.delete('ready_from'); sp.delete('ready_to'); }
+
+  // STAY PROJECTS («Объекты Stay» без PRIVE): короткий адрес, как у образца — /{lang}/stay-projects/{тип}/{проекты}/{комнатность}/.
+  if (deal === 'sale' && sp.has('own') && !sp.has('prive')) {
+    const slugs = sp.getAll('project').map((c) => form.querySelector<HTMLInputElement>(`input[name=project][value="${CSS.escape(c)}"]`)?.dataset.slug).filter(Boolean);
+    const ROOMS = ['studio', '1+1', '2+1', '3+1', '4+'];
+    const rs = sp.getAll('rooms').filter((r) => ROOMS.includes(r)).sort((a, b) => ROOMS.indexOf(a) - ROOMS.indexOf(b)).map((r) => OWN_ROOM_SLUG[r]);
+    for (const k of ['own', 'project', 'rooms']) sp.delete(k);
+    const p2 = '/' + [lang, 'stay-projects', type || 'all', slugs.join('-or-'), rs.join('-or-')].filter(Boolean).join('/') + '/';
+    const q2 = sp.toString();
+    return p2 + (q2 ? `?${q2}` : '');
+  }
 
   // Фича в адресе: сохранённая из текущего адреса, иначе — из сочетания полей (белый список).
   let feature = val('feature');
@@ -201,15 +213,19 @@ export function initFilters() {
     // если только параметры — подменяем выдачу и адрес (кнопка «Назад» работает).
     let seq = 0;
     let go: number | undefined;
-    const atLoad = new URLSearchParams(location.search);
-    const ownAtLoad = atLoad.has('own'), projAtLoad = atLoad.has('project');
+    const isOwn = (u: URL) => u.searchParams.has('own') || /^\/[a-z]{2}\/stay-projects\/./.test(u.pathname);
+    const ownAtLoad = isOwn(new URL(location.href)), projAtLoad = new FormData(form).getAll('project').length > 0;
     const apply = () => {
       clearTimeout(go);
       go = window.setTimeout(async () => {
         const url = buildUrl(form);
         const next = new URL(url, location.origin);
         // Галочка «Объекты Stay» меняет набор полей (фильтр STAY PROJECTS) — страницу перезагружаем целиком.
-        if (next.pathname !== location.pathname || next.searchParams.has('own') !== ownAtLoad || next.searchParams.has('project') !== projAtLoad) { location.href = url; return; }
+        // Внутри каталога STAY PROJECTS адрес меняется (проекты, комнатность — в пути), выдачу всё равно подменяем на месте;
+        // перезагрузка — при входе/выходе из него и когда меняется «выбран ли проект» (поле «Срок сдачи»).
+        const ownNow = isOwn(next), projNow = new FormData(form).getAll('project').length > 0;
+        const samePath = next.pathname === location.pathname || (ownNow && isOwn(new URL(location.href)));
+        if (!samePath || ownNow !== ownAtLoad || projNow !== projAtLoad) { location.href = url; return; }
         const my = ++seq;
         const box = document.querySelector<HTMLElement>('[data-swap="results"]');
         box?.classList.add('opacity-50');

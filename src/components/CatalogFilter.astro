@@ -7,6 +7,7 @@
  */
 import Icon from './Icon.astro';
 import Img from './Img.astro';
+import { ownUrl } from '../lib/ownUrl';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { t } from '../i18n/ui';
 import { INTL } from '../i18n/config';
@@ -111,7 +112,8 @@ const typeName = cat.type ? TYPE_WORDS[lang][cat.type].pl : PT.anyType;
 const classNames = classOpts.filter((c) => c.on).map((c) => c.l);
 /** Сколько фильтров включено (город и район считаются, как «Проект» у образца; страна, сделка и тип — нет) — число на кнопке «Фильтры», как у образца. */
 const activeCount = [cat.city, cat.district, f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, f.projects.length, f.readyFrom || f.readyTo, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
-const resetHref = `/${lang}/${[cat.country, cat.deal].filter(Boolean).join('/')}/`;
+// STAY PROJECTS: «Сбросить фильтры» — все наши квартиры (как /flats/ у образца), а не общий каталог.
+const resetHref = catalog && sale && f.own && !f.prive ? ownUrl(lang, cat.type ?? 'apartments') : `/${lang}/${[cat.country, cat.deal].filter(Boolean).join('/')}/`;
 const FR: Record<string, string> = { ru: 'Сбросить фильтры', en: 'Reset filters', tr: 'Filtreleri sıfırla', de: 'Filter zurücksetzen', sr: 'Poništi filtere' };
 /**
  * «Проект» и «Срок сдачи» — как у образца (mr-group.ru/flats/: Тип, Комнатность, Стоимость, Площадь, Проект, Срок сдачи),
@@ -321,7 +323,7 @@ const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName
                   <label class="ptype-row proj-row" data-year={years.get(c.code) ?? ''} hidden={!inRange(years.get(c.code) ?? null)}>
                     <span class="block size-10 shrink-0 overflow-hidden rounded-[8px] bg-page"><Img src={c.image} alt="" class="size-full" width={80} height={80} sizes="40px" /></span>
                     <span class="ptype-t"><span class="block truncate">{c.title}</span><span class="block truncate text-[13px] text-muted">{placeOf(c)}</span></span>
-                    <input type="checkbox" name="project" value={c.code} checked={f.projects.includes(c.code)} class="peer sr-only" />
+                    <input type="checkbox" name="project" value={c.code} data-slug={c.slug} checked={f.projects.includes(c.code)} class="peer sr-only" />
                     <span class="ptype-mark" aria-hidden="true"></span>
                   </label>
                 ))}
