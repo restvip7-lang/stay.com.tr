@@ -32,7 +32,7 @@ const [home, ours, sections] = await Promise.all([getHomeConfig(), getOurComplex
 // Порядок: как в блоке проектов на главной (админка), затем остальные наши — от дешёвых.
 const order = new Map((home.projects ?? []).map((c, i) => [c, i]));
 const list = [...ours].sort((a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
-const hero = list.filter((p) => p.image).slice(0, 6);
+const hero = list.filter((p) => p.image); // слайдер — все наши проекты (Anuar 25.11.2026)
 const turkeySale = { country: 'turkey', deal: 'sale' as const };
 // Фильтр: стоимость, комнаты, площадь (из адреса), всегда только «Объекты Stay».
 const sp = new URLSearchParams();
