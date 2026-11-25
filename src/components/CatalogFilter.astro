@@ -13,8 +13,9 @@ import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type
 const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
 import { numL, pluralL } from '../lib/format';
 
-interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges }
-const { cat, f, total, mode = 'catalog', ranges } = Astro.props;
+interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges; preset?: boolean }
+const { cat, f, total, mode = 'catalog', ranges, preset = false } = Astro.props;
+// preset: блок «как на главной» на странице всех стран — поля заполнены текущим фильтром (на самой главной — пустые).
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const tf = d.filter;
@@ -133,7 +134,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
         </label>
         <label class="fsel" for="f-country">
           <span>{tf.country}</span>
-          <select id="f-country" name="country" data-country>{opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}</select>
+          <select id="f-country" name="country" data-country><option value="" selected={!cat.country}>{tf.allCountries ?? allW}</option>{opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}</select>
           <Icon name="chevronDown" class="fsel-i" />
         </label>
         <label class="fsel" for="f-city">
@@ -299,7 +300,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           <div class="relative">
             <select id="h-country" name="country" class="hfield appearance-none pr-10" data-country>
               <option value="">{allW}</option>
-              {opts.countries.map((c) => <option value={c.slug}>{c.name[lang]}</option>)}
+              {opts.countries.map((c) => <option value={c.slug} selected={preset && cat.country === c.slug}>{c.name[lang]}</option>)}
             </select>
             <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
           </div>
@@ -309,7 +310,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           <div class="relative">
             <select id="h-city" name="city" class="hfield appearance-none pr-10" data-city>
               <option value="">{allW}</option>
-              {opts.cities.map((c) => <option value={c.slug} data-country={c.country}>{c.name[lang]}</option>)}
+              {opts.cities.map((c) => <option value={c.slug} data-country={c.country} selected={preset && cat.city === c.slug}>{c.name[lang]}</option>)}
             </select>
             <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
           </div>
@@ -319,14 +320,14 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           <div class="relative">
             <select id="h-district" name="district" class="hfield appearance-none pr-10 disabled:cursor-default" data-district>
               <option value="">{allW}</option>
-              {opts.districts.map((x) => <option value={x.d.slug} data-city={x.city}>{x.d.name[lang]}</option>)}
+              {opts.districts.map((x) => <option value={x.d.slug} data-city={x.city} selected={preset && cat.city === x.city && cat.district === x.d.slug}>{x.d.name[lang]}</option>)}
             </select>
             <Icon name="chevronDown" class="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-muted" />
           </div>
         </div>
         <div>
           <label class="hlabel" for="h-ref">{tf.id}</label>
-          <input id="h-ref" name="ref" class="hfield" placeholder={tf.idPh} maxlength="20" autocomplete="off" />
+          <input id="h-ref" name="ref" class="hfield" placeholder={tf.idPh} maxlength="20" autocomplete="off" value={preset ? f.ref ?? "" : ""} />
         </div>
       </div>
       <div class="mt-6 grid grid-cols-[minmax(0,1.35fr)_auto_minmax(0,1fr)_auto] items-start gap-x-6">
@@ -334,13 +335,13 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           <div class="mb-2 flex items-center justify-between gap-3">
             <span class="text-[14px] text-muted" id="h-price-l">{tf.price}</span>
             <span class="flex items-center gap-4" data-sale-only>
-              <label class="switch switch-prive"><input type="checkbox" name="prive" value="1" /><span>{tf.prive}</span></label>
-              <label class="switch"><input type="checkbox" name="citizenship" value="1" /><span>{tf.citizenship}</span></label>
+              <label class="switch switch-prive"><input type="checkbox" name="prive" value="1" checked={preset && f.prive} /><span>{tf.prive}</span></label>
+              <label class="switch"><input type="checkbox" name="citizenship" value="1" checked={preset && f.citizenship} /><span>{tf.citizenship}</span></label>
             </span>
           </div>
           <div class="hsplit">
-            <input name="price_from" inputmode="numeric" placeholder={tf.fromW} data-lo aria-label={tf.priceFrom} />
-            <input name="price_to" inputmode="numeric" placeholder={tf.toW} data-hi aria-label={tf.priceTo} />
+            <input name="price_from" inputmode="numeric" placeholder={tf.fromW} data-lo aria-label={tf.priceFrom} value={preset && f.priceFrom ? numL(lang, f.priceFrom) : ""} />
+            <input name="price_to" inputmode="numeric" placeholder={tf.toW} data-hi aria-label={tf.priceTo} value={preset && f.priceTo ? numL(lang, f.priceTo) : ""} />
           </div>
           <div class="dual dual-home -mt-[9px] px-4" aria-hidden="true">
             <input type="range" min={priceMin} max={priceMax} step={step} value={priceMin} data-slo tabindex="-1" />
@@ -352,7 +353,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
           <div class="flex gap-2">
             {rooms.map((r) => (
               <label class="cursor-pointer">
-                <input type="checkbox" name="rooms" value={r.v} class="peer sr-only" />
+                <input type="checkbox" name="rooms" value={r.v} checked={preset && selRooms.has(r.v)} class="peer sr-only" />
                 <span class="inline-flex h-[52px] min-w-[52px] items-center justify-center rounded-full bg-white px-3 text-[14px] transition-colors hover:bg-line peer-checked:bg-ink peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
               </label>
             ))}
@@ -361,8 +362,8 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
         <fieldset class="range" data-range data-min={seaMin} data-max={seaMax} data-step="10" aria-labelledby="h-sea-l">
           <span class="hlabel" id="h-sea-l">{tf.sea}</span>
           <div class="hsplit">
-            <input name="sea_from" inputmode="numeric" placeholder={tf.fromW} data-lo aria-label={tf.seaFrom} />
-            <input name="sea_to" inputmode="numeric" placeholder={tf.toW} data-hi aria-label={tf.seaTo} />
+            <input name="sea_from" inputmode="numeric" placeholder={tf.fromW} data-lo aria-label={tf.seaFrom} value={preset ? f.seaFrom ?? "" : ""} />
+            <input name="sea_to" inputmode="numeric" placeholder={tf.toW} data-hi aria-label={tf.seaTo} value={preset ? f.seaTo ?? "" : ""} />
           </div>
           <div class="dual dual-home -mt-[9px] px-4" aria-hidden="true">
             <input type="range" min={seaMin} max={seaMax} step="10" value={seaMin} data-slo tabindex="-1" />

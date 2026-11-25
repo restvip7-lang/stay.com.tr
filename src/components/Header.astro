@@ -29,7 +29,7 @@ const path = Astro.url.pathname;
 const home = `/${lang}/`;
 const brands = [
   { label: 'STAY PROJECTS', href: catUrl(lang, { country: 'turkey' }, { complexes: true }) },
-  { label: 'STAY PROPERTY', href: catUrl(lang, { country: 'turkey', deal: 'sale' }) },
+  { label: 'STAY PROPERTY', href: catUrl(lang, { country: '', deal: 'sale' }) },
   { label: 'PRIVE', href: `/${lang}/prive/` },
   // RENTAL убран из шапки (правки руководства 24.11.2026): аренда остаётся в нижнем меню «Аренда».
   { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },

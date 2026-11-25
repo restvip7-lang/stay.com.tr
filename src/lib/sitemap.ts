@@ -54,6 +54,11 @@ export async function categoryCounts(): Promise<{ cat: Cat; n: number }[]> {
       add({ ...g, deal: x.deal, type: x.type });
       for (const f of x.features) add({ ...g, deal: x.deal, type: x.type, feature: f });
     }
+    // Все страны (Stay Property): /{lang}/sale/…, /{lang}/rent/… — без хаба.
+    const w = { country: '' };
+    add({ ...w, deal: x.deal });
+    add({ ...w, deal: x.deal, type: x.type });
+    for (const f of x.features) add({ ...w, deal: x.deal, type: x.type, feature: f });
   }
   return [...counts.values()];
 }
