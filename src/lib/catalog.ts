@@ -555,6 +555,20 @@ export async function countOf(cat: Cat): Promise<number> {
   return (await filtered(cat, noFilters())).length;
 }
 
+export type Ranges = { price: [number, number]; area: [number, number]; sea: [number, number] };
+/** Точные минимум и максимум цены, площади и расстояния до моря по объектам — границы полей «от/до» в фильтре. */
+export function rangesOf(list: Item[], fallback: Partial<Ranges> = {}): Ranges {
+  const span = (v: (number | null)[], fb: [number, number]): [number, number] => {
+    const n = v.filter((x): x is number => typeof x === 'number' && x > 0);
+    return n.length ? [Math.floor(Math.min(...n)), Math.ceil(Math.max(...n))] : fb;
+  };
+  return {
+    price: span(list.map((x) => x.price), fallback.price ?? [0, 1_000_000]),
+    area: span(list.map((x) => x.area), fallback.area ?? [10, 800]),
+    sea: span(list.map((x) => x.sea), fallback.sea ?? [1, 1000]),
+  };
+}
+
 /** Варианты гео для фильтра: страны → города → районы, где есть объекты сделки. */
 export async function geoOptions(deal: Deal) {
   const all = (await getItems()).filter((x) => x.deal === deal);
