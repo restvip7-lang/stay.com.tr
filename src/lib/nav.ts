@@ -96,8 +96,8 @@ export const SERVICE_TITLES: Record<Lang, Record<string, string>> = {
 export function catCrumbs(lang: Lang, c: Cat & { complexes?: boolean }, last?: string): { label: string; href?: string }[] {
   const d = t(lang);
   const out: { label: string; href?: string }[] = [{ label: d.home, href: `/${lang}/` }];
-  const country = countryBySlug(c.country)!;
-  out.push({ label: country.name[lang], href: catUrl(lang, { country: c.country }) });
+  const country = c.country ? countryBySlug(c.country)! : null;
+  if (country) out.push({ label: country.name[lang], href: catUrl(lang, { country: c.country }) });
   if (c.city) out.push({ label: cityBySlug(c.city)!.name[lang], href: catUrl(lang, { country: c.country, city: c.city }) });
   if (c.city && c.district) out.push({ label: districtBySlug(c.city, c.district)!.name[lang], href: catUrl(lang, { country: c.country, city: c.city, district: c.district }) });
   const geo = { country: c.country, city: c.city, district: c.district };

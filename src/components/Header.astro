@@ -28,8 +28,8 @@ const menuProjects = (picked.length ? picked : complexes.filter((c) => !c.isPriv
 const path = Astro.url.pathname;
 const home = `/${lang}/`;
 const brands = [
-  { label: 'STAY PROJECTS', href: catUrl(lang, { country: 'turkey' }, { complexes: true }) },
-  { label: 'STAY PROPERTY', href: catUrl(lang, { country: 'turkey', deal: 'sale' }) },
+  { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, // только наши проекты; «Новостройки» — все ЖК
+  { label: 'STAY PROPERTY', href: catUrl(lang, { country: '', deal: 'sale' }) },
   { label: 'PRIVE', href: `/${lang}/prive/` },
   // RENTAL убран из шапки (правки руководства 24.11.2026): аренда остаётся в нижнем меню «Аренда».
   { label: 'INVESTMENT', href: 'https://stayinvestment.com/', external: true },
@@ -45,13 +45,13 @@ const nav = [
   { label: d.nav.about, href: `/${lang}/about/` },
   { label: d.nav.contacts, href: `/${lang}/contacts/` },
 ];
-// Раздел страницы по адресу (любой город/район): новостройки и ЖК → STAY PROJECTS / «Новостройки»,
-// продажа и объекты продажи → STAY PROPERTY, аренда → «Аренда» (Anuar 25.11.2026: активный пункт подсвечен, как при наведении).
+// Раздел страницы по адресу (любой город/район): /stay-projects/ → STAY PROJECTS; новостройки и ЖК → «Новостройки»
+// (и STAY PROPERTY — там все объекты), продажа → STAY PROPERTY, аренда → «Аренда» (Anuar 25.11.2026: активный пункт подсвечен, как при наведении).
 const seg = path.split('/');
 const isComplexes = seg.includes('complexes') && seg.includes('sale');
 const isSale = !isComplexes && seg.includes('sale');
 const isRent = seg.includes('rent');
-const currentBrand = isComplexes ? brands[0].href : isSale ? brands[1].href : bestMatch(brands);
+const currentBrand = (isComplexes || isSale) ? brands[1].href : bestMatch(brands);
 const currentNav = isComplexes ? nav[1].href : isRent ? nav[0].href : bestMatch(nav);
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.

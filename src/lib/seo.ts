@@ -4,7 +4,7 @@
  * поэтому у каждой категории свой текст. Ручной override — в админке (seo-overrides).
  */
 import type { Lang } from '../i18n/config';
-import { COUNTRIES, cityBySlug, countryBySlug, districtBySlug, type GeoCity, type GeoCountry, type GeoDistrict } from './geo';
+import { COUNTRIES, WORLD, cityBySlug, countryBySlug, districtBySlug, type GeoCity, type GeoCountry, type GeoDistrict } from './geo';
 import { COMPLEX_WORDS, DEAL_WORDS, FEATURE_WORDS, PROPERTY_WORDS, TYPE_WORDS, typeWithFeature, type Deal, type FeatureSlug, type TypeSlug } from './segments';
 import type { Cat, Stats } from './catalog';
 import { moneyL, numL, pluralL, monthYearL } from './format';
@@ -12,7 +12,7 @@ import { moneyL, numL, pluralL, monthYearL } from './format';
 export interface Geo { country: GeoCountry; city: GeoCity | null; district: GeoDistrict | null }
 
 export function geoOf(c: { country: string; city?: string | null; district?: string | null }): Geo {
-  const country = countryBySlug(c.country) ?? COUNTRIES[0];
+  const country = !c.country ? WORLD : countryBySlug(c.country) ?? COUNTRIES[0];
   const city = c.city ? cityBySlug(c.city) : null;
   const district = c.city && c.district ? districtBySlug(c.city, c.district) : null;
   return { country, city, district };
@@ -259,7 +259,7 @@ const TEXTS: Record<Lang, (c: TextCtx) => string[]> = {
         ? `${g.district.name.ru} — один из районов ${g.city!.gen}. ${near.length ? `Рядом — ${near.slice(0, 4).join(', ')}: если в этом районе нет подходящего варианта, сравните цены и предложения у соседей.` : ''} Перед покупкой стоит посмотреть, как далеко объект от моря и центра, какая инфраструктура в шаговой доступности и как развивается район.`
         : g.city
           ? `${g.city.name.ru} — город ${g.country.in.ru}, где Stay Property работает с покупателями из разных стран. ${near.length ? `Самые востребованные районы по числу предложений: ${near.slice(0, 5).join(', ')}.` : ''} У каждого района своя специфика: удалённость от моря, инфраструктура, возраст застройки и ценовой уровень.`
-          : `${g.country.name.ru} — одно из направлений Stay Property. ${near.length ? `Больше всего предложений в городах: ${near.slice(0, 5).join(', ')}.` : ''} Мы показываем только объекты, по которым есть актуальная информация от собственников и застройщиков.`,
+          : `${g.country.slug ? `${g.country.name.ru} — одно из направлений Stay Property.` : 'Stay Property подбирает недвижимость в нескольких странах.'} ${near.length ? `Больше всего предложений ${g.country.slug ? 'в городах' : 'в странах'}: ${near.slice(0, 5).join(', ')}.` : ''} Мы показываем только объекты, по которым есть актуальная информация от собственников и застройщиков.`,
       cat.deal === 'rent'
         ? `Арендовать ${what} ${gin} можно на длительный срок или на сезон. Условия — депозит, срок договора, оплата коммунальных услуг — согласовываются с владельцем; менеджер Stay Property поможет проверить договор и организует просмотр, в том числе онлайн.`
         : g.country.slug === 'turkey'
@@ -283,7 +283,7 @@ const TEXTS: Record<Lang, (c: TextCtx) => string[]> = {
         ? `${g.district.name.en} is one of the districts of ${g.city!.name.en}. ${near.length ? `Nearby are ${near.slice(0, 4).join(', ')} — if there is no suitable option here, compare prices with the neighbouring districts.` : ''} Before buying, check the distance to the sea and the centre, the infrastructure within walking distance and how the district is developing.`
         : g.city
           ? `${g.city.name.en} is a city ${g.country.in.en} where Stay Property works with buyers from many countries. ${near.length ? `The districts with the most listings are ${near.slice(0, 5).join(', ')}.` : ''} Each district has its own profile: distance to the sea, infrastructure, age of buildings and price level.`
-          : `${g.country.name.en} is one of Stay Property’s destinations. ${near.length ? `Most listings are in ${near.slice(0, 5).join(', ')}.` : ''} We only show properties with up-to-date information from owners and developers.`,
+          : `${g.country.slug ? `${g.country.name.en} is one of Stay Property’s destinations.` : 'Stay Property selects property in several countries.'} ${near.length ? `Most listings are in ${near.slice(0, 5).join(', ')}.` : ''} We only show properties with up-to-date information from owners and developers.`,
       cat.deal === 'rent'
         ? `You can rent ${what} ${gin} long-term or for the season. Deposit, contract term and utilities are agreed with the owner; a Stay Property manager will help check the contract and arrange a viewing, including online.`
         : g.country.slug === 'turkey'
@@ -306,7 +306,7 @@ const TEXTS: Record<Lang, (c: TextCtx) => string[]> = {
         ? `${g.district.name.tr}, ${g.city!.name.tr} bölgelerinden biridir. ${near.length ? `Yakın bölgeler: ${near.slice(0, 4).join(', ')}. Burada uygun seçenek yoksa komşu bölgelerdeki fiyatları karşılaştırın.` : ''} Satın almadan önce denize ve merkeze uzaklığı, yürüme mesafesindeki altyapıyı ve bölgenin gelişimini değerlendirin.`
         : g.city
           ? `${g.city.name.tr}, Stay Property'nin farklı ülkelerden alıcılarla çalıştığı bir şehirdir. ${near.length ? `En çok ilan bulunan bölgeler: ${near.slice(0, 5).join(', ')}.` : ''} Her bölgenin denize uzaklık, altyapı, yapı yaşı ve fiyat seviyesi açısından kendine özgü bir profili vardır.`
-          : `${g.country.name.tr}, Stay Property'nin çalıştığı ülkelerden biridir. ${near.length ? `En çok ilan bulunan şehirler: ${near.slice(0, 5).join(', ')}.` : ''} Yalnızca mal sahipleri ve müteahhitlerden güncel bilgisi olan ilanları gösteriyoruz.`,
+          : `${g.country.slug ? `${g.country.name.tr}, Stay Property'nin çalıştığı ülkelerden biridir.` : 'Stay Property birkaç ülkede gayrimenkul seçiyor.'} ${near.length ? `En çok ilan bulunan şehirler: ${near.slice(0, 5).join(', ')}.` : ''} Yalnızca mal sahipleri ve müteahhitlerden güncel bilgisi olan ilanları gösteriyoruz.`,
       cat.deal === 'rent'
         ? `${gin} ${what} uzun dönem veya sezonluk kiralanabilir. Depozito, sözleşme süresi ve faturalar mal sahibiyle kararlaştırılır; Stay Property danışmanı sözleşmenin kontrolüne yardım eder ve online dahil gösterim ayarlar.`
         : g.country.slug === 'turkey'
@@ -329,7 +329,7 @@ const TEXTS: Record<Lang, (c: TextCtx) => string[]> = {
         ? `${g.district.name.de} ist ein Stadtteil von ${g.city!.name.de}. ${near.length ? `In der Nähe liegen ${near.slice(0, 4).join(', ')} – wenn hier nichts Passendes dabei ist, vergleichen Sie die Preise in den Nachbarstadtteilen.` : ''} Prüfen Sie vor dem Kauf die Entfernung zu Meer und Zentrum, die Infrastruktur in Gehweite und die Entwicklung des Viertels.`
         : g.city
           ? `${g.city.name.de} ist eine Stadt ${g.country.in.de}, in der Stay Property mit Käufern aus vielen Ländern arbeitet. ${near.length ? `Die meisten Angebote gibt es in ${near.slice(0, 5).join(', ')}.` : ''} Jeder Stadtteil hat sein eigenes Profil: Entfernung zum Meer, Infrastruktur, Alter der Bebauung und Preisniveau.`
-          : `${g.country.name.de} ist eines der Ziele von Stay Property. ${near.length ? `Die meisten Angebote gibt es in ${near.slice(0, 5).join(', ')}.` : ''} Wir zeigen nur Objekte mit aktuellen Informationen von Eigentümern und Bauträgern.`,
+          : `${g.country.slug ? `${g.country.name.de} ist eines der Ziele von Stay Property.` : 'Stay Property wählt Immobilien in mehreren Ländern aus.'} ${near.length ? `Die meisten Angebote gibt es in ${near.slice(0, 5).join(', ')}.` : ''} Wir zeigen nur Objekte mit aktuellen Informationen von Eigentümern und Bauträgern.`,
       cat.deal === 'rent'
         ? `${what} ${gin} können langfristig oder für die Saison gemietet werden. Kaution, Vertragsdauer und Nebenkosten werden mit dem Eigentümer vereinbart; ein Berater von Stay Property hilft bei der Vertragsprüfung und organisiert eine Besichtigung, auch online.`
         : g.country.slug === 'turkey'
@@ -352,7 +352,7 @@ const TEXTS: Record<Lang, (c: TextCtx) => string[]> = {
         ? `${g.district.name.sr} je jedan od delova grada ${g.city!.name.sr}. ${near.length ? `U blizini su ${near.slice(0, 4).join(', ')} – ako ovde nema odgovarajuće opcije, uporedite cene u susednim delovima.` : ''} Pre kupovine proverite udaljenost od mora i centra, infrastrukturu u blizini i razvoj kvarta.`
         : g.city
           ? `${g.city.name.sr} je grad ${g.country.in.sr} u kome Stay Property radi sa kupcima iz mnogih zemalja. ${near.length ? `Najviše ponuda ima u delovima: ${near.slice(0, 5).join(', ')}.` : ''} Svaki deo grada ima svoj profil: udaljenost od mora, infrastruktura, starost gradnje i nivo cena.`
-          : `${g.country.name.sr} je jedna od destinacija Stay Property. ${near.length ? `Najviše ponuda ima u gradovima: ${near.slice(0, 5).join(', ')}.` : ''} Prikazujemo samo nekretnine sa aktuelnim informacijama od vlasnika i investitora.`,
+          : `${g.country.slug ? `${g.country.name.sr} je jedna od destinacija Stay Property.` : 'Stay Property bira nekretnine u nekoliko zemalja.'} ${near.length ? `Najviše ponuda ima u gradovima: ${near.slice(0, 5).join(', ')}.` : ''} Prikazujemo samo nekretnine sa aktuelnim informacijama od vlasnika i investitora.`,
       cat.deal === 'rent'
         ? `${cap(what)} ${gin} mogu se iznajmiti dugoročno ili sezonski. Depozit, trajanje ugovora i režije dogovaraju se sa vlasnikom; menadžer Stay Property pomoći će da proverite ugovor i organizovaće razgledanje, i onlajn.`
         : g.country.slug === 'turkey'
@@ -637,6 +637,29 @@ export function itemMeta(lang: Lang, x: { type: TypeSlug; rooms: string | null; 
 }
 
 /* ---------- Комплексы ---------- */
+
+/** Страница STAY PROJECTS (/{lang}/stay-projects/): только собственные проекты компании — тексты об этом и о гарантии. */
+const PROJECT_WORDS: Record<Lang, [string, string, string]> = {
+  ru: ['проект', 'проекта', 'проектов'],
+  en: ['project', 'projects', 'projects'],
+  tr: ['projesi', 'projesi', 'projesi'],
+  de: ['Projekt', 'Projekte', 'Projekte'],
+  sr: ['projekat', 'projekta', 'projekata'],
+};
+
+export function projectsMeta(lang: Lang, g: Geo, n: number, minPrice: number | null): Meta {
+  const gin = geoIn(lang, g);
+  const nw = pluralL(lang, n, PROJECT_WORDS[lang]);
+  const min = moneyL(lang, minPrice);
+  const M: Record<Lang, Meta> = {
+    ru: { title: fit(`Проекты Stay ${gin} — новостройки компании с гарантией`, `Проекты Stay ${gin} — новостройки с гарантией`, `Проекты Stay ${gin}`), h1: `Проекты Stay ${gin}`, description: desc(`${n} ${nw} Stay ${gin}${min ? `, квартиры от ${min}` : ''}. Покупка напрямую у компании, без посредников.`, 'Гарантия Stay на сроки и качество, сопровождение сделки и после покупки.'), lead: `${n} ${nw} компании Stay ${gin}${min ? `, квартиры от ${min}` : ''}. Это наши собственные проекты, поэтому мы сами отвечаем за них и даём гарантию.` },
+    en: { title: fit(`Stay projects ${gin} — company-backed new developments`, `Stay projects ${gin} — with a guarantee`, `Stay projects ${gin}`), h1: `Stay projects ${gin}`, description: desc(`${n} Stay ${nw} ${gin}${min ? `, apartments from ${min}` : ''}. Buy directly from the company, with no intermediaries.`, 'Stay guarantee on timing and quality, support during and after the purchase.'), lead: `${n} Stay ${nw} ${gin}${min ? `, apartments from ${min}` : ''}. These are our own projects, so we take responsibility for them and back them with our guarantee.` },
+    tr: { title: fit(`${cap(gin)} Stay projeleri — garantili yeni konutlar`, `${cap(gin)} Stay projeleri`), h1: cap(`${gin} Stay projeleri`), description: desc(`${cap(gin)} Stay'in ${n} ${nw}${min ? `, daireler ${min}'dan başlıyor` : ''}. Aracısız, doğrudan şirketten satın alın.`, 'Süre ve kalite için Stay garantisi, satış öncesi ve sonrası destek.'), lead: `${cap(gin)} Stay'in ${n} ${nw}${min ? `, daireler ${min}'dan başlıyor` : ''}. Bunlar kendi projelerimiz; sorumluluğu biz alıyor ve garanti veriyoruz.` },
+    de: { title: fit(`Stay-Projekte ${gin} — Neubau mit Garantie des Unternehmens`, `Stay-Projekte ${gin} — mit Garantie`, `Stay-Projekte ${gin}`), h1: `Stay-Projekte ${gin}`, description: desc(`${n} ${nw} von Stay ${gin}${min ? `, Wohnungen ab ${min}` : ''}. Kauf direkt beim Unternehmen, ohne Vermittler.`, 'Stay-Garantie auf Termine und Qualität, Begleitung beim Kauf und danach.'), lead: `${n} ${nw} von Stay ${gin}${min ? `, Wohnungen ab ${min}` : ''}. Es sind unsere eigenen Projekte: Wir tragen selbst die Verantwortung und geben eine Garantie.` },
+    sr: { title: fit(`Stay projekti ${gin} — novogradnja sa garancijom kompanije`, `Stay projekti ${gin} — sa garancijom`, `Stay projekti ${gin}`), h1: `Stay projekti ${gin}`, description: desc(`${n} ${nw} kompanije Stay ${gin}${min ? `, stanovi od ${min}` : ''}. Kupovina direktno od kompanije, bez posrednika.`, 'Stay garancija na rokove i kvalitet, podrška pri kupovini i posle nje.'), lead: `${n} ${nw} kompanije Stay ${gin}${min ? `, stanovi od ${min}` : ''}. Ovo su naši sopstveni projekti: sami odgovaramo za njih i dajemo garanciju.` },
+  };
+  return M[lang];
+}
 
 export function complexesMeta(lang: Lang, g: Geo, n: number, minPrice: number | null, page = 1): Meta {
   const gin = geoIn(lang, g);

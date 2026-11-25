@@ -1,0 +1,53 @@
+---
+/** «Почему проекты Stay»: на странице STAY PROJECTS — это собственные проекты компании (гарантия, без посредников, документы, сопровождение). */
+import Icon from './Icon.astro';
+import type { Lang } from '../i18n/config';
+const lang = (Astro.locals.lang ?? 'ru') as Lang;
+// Блок «Почему проекты Stay»: это собственные проекты компании — гарантия, цены без посредников, документы, сопровождение.
+const WHY: Record<string, { title: string; items: { icon: string; t: string; d: string }[] }> = {
+  ru: { title: 'Почему проекты Stay', items: [
+    { icon: 'check', t: 'Гарантия компании', d: 'Это наши собственные проекты, поэтому мы сами отвечаем за сроки сдачи и качество строительства и даём на них гарантию.' },
+    { icon: 'tag', t: 'Цены без посредников', d: 'Вы покупаете напрямую у компании: без агентских комиссий и наценок, с честной рассрочкой.' },
+    { icon: 'building', t: 'Проверенные документы', d: 'Разрешения на строительство, земля и документы по каждому проекту в порядке. Юристы Stay проводят сделку и оформление тапу.' },
+    { icon: 'user', t: 'С вами и после покупки', d: 'Помогаем с ВНЖ, ремонтом и меблировкой, управлением и сдачей квартиры в аренду.' },
+  ] },
+  en: { title: 'Why Stay projects', items: [
+    { icon: 'check', t: 'Company guarantee', d: 'These are our own projects, so we are responsible for completion dates and build quality ourselves and guarantee them.' },
+    { icon: 'tag', t: 'No intermediaries', d: 'You buy directly from the company: no agency fees or mark-ups, with fair installment plans.' },
+    { icon: 'building', t: 'Verified documents', d: 'Building permits, land and paperwork for every project are in order. Stay lawyers handle the deal and the title deed.' },
+    { icon: 'user', t: 'With you after the purchase', d: 'We help with residence permits, renovation and furnishing, property management and renting out.' },
+  ] },
+  tr: { title: 'Neden Stay projeleri', items: [
+    { icon: 'check', t: 'Şirket garantisi', d: 'Bunlar kendi projelerimiz; teslim süreleri ve inşaat kalitesinden biz sorumluyuz ve garanti veriyoruz.' },
+    { icon: 'tag', t: 'Aracısız fiyatlar', d: 'Doğrudan şirketten satın alırsınız: komisyon ve ek ücret yok, adil taksit seçenekleri.' },
+    { icon: 'building', t: 'Kontrol edilmiş belgeler', d: 'Her projenin inşaat izinleri, arsası ve belgeleri hazır. Satışı ve tapu işlemlerini Stay avukatları yürütür.' },
+    { icon: 'user', t: 'Satıştan sonra da yanınızdayız', d: 'İkamet izni, tadilat ve mobilya, mülk yönetimi ve kiralama konusunda yardımcı oluruz.' },
+  ] },
+  de: { title: 'Warum Stay-Projekte', items: [
+    { icon: 'check', t: 'Garantie des Unternehmens', d: 'Es sind unsere eigenen Projekte: Für Fertigstellungstermine und Bauqualität stehen wir selbst ein und geben eine Garantie.' },
+    { icon: 'tag', t: 'Ohne Vermittler', d: 'Sie kaufen direkt beim Unternehmen: ohne Maklerprovision und Aufschläge, mit fairer Ratenzahlung.' },
+    { icon: 'building', t: 'Geprüfte Dokumente', d: 'Baugenehmigungen, Grundstück und Unterlagen jedes Projekts sind in Ordnung. Stay-Juristen begleiten Kauf und Grundbucheintrag.' },
+    { icon: 'user', t: 'Auch nach dem Kauf', d: 'Wir helfen bei Aufenthaltserlaubnis, Renovierung und Möblierung, Verwaltung und Vermietung.' },
+  ] },
+  sr: { title: 'Zašto Stay projekti', items: [
+    { icon: 'check', t: 'Garancija kompanije', d: 'Ovo su naši sopstveni projekti, pa sami odgovaramo za rokove i kvalitet gradnje i dajemo garanciju.' },
+    { icon: 'tag', t: 'Bez posrednika', d: 'Kupujete direktno od kompanije: bez agencijske provizije i marži, uz poštene rate.' },
+    { icon: 'building', t: 'Provereni dokumenti', d: 'Građevinske dozvole, zemljište i dokumentacija svakog projekta su u redu. Pravnici Stay vode kupovinu i upis vlasništva.' },
+    { icon: 'user', t: 'Uz vas i posle kupovine', d: 'Pomažemo oko boravišne dozvole, renoviranja i opremanja, upravljanja i izdavanja.' },
+  ] },
+};
+const why = WHY[lang] ?? WHY.ru;
+
+---
+<section class="container-x mt-16 lg:mt-24">
+  <h2 class="display text-[clamp(26px,3vw,40px)]">{why.title}</h2>
+  <ul class="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {why.items.map((w) => (
+      <li class="card p-6">
+        <span class="grid size-11 place-items-center rounded-full bg-lavender-2 text-accent"><Icon name={w.icon} class="size-5" /></span>
+        <p class="mt-5 text-[18px] font-medium leading-snug">{w.t}</p>
+        <p class="mt-2 text-[15px] leading-relaxed text-ink/70">{w.d}</p>
+      </li>
+    ))}
+  </ul>
+</section>

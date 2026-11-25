@@ -19,12 +19,12 @@ import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import {
   catUrl, itemUrl, itemsOf, filtered, parseFilters, hasFilters, noFilters, stats, INDEX_MIN, PER_PAGE, SORTS,
-  featureCounts, typeCounts, childGeo, neighbours, countOf, getOurComplexes, matchComplex, type Cat, type Item,
+  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, type Cat, type Item,
 } from '../lib/catalog';
 import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
 import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '../lib/seo';
 import { DEAL_WORDS, FEATURE_LABEL, TYPE_WORDS, featureDef, featureAllowed, type Deal } from '../lib/segments';
-import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
+import { catCrumbs, SERVICE_TITLES, footerColumns } from '../lib/nav';
 import { itemListLd } from '../lib/ld';
 import { moneyL, numL, dateL } from '../lib/format';
 import { allLangs, type Robots } from '../lib/page';
@@ -79,8 +79,9 @@ if (!hub && n === 0) {
 
 // Дочерние гео: города страны или районы города.
 const children = !cat.district ? (await childGeo(cat)).slice(0, hub ? 12 : 24) : [];
-const childCat = (slug: string): Cat => (cat.city ? { ...cat, district: slug } : { country: cat.country, city: slug, deal: cat.deal, type: cat.type, feature: cat.feature });
-const childName = (slug: string) => (cat.city ? districtBySlug(cat.city, slug)?.name[lang] : cityBySlug(slug)?.name[lang]) ?? slug;
+const world = !cat.country;
+const childCat = (slug: string): Cat => (world ? { country: slug, deal: cat.deal, type: cat.type, feature: cat.feature } : cat.city ? { ...cat, district: slug } : { country: cat.country, city: slug, deal: cat.deal, type: cat.type, feature: cat.feature });
+const childName = (slug: string) => (world ? countryBySlug(slug)?.name[lang] : cat.city ? districtBySlug(cat.city, slug)?.name[lang] : cityBySlug(slug)?.name[lang]) ?? slug;
 const childLinks = hub ? [] : (await Promise.all(children.map(async (ch) => {
   const cc = childCat(ch.slug);
   const k = await countOf({ ...cc, deal });
@@ -120,7 +121,7 @@ const popular = (await featureCounts({ country: cat.country, city: cat.city, dis
 const priceRows = (await Promise.all(types.map(async ([ty]) => ({ ty, s: stats(await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal, type: ty })) })))).filter((r) => r.s.n > 0);
 
 // Комплексы гео (для хаба и для текста).
-const complexes = (await getOurComplexes()).filter((x) => matchComplex(x, cat));
+const complexes = (await getComplexes()).filter((x) => matchComplex(x, cat));
 const cxMeta = complexes.length ? complexesMeta(lang, g, complexes.length, Math.min(...complexes.map((x) => x.priceFrom ?? Infinity).filter(Number.isFinite)) || null) : null;
 
 // SEO-текст, FAQ — только на первой странице.
@@ -150,6 +151,13 @@ const lead = hub
     ? meta.lead
     : `${c.empty}. ${c.alternatives}.`;
 const updated = dateL(lang, new Date());
+// Блок «Выбрать недвижимость» для страницы всех стран.
+const COUNTRIES_T = { ru: 'Страны', en: 'Countries', tr: 'Ülkeler', de: 'Länder', sr: 'Zemlje' };
+const CHOOSE_T = { ru: 'Выбрать недвижимость', en: 'Choose a property', tr: 'Gayrimenkul seçin', de: 'Immobilie wählen', sr: 'Izaberite nekretninu' };
+const POPULAR_T = { ru: 'Популярные запросы', en: 'Popular searches', tr: 'Popüler aramalar', de: 'Beliebte Suchen', sr: 'Popularne pretrage' };
+const chooserType = cat.type && ['apartments', 'villas', 'duplexes'].includes(cat.type) ? cat.type : 'apartments';
+const chooserTotal = world && !hub ? (await filtered({ ...listCat, type: chooserType }, f)).length : 0;
+const landings = world && !hub ? (await footerColumns(lang)).landings : [];
 const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(async (dl) => ({ dl, k: (await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal: dl })).length })))).filter((x) => x.k > 0) : [];
 ---
 <Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={ld} system="new">
@@ -185,9 +193,18 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
     )}
 
     {!hub && (
-      <div class="mt-6 lg:mt-8"><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
+      <div class:list={['mt-6 lg:mt-8', world && 'lg:hidden']}><CatalogFilter cat={listCat} f={f} total={list.length} types={types.map(([ty]) => ty)} /></div>
     )}
   </div></section>
+
+  <!-- Все страны (Stay Property): на компьютере сверху блок «Выбрать недвижимость» как на главной (Anuar 25.11.2026). -->
+  {world && !hub && (
+    <section class="container-n mt-12 hidden lg:block lg:mt-16">
+      <h2 class="display h-section mb-6">{CHOOSE_T[lang]}</h2>
+      <CatalogFilter cat={{ ...listCat, type: chooserType }} f={f} total={chooserTotal} mode="home" preset />
+      <LinkCloud title={POPULAR_T[lang]} links={landings} />
+    </section>
+  )}
 
   <section class="mt-12 lg:mt-16">
     <div class="container-n transition-opacity" data-swap="results">
@@ -239,7 +256,7 @@ const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(asyn
   <section class="container-n mt-6">
     {refine.length > 0 && <LinkCloud title={c.refine} links={refine} />}
     {!cat.type && typeLinks.length > 1 && <LinkCloud title={c.refine} links={typeLinks} />}
-    {childLinks.length > 0 && <LinkCloud title={cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))} links={childLinks} />}
+    {childLinks.length > 0 && <LinkCloud title={world ? COUNTRIES_T[lang] : cat.city ? c.districts(geoName(lang, g), cityBySlug(cat.city)!.gen) : c.cities(geoIn(lang, g))} links={childLinks} />}
   </section>
 
   {text && (

@@ -22,9 +22,9 @@ export function buildUrl(form: HTMLFormElement): string {
   const val = (k: string) => String(fd.get(k) ?? '').trim();
   const lang = form.dataset.lang || 'ru';
   const city = val('city');
-  // Страна «Все»: берём страну выбранного города, иначе Турцию.
+  // Страна «Все»: берём страну выбранного города, иначе — все страны (/{lang}/sale/). PRIVE — Турция.
   const cityCountry = city ? form.querySelector<HTMLOptionElement>(`[data-city] option[value="${CSS.escape(city)}"]`)?.dataset.country : '';
-  const country = val('country') || cityCountry || 'turkey';
+  const country = val('country') || cityCountry || (form.dataset.mode === 'prive' ? 'turkey' : '');
   const district = city ? val('district') : '';
   const deal = val('deal') || 'sale';
   const type = val('type');
@@ -218,10 +218,11 @@ export function initFilters() {
     });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      // Страница PRIVE: выдача лотов на ней же, ниже проектов.
+      // Страницы PRIVE и STAY PROJECTS: выдача лотов на ней же, ниже проектов.
       if (form.dataset.mode === 'prive') {
         const sp = new URL(buildUrl(form), location.origin).searchParams;
         sp.delete('prive');
+        sp.delete('own');
         const q = sp.toString();
         location.href = `${location.pathname}${q ? `?${q}` : ''}#lots`;
         return;

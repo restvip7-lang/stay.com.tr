@@ -172,7 +172,7 @@ export interface Cat {
 }
 
 export function matchCat(x: Item, c: Cat): boolean {
-  if (x.country !== c.country) return false;
+  if (c.country && x.country !== c.country) return false;
   if (c.city && x.city !== c.city) return false;
   if (c.district && x.district !== c.district) return false;
   if (c.deal && x.deal !== c.deal) return false;
@@ -365,10 +365,12 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
     if (page < 1) return null;
     s.pop();
   }
-  const country = countryBySlug(s.shift() ?? '');
-  if (!country) return null;
-  const cat: Cat = { country: country.slug };
-  if (s[0] && cityBySlug(s[0])?.country === country.slug) {
+  // /{lang}/sale/… и /{lang}/rent/… — все страны (Stay Property), страна не указана.
+  const world = s[0] === 'sale' || s[0] === 'rent';
+  const country = world ? null : countryBySlug(s.shift() ?? '');
+  if (!world && !country) return null;
+  const cat: Cat = { country: country?.slug ?? '' };
+  if (country && s[0] && cityBySlug(s[0])?.country === country.slug) {
     cat.city = s.shift()!;
     if (s[0] && s[0] !== 'sale' && s[0] !== 'rent') {
       if (!districtBySlug(cat.city, s[0])) return null;
@@ -382,7 +384,7 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
   if (!s.length) return { kind: 'listing', cat: cat as Cat & { deal: Deal }, page };
   const seg = s.shift()!;
   if (seg === 'complexes') {
-    if (deal !== 'sale') return null;
+    if (deal !== 'sale' || world) return null;
     delete cat.deal;
     if (!s.length) return { kind: 'complexes', cat, page };
     if (!pm && s.length === 2 && s[1] === 'picker') return { kind: 'picker', cat, slug: s[0] };
@@ -391,7 +393,7 @@ export async function parseRoute(segs: string[]): Promise<Route | null> {
   }
   const idm = seg.match(/^id(u?\d+)$/);
   if (idm) {
-    if (pm || s.length) return null;
+    if (pm || s.length || world) return null;
     return { kind: 'item', cat: cat as Cat & { deal: Deal }, id: idm[1] };
   }
   if (!(TYPES as string[]).includes(seg)) return null;
@@ -409,12 +411,14 @@ export async function childGeo(c: Cat) {
   const all = await getItems();
   const counts = new Map<string, number>();
   for (const x of all) {
+    // Все страны: дочерние — страны.
+    if (!c.country) { counts.set(x.country, (counts.get(x.country) ?? 0) + 1); continue; }
     if (x.country !== c.country) continue;
     if (!c.city) counts.set(x.city, (counts.get(x.city) ?? 0) + 1);
     else if (x.city === c.city && x.district) counts.set(x.district, (counts.get(x.district) ?? 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([slug, n]) => {
-    const sample = all.find((x) => (c.city ? x.city === c.city && x.district === slug : x.city === slug) && x.image);
+    const sample = all.find((x) => (!c.country ? x.country === slug : c.city ? x.city === c.city && x.district === slug : x.city === slug) && x.image);
     return { slug, n, image: sample?.image ?? null };
   });
 }

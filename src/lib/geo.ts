@@ -32,6 +32,9 @@ export function trIn(name: string): string {
 
 const l = (ru: string, en: string, tr: string, de: string, sr: string): L => ({ ru, en, tr, de, sr });
 
+/** «Все страны» — общая продажа/аренда Stay Property без страны в адресе (/ru/sale/), Anuar 25.11.2026. */
+export const WORLD: GeoCountry = { slug: '', code: '', name: l('Все страны', 'All countries', 'Tüm ülkeler', 'Alle Länder', 'Sve zemlje'), in: l('за рубежом', 'abroad', 'yurt dışında', 'im Ausland', 'u inostranstvu') };
+
 export const COUNTRIES: GeoCountry[] = [
   { slug: 'turkey', code: 'TR', name: l('Турция', 'Turkey', 'Türkiye', 'Türkei', 'Turska'), in: l('в Турции', 'in Turkey', "Türkiye'de", 'in der Türkei', 'u Turskoj') },
   { slug: 'northern-cyprus', code: 'CY', name: l('Северный Кипр', 'Northern Cyprus', 'Kuzey Kıbrıs', 'Nordzypern', 'Severni Kipar'), in: l('на Северном Кипре', 'in Northern Cyprus', "Kuzey Kıbrıs'ta", 'in Nordzypern', 'na Severnom Kipru') },
