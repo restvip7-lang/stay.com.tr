@@ -14,7 +14,7 @@ const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as 
 import { numL, pluralL } from '../lib/format';
 
 interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges; preset?: boolean; /** Режим prive (маленький фильтр): какие лоты считать — PRIVE, «Объекты Stay» (STAY PROJECTS) или квартиры в новостройках гео (страница «Новостройки»). */ lots?: 'prive' | 'own' | 'new';
-  /** Маленький фильтр: сколько лотов каждого типа — в заголовке «Выбрать квартиру ˅» показываем типы, где есть лоты. */ typeCounts?: Partial<Record<'apartments' | 'penthouses' | 'duplexes', number>> }
+  /** Маленький фильтр: сколько лотов каждого типа — в заголовке «Выбрать квартиру ˅» показываем типы, где есть лоты. */ typeCounts?: Partial<Record<string, number>> }
 const { cat, f, total, mode = 'catalog', ranges, preset = false, lots = 'prive', typeCounts = {} } = Astro.props;
 // preset: блок «как на главной» на странице всех стран — поля заполнены текущим фильтром (на самой главной — пустые).
 const lang = Astro.locals.lang ?? 'ru';
@@ -49,16 +49,16 @@ const priceTo = f.priceTo ?? pathPriceTo;
 const homeTypes = (['apartments', 'villas', 'duplexes'] as const).filter((x) => types.includes(x));
 const homeType = (cat.type && (homeTypes as readonly string[]).includes(cat.type) ? cat.type : 'apartments') as (typeof homeTypes)[number];
 const nouns = Object.fromEntries(homeTypes.map((x) => [x, TYPE_WORDS[lang][x].n])) as Record<string, [string, string, string]>;
-// Маленький фильтр: «Выбрать квартиру ˅» — выбор типа (квартира, пентхаус, дуплекс), как у образца (квартиру / кладовую).
+// Маленький фильтр: «Выбрать квартиру ˅» — выбор типа (квартира, пентхаус, дуплекс, вилла, таунхаус — только те, где есть лоты), как у образца (квартиру / кладовую).
 const CHOOSE: Record<string, { pre: string; post: string; w: Record<string, string> }> = {
-  ru: { pre: 'Выбрать', post: '', w: { apartments: 'квартиру', penthouses: 'пентхаус', duplexes: 'дуплекс' } },
-  en: { pre: 'Choose', post: '', w: { apartments: 'an apartment', penthouses: 'a penthouse', duplexes: 'a duplex' } },
-  tr: { pre: '', post: 'seçin', w: { apartments: 'Daire', penthouses: 'Penthouse', duplexes: 'Dubleks' } },
-  de: { pre: '', post: 'wählen', w: { apartments: 'Wohnung', penthouses: 'Penthouse', duplexes: 'Duplex' } },
-  sr: { pre: 'Izaberite', post: '', w: { apartments: 'stan', penthouses: 'penthaus', duplexes: 'dupleks' } },
+  ru: { pre: 'Выбрать', post: '', w: { apartments: 'квартиру', penthouses: 'пентхаус', duplexes: 'дуплекс', villas: 'виллу', townhouses: 'таунхаус' } },
+  en: { pre: 'Choose', post: '', w: { apartments: 'an apartment', penthouses: 'a penthouse', duplexes: 'a duplex', villas: 'a villa', townhouses: 'a townhouse' } },
+  tr: { pre: '', post: 'seçin', w: { apartments: 'Daire', penthouses: 'Penthouse', duplexes: 'Dubleks', villas: 'Villa', townhouses: 'Sıra ev' } },
+  de: { pre: '', post: 'wählen', w: { apartments: 'Wohnung', penthouses: 'Penthouse', duplexes: 'Duplex', villas: 'Villa', townhouses: 'Reihenhaus' } },
+  sr: { pre: 'Izaberite', post: '', w: { apartments: 'stan', penthouses: 'penthaus', duplexes: 'dupleks', villas: 'vilu', townhouses: 'kuću u nizu' } },
 };
 const ch = CHOOSE[lang] ?? CHOOSE.ru;
-const lotTypes = (['apartments', 'penthouses', 'duplexes'] as const).filter((x) => x === 'apartments' || (typeCounts[x] ?? 0) > 0);
+const lotTypes = (['apartments', 'penthouses', 'duplexes', 'villas', 'townhouses'] as const).filter((x) => x === 'apartments' || (typeCounts[x] ?? 0) > 0);
 const lotType = (lotTypes as readonly string[]).includes(cat.type ?? '') ? cat.type! : 'apartments';
 const lotNouns = Object.fromEntries(lotTypes.map((x) => [x, TYPE_WORDS[lang][x].n])) as Record<string, [string, string, string]>;
 const allW = ({ ru: 'Все', en: 'All', tr: 'Tümü', de: 'Alle', sr: 'Sve' } as Record<string, string>)[lang] ?? 'Все';

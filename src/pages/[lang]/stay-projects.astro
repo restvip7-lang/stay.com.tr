@@ -39,14 +39,15 @@ const sp = new URLSearchParams();
 for (const k of ['price_from', 'price_to', 'rooms', 'area_from', 'area_to']) for (const v of Astro.url.searchParams.getAll(k)) sp.append(k, v);
 // Тип лота из заголовка «Выбрать квартиру ˅»: квартира (по умолчанию), пентхаус, дуплекс.
 const qType = Astro.url.searchParams.get('type');
-const lotType = qType === 'penthouses' || qType === 'duplexes' ? qType : 'apartments';
+const lotType = (['penthouses', 'duplexes', 'villas', 'townhouses'] as const).find((x) => x === qType) ?? 'apartments';
 if (lotType !== 'apartments') sp.set('type', lotType);
 const query = sp.toString();
 sp.delete('type');
 sp.set('own', '1');
 const f = parseFilters(sp);
 const all = await filtered(turkeySale, { ...noFilters(), own: true });
-const typeCounts = { apartments: all.filter((x) => x.type === 'apartments').length, penthouses: all.filter((x) => x.type === 'penthouses').length, duplexes: all.filter((x) => x.type === 'duplexes').length };
+const typeCounts: Record<string, number> = {};
+for (const x of all) typeCounts[x.type] = (typeCounts[x.type] ?? 0) + 1;
 const lotCat = { ...turkeySale, type: lotType } as const;
 const lots = await filtered(lotCat, f);
 const total = lots.length;
