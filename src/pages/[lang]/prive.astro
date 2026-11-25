@@ -12,7 +12,7 @@ import { isLang } from '../../i18n/config';
 import { t } from '../../i18n/ui';
 import { getHomeSections } from '../../lib/api';
 import { getHomeConfig } from '../../lib/homeConfig';
-import { getComplexes, filtered, parseFilters, noFilters } from '../../lib/catalog';
+import { getComplexes, filtered, parseFilters, noFilters, rangesOf } from '../../lib/catalog';
 import { numL } from '../../lib/format';
 import { allLangs } from '../../lib/page';
 
@@ -36,11 +36,7 @@ const all = await filtered(turkeySale, { ...noFilters(), prive: true });
 const lots = query ? await filtered(turkeySale, f) : all;
 const total = lots.length;
 const SHOW = 12;
-const span = (v: (number | null)[], step: number): [number, number] => {
-  const n = v.filter((x): x is number => !!x);
-  return n.length ? [Math.floor(Math.min(...n) / step) * step, Math.ceil(Math.max(...n) / step) * step] : [0, step];
-};
-const ranges = { price: span(all.map((x) => x.price), 10000), area: span(all.map((x) => x.area), 10) };
+const ranges = rangesOf(all);
 const catalogHref = `/${lang}/turkey/sale/?${sp}`;
 const T = {
   ru: { title: 'PRIVE — закрытые проекты Stay Property', h1: 'PRIVE: закрытые проекты Stay Property', lead: 'Специальные условия и лоты, которых нет в открытой продаже.', choose: ['Выбрать', 'квартиру'], lots: 'Лоты PRIVE', all: 'Все лоты PRIVE в каталоге', none: 'По этим параметрам лотов нет — измените фильтр.' },

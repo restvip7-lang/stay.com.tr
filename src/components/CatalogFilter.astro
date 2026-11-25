@@ -8,25 +8,27 @@
 import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import { INTL } from '../i18n/config';
-import { geoOptions, allowedFeatureMap, type Cat, type Filters } from '../lib/catalog';
+import { geoOptions, allowedFeatureMap, itemsOf, rangesOf, type Cat, type Filters, type Ranges } from '../lib/catalog';
 import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type FeatureSlug } from '../lib/segments';
 const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
 import { numL, pluralL } from '../lib/format';
 
-interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: { price: [number, number]; area: [number, number] } }
+interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges }
 const { cat, f, total, mode = 'catalog', ranges } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const tf = d.filter;
 const opts = await geoOptions(cat.deal);
 const types = Astro.props.types ?? TYPES;
-const priceMin = Math.max(0, Math.floor(opts.priceMin / 1000) * 1000);
-const priceMax = Math.ceil(opts.priceMax / (cat.deal === 'rent' ? 1000 : 100000)) * (cat.deal === 'rent' ? 1000 : 100000);
-const step = cat.deal === 'rent' ? 50 : 1000;
-const seaMin = 1;
-const seaMax = 1000;
 const catalog = mode === 'catalog';
 const prive = mode === 'prive';
+// Каталог: точные минимум и максимум по объектам раздела (без учёта выбранных фильтров). Главная — как раньше, по всей базе сделки.
+const rg = catalog ? rangesOf(await itemsOf({ ...cat, feature: undefined })) : null;
+const priceMin = rg ? rg.price[0] : Math.max(0, Math.floor(opts.priceMin / 1000) * 1000);
+const priceMax = rg ? rg.price[1] : Math.ceil(opts.priceMax / (cat.deal === 'rent' ? 1000 : 100000)) * (cat.deal === 'rent' ? 1000 : 100000);
+const step = rg ? 1 : cat.deal === 'rent' ? 50 : 1000;
+const [areaMin, areaMax] = rg ? rg.area : [10, 800];
+const [seaMin, seaMax] = rg ? rg.sea : [1, 1000];
 // Страница PRIVE: границы ползунков по самим PRIVE-лотам.
 const pPrice = ranges?.price ?? [priceMin, priceMax];
 const pArea = ranges?.area ?? [20, 500];
@@ -74,15 +76,15 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
       <input type="hidden" name="deal" value="sale" />
       <input type="hidden" name="prive" value="1" />
       <div class="grid items-start gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto]">
-        <fieldset class="range" data-range data-min={pPrice[0]} data-max={pPrice[1]} data-step="1000" aria-labelledby="p-price-l">
+        <fieldset class="range min-w-0" data-range data-min={pPrice[0]} data-max={pPrice[1]} data-step="1" aria-labelledby="p-price-l">
           <span class="hlabel" id="p-price-l">{tf.price}</span>
-          <div class="hsplit">
-            <input name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, pPrice[0])}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
-            <input name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, pPrice[1])}`} value={f.priceTo ? numL(lang, f.priceTo) : ''} data-hi aria-label={tf.priceTo} />
+          <div class="hsplit hsplit-v">
+            <label><span>{tf.fromW}</span><input name="price_from" inputmode="numeric" placeholder={`${numL(lang, pPrice[0])}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} /></label>
+            <label><span>{tf.toW}</span><input name="price_to" inputmode="numeric" placeholder={`${numL(lang, pPrice[1])}`} value={f.priceTo ? numL(lang, f.priceTo) : ''} data-hi aria-label={tf.priceTo} /></label>
           </div>
           <div class="dual dual-home -mt-[9px] px-4" aria-hidden="true">
-            <input type="range" min={pPrice[0]} max={pPrice[1]} step="1000" value={f.priceFrom ?? pPrice[0]} data-slo tabindex="-1" />
-            <input type="range" min={pPrice[0]} max={pPrice[1]} step="1000" value={f.priceTo ?? pPrice[1]} data-shi tabindex="-1" />
+            <input type="range" min={pPrice[0]} max={pPrice[1]} step="1" value={f.priceFrom ?? pPrice[0]} data-slo tabindex="-1" />
+            <input type="range" min={pPrice[0]} max={pPrice[1]} step="1" value={f.priceTo ?? pPrice[1]} data-shi tabindex="-1" />
           </div>
         </fieldset>
         <fieldset>
@@ -96,11 +98,11 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
             ))}
           </div>
         </fieldset>
-        <fieldset class="range" data-range data-min={pArea[0]} data-max={pArea[1]} data-step="1" aria-labelledby="p-area-l">
+        <fieldset class="range min-w-0" data-range data-min={pArea[0]} data-max={pArea[1]} data-step="1" aria-labelledby="p-area-l">
           <span class="hlabel" id="p-area-l">{d.item.area}, {d.m2}</span>
-          <div class="hsplit">
-            <input name="area_from" inputmode="numeric" placeholder={`${tf.fromW} ${pArea[0]}`} value={f.areaFrom ?? ''} data-lo aria-label={`${d.item.area} ${tf.fromW}`} />
-            <input name="area_to" inputmode="numeric" placeholder={`${tf.toW} ${pArea[1]}`} value={f.areaTo ?? ''} data-hi aria-label={`${d.item.area} ${tf.toW}`} />
+          <div class="hsplit hsplit-v">
+            <label><span>{tf.fromW}</span><input name="area_from" inputmode="numeric" placeholder={`${pArea[0]}`} value={f.areaFrom ?? ''} data-lo aria-label={`${d.item.area} ${tf.fromW}`} /></label>
+            <label><span>{tf.toW}</span><input name="area_to" inputmode="numeric" placeholder={`${pArea[1]}`} value={f.areaTo ?? ''} data-hi aria-label={`${d.item.area} ${tf.toW}`} /></label>
           </div>
           <div class="dual dual-home -mt-[9px] px-4" aria-hidden="true">
             <input type="range" min={pArea[0]} max={pArea[1]} step="1" value={f.areaFrom ?? pArea[0]} data-slo tabindex="-1" />
@@ -201,34 +203,34 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
             <fieldset class="range min-w-0" data-range data-min={priceMin} data-max={priceMax} data-step={step}>
               <legend class="adv-h4">{tf.price}</legend>
               <div class="grid gap-2 sm:grid-cols-2">
-                <input class="field" name="price_from" inputmode="numeric" placeholder={`${tf.fromW} ${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} />
-                <input class="field" name="price_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} />
+                <label class="field fld"><span>{tf.fromW}</span><input name="price_from" inputmode="numeric" placeholder={`${numL(lang, priceMin)}`} value={f.priceFrom ? numL(lang, f.priceFrom) : ''} data-lo aria-label={tf.priceFrom} /></label>
+                <label class="field fld"><span>{tf.toW}</span><input name="price_to" inputmode="numeric" placeholder={`${numL(lang, priceMax)}`} value={priceTo ? numL(lang, priceTo) : ''} data-hi aria-label={tf.priceTo} /></label>
               </div>
               <div class="dual mt-4 hidden lg:block" aria-hidden="true">
                 <input type="range" min={priceMin} max={priceMax} step={step} value={f.priceFrom ?? priceMin} data-slo tabindex="-1" />
                 <input type="range" min={priceMin} max={priceMax} step={step} value={priceTo ?? priceMax} data-shi tabindex="-1" />
               </div>
             </fieldset>
-            <fieldset class="range min-w-0" data-range data-min="10" data-max="800" data-step="5">
+            <fieldset class="range min-w-0" data-range data-min={areaMin} data-max={areaMax} data-step="1">
               <legend class="adv-h4">{A.area}, {d.m2}</legend>
               <div class="grid gap-2 sm:grid-cols-2">
-                <input class="field" name="area_from" inputmode="numeric" placeholder={`${tf.fromW} 10`} value={f.areaFrom ?? ''} data-lo aria-label={`${A.area} ${tf.fromW}`} />
-                <input class="field" name="area_to" inputmode="numeric" placeholder={`${tf.toW} 800`} value={f.areaTo ?? ''} data-hi aria-label={`${A.area} ${tf.toW}`} />
+                <label class="field fld"><span>{tf.fromW}</span><input name="area_from" inputmode="numeric" placeholder={`${numL(lang, areaMin)}`} value={f.areaFrom ?? ''} data-lo aria-label={`${A.area} ${tf.fromW}`} /></label>
+                <label class="field fld"><span>{tf.toW}</span><input name="area_to" inputmode="numeric" placeholder={`${numL(lang, areaMax)}`} value={f.areaTo ?? ''} data-hi aria-label={`${A.area} ${tf.toW}`} /></label>
               </div>
               <div class="dual mt-4 hidden lg:block" aria-hidden="true">
-                <input type="range" min="10" max="800" step="5" value={f.areaFrom ?? 10} data-slo tabindex="-1" />
-                <input type="range" min="10" max="800" step="5" value={f.areaTo ?? 800} data-shi tabindex="-1" />
+                <input type="range" min={areaMin} max={areaMax} step="1" value={f.areaFrom ?? areaMin} data-slo tabindex="-1" />
+                <input type="range" min={areaMin} max={areaMax} step="1" value={f.areaTo ?? areaMax} data-shi tabindex="-1" />
               </div>
             </fieldset>
-            <fieldset class="range min-w-0" data-range data-min={seaMin} data-max={seaMax} data-step="10">
+            <fieldset class="range min-w-0" data-range data-min={seaMin} data-max={seaMax} data-step="1">
               <legend class="adv-h4">{tf.sea}</legend>
               <div class="grid gap-2 sm:grid-cols-2">
-                <input class="field" name="sea_from" inputmode="numeric" placeholder={`${tf.fromW} ${seaMin}`} value={f.seaFrom ?? ''} data-lo aria-label={tf.seaFrom} />
-                <input class="field" name="sea_to" inputmode="numeric" placeholder={`${tf.toW} ${numL(lang, seaMax)}`} value={f.seaTo ?? ''} data-hi aria-label={tf.seaTo} />
+                <label class="field fld"><span>{tf.fromW}</span><input name="sea_from" inputmode="numeric" placeholder={`${seaMin}`} value={f.seaFrom ?? ''} data-lo aria-label={tf.seaFrom} /></label>
+                <label class="field fld"><span>{tf.toW}</span><input name="sea_to" inputmode="numeric" placeholder={`${numL(lang, seaMax)}`} value={f.seaTo ?? ''} data-hi aria-label={tf.seaTo} /></label>
               </div>
               <div class="dual mt-4 hidden lg:block" aria-hidden="true">
-                <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaFrom ?? seaMin} data-slo tabindex="-1" />
-                <input type="range" min={seaMin} max={seaMax} step="10" value={f.seaTo ?? seaMax} data-shi tabindex="-1" />
+                <input type="range" min={seaMin} max={seaMax} step="1" value={f.seaFrom ?? seaMin} data-slo tabindex="-1" />
+                <input type="range" min={seaMin} max={seaMax} step="1" value={f.seaTo ?? seaMax} data-shi tabindex="-1" />
               </div>
             </fieldset>
           </div>
@@ -404,6 +406,15 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
   .hsplit input { width: 50%; min-width: 0; padding: 0 16px; background: transparent; outline: none; font-size: 14px; }
   .hsplit input + input { border-left: 1px solid var(--color-line); }
   .hsplit input::placeholder { color: var(--color-muted); text-transform: capitalize; }
+  /* Поля «от/до» как у образца: «от» серым, граница (минимум/максимум по объектам) — тёмным значением. */
+  .fld { display: flex; align-items: center; gap: 8px; cursor: text; }
+  .fld:focus-within { border-color: var(--color-ink); }
+  .fld > span, .hsplit-v span { flex: none; color: var(--color-muted); font-size: 15px; }
+  .fld input { flex: 1; width: 0; min-width: 0; height: 100%; background: transparent; outline: none; font-weight: 500; }
+  .fld input::placeholder, .hsplit-v input::placeholder { color: var(--color-ink); font-weight: 500; text-transform: none; }
+  .hsplit-v label { display: flex; align-items: center; gap: 6px; width: 50%; min-width: 0; padding-left: 16px; cursor: text; }
+  .hsplit-v label + label { border-left: 1px solid var(--color-line); }
+  .hsplit-v input { width: 0; min-width: 0; flex: 1; padding: 0 12px 0 0; font-weight: 500; }
   .dual { position: relative; height: 18px; }
   .dual-home::before { left: 16px; right: 16px; background: var(--color-ink); }
   .dual::before { content: ''; position: absolute; left: 0; right: 0; top: 8px; height: 2px; background: var(--color-line-2); border-radius: 2px; }

@@ -29,7 +29,8 @@ const perM2 = x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.roun
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };
 const H = headingLevel;
 const sold = x.label === 'sold';
-const own = !!x.own;
+// Фиолетовая карточка «Stay» — для наших объектов; у PRIVE-лотов остаётся золотое оформление PRIVE.
+const own = !!x.own && !x.isPrivate;
 // Бейджи на фото справа сверху: «Гражданство» и «ВНЖ» — только по ручным отметкам в админке (решение Anuar 25.11.2026: по цене не подходит).
 const citizenship = !sold && !!x.citMark;
 const residence = !sold && !!x.resMark;
