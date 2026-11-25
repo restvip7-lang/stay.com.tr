@@ -78,13 +78,15 @@ const from = (s: string) => d.from(s);
   </div>
 
   <!-- Шаг 1: генплан и корпуса. -->
-  <div class="pg-stage relative overflow-hidden rounded-[20px] bg-ink lg:rounded-[24px]" data-pg-plan>
-    <Img src={gpImage} alt={`${c.title} — ${L.title}`} class="aspect-[4/3] w-full md:aspect-[1384/700]" width={1600} height={810} />
-    {hasShapes && (
-      <svg class="absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        {blocks.filter((b) => b.shape).map((b) => <polygon class="pg-zone" points={polyPoints(b.shape!.points)} data-pg-zone={b.id} vector-effect="non-scaling-stroke" />)}
-      </svg>
-    )}
+  <div class:list={['pg-stage relative overflow-hidden rounded-[20px] bg-ink lg:rounded-[24px]', hasShapes && 'md:min-h-[460px]']} data-pg-plan>
+    {hasShapes ? (
+      <div class="relative mx-auto w-fit">
+        <Img src={gpImage} alt={`${c.title} — ${L.title}`} class="block h-auto max-h-[85vh] w-auto max-w-full" width={1600} height={810} sizes="100vw" />
+        <svg class="absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {blocks.filter((b) => b.shape).map((b) => <polygon class="pg-zone" points={polyPoints(b.shape!.points)} data-pg-zone={b.id} vector-effect="non-scaling-stroke" />)}
+        </svg>
+      </div>
+    ) : <Img src={gpImage} alt={`${c.title} — ${L.title}`} class="aspect-[4/3] w-full md:aspect-[1384/700]" width={1600} height={810} sizes="100vw" />}
     <ul class:list={['absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2 md:left-6 md:top-6', hasShapes && 'md:hidden']}>
       {blocks.map((b) => (
         <li><button type="button" class="pg-chip" data-pg-chip={b.id}>{b.name} <span class="text-soft">· {numL(lang, b.n)}</span></button></li>

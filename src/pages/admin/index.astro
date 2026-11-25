@@ -11,6 +11,7 @@ import { getSeoConfig } from '../../lib/seoConfig';
 import { categoryCounts } from '../../lib/sitemap';
 import { catUrl, INDEX_MIN } from '../../lib/catalog';
 import { getPartners, CATEGORIES, CATEGORY_LABEL } from '../../lib/sclub';
+import AdminPlans from '../../components/AdminPlans.astro';
 
 export const prerender = false;
 
@@ -310,6 +311,8 @@ if (authed) {
           </div>
         </section>
         </>)}
+
+        {can('home') && <AdminPlans />}
 
         {can('chat') && (<>
         <section class="card mt-6 p-6" id="chat">

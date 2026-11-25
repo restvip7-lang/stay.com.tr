@@ -97,5 +97,12 @@ export function floorPlanFor(p: ProjectPlans | null, block: string | null | unde
 /** Номер квартиры из названия лота («…, №3, Блок C, …» → «3»). */
 export const flatNo = (title: string) => title.match(/№\s*([0-9A-Za-z-]+)/)?.[1]?.toUpperCase() ?? null;
 
+/** Картинка плана через оптимизатор (пропорции сохраняются, поэтому контуры в процентах совпадают). */
+export function planSrc(src: string, w = 1920) {
+  if (!import.meta.env.PROD || !/^(https:\/\/|\/(media|hero)\/)/.test(src)) return src;
+  const base = import.meta.env.STAY_TARGET === 'node' ? '/img' : '/_vercel/image';
+  return `${base}?url=${encodeURIComponent(src)}&w=${w}&q=80`;
+}
+
 /** SVG-путь контура в процентах. */
 export const polyPoints = (points: Pt[]) => points.map(([x, y]) => `${x},${y}`).join(' ');

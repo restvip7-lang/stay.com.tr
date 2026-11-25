@@ -1,0 +1,295 @@
+---
+/**
+ * Админка → «Планы проектов» (только STAY PROJECTS). Цепочка как у образца: генплан → корпус → этаж → квартира.
+ * Всё рисуется кликами по картинке, координаты сохраняются в процентах (config/plans.json, src/lib/plans.ts).
+ * - Генплан: картинка и контур каждого корпуса (на странице ЖК наведение/клик по корпусу).
+ * - Этажность: сколько этажей в корпусе («этаж 3 из 5» и шахматка этажей).
+ * - Планы этажей: картинка плана для корпуса и этажей + контур каждой квартиры по номеру (вкладка «План этажа»).
+ * - Вид из окна: 2D-план участка + для каждой квартиры точка и направление окон (вкладка «Вид из окна»).
+ */
+import { getOurComplexes, getUnits, complexUrl } from '../lib/catalog';
+import { getPlans, flatNo } from '../lib/plans';
+
+const [ours, units, db] = await Promise.all([getOurComplexes(), getUnits(), getPlans()]);
+const projects = ours.map((c) => {
+  const flats = units.filter((u) => u.complex === c.code).map((u) => ({ b: u.block ?? '', no: flatNo(u.titleRu) ?? '', f: u.floor, r: u.rooms ?? '', id: u.id })).filter((u) => u.no);
+  return { code: c.code, title: c.title, url: complexUrl('ru', c), image: c.image, flats };
+}).sort((a, b) => b.flats.length - a.flats.length || a.title.localeCompare(b.title));
+const data = { projects, db };
+---
+<section class="card mt-6 p-6" id="plans">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h2 class="text-xl font-medium">Планы проектов (STAY PROJECTS)</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">Генплан с корпусами, этажность, планы этажей с квартирами и «Вид из окна». Картинка — ссылка https или путь к своему файлу (/media/…, /picker/…). Контуры рисуются кликами по картинке: каждый клик — угол контура, «Готово» — закончить. Номера квартир берутся из названий лотов («№6, Блок C»).</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span data-pl-status class="text-sm text-muted"></span>
+      <button data-pl-save class="btn btn-accent">Сохранить</button>
+    </div>
+  </div>
+  <div class="mt-5 flex flex-wrap items-center gap-3">
+    <select data-pl-project class="field max-w-[360px]"></select>
+    <a data-pl-open target="_blank" class="text-sm underline">Открыть страницу проекта</a>
+  </div>
+  <div class="mt-4 flex flex-wrap gap-2" data-pl-tabs>
+    <button type="button" data-t="genplan" class="pl-tab">Генплан</button>
+    <button type="button" data-t="floors" class="pl-tab">Этажность</button>
+    <button type="button" data-t="floorPlans" class="pl-tab">Планы этажей</button>
+    <button type="button" data-t="view" class="pl-tab">Вид из окна</button>
+  </div>
+  <div class="mt-5 grid gap-6 lg:grid-cols-[340px_1fr]">
+    <div data-pl-side class="grid content-start gap-3"></div>
+    <div>
+      <p data-pl-hint class="mb-2 text-sm text-muted"></p>
+      <div data-pl-stage class="relative inline-block max-w-full select-none"></div>
+    </div>
+  </div>
+</section>
+<script type="application/json" id="plans-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />
+<style is:global>
+  .pl-tab { border: 1px solid #d0d1d7; border-radius: 999px; padding: 6px 14px; font-size: 14px; }
+  .pl-tab.on { background: #14151a; border-color: #14151a; color: #fff; }
+  .pl-row { display: flex; align-items: center; gap: 8px; border: 1px solid #e3e4ea; border-radius: 14px; padding: 6px 8px 6px 12px; font-size: 14px; }
+  .pl-row.on { border-color: #754be9; background: #f1ecff; }
+  .pl-row .grow { flex: 1; min-width: 0; }
+  .pl-mini { border: 1px solid #d0d1d7; border-radius: 10px; padding: 3px 10px; font-size: 13px; white-space: nowrap; }
+  .pl-mini:hover { border-color: #14151a; }
+  .pl-ok { color: #1a8f4c; font-size: 13px; }
+  .pl-no { color: #9a9ba3; font-size: 13px; }
+  [data-pl-stage] img { display: block; max-height: 72vh; max-width: 100%; border-radius: 12px; cursor: crosshair; }
+  [data-pl-stage] svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+  [data-pl-stage] polygon { fill: rgb(117 75 233 / .18); stroke: #754be9; stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+  [data-pl-stage] polygon.on { fill: rgb(255 140 0 / .3); stroke: #ff8c00; stroke-width: 2.5; }
+  [data-pl-stage] .lbl { position: absolute; transform: translate(-50%, -50%); background: #fff; border-radius: 8px; padding: 1px 6px; font-size: 12px; font-weight: 600; pointer-events: none; box-shadow: 0 1px 3px rgb(0 0 0 / .2); }
+  [data-pl-stage] .pt { position: absolute; width: 8px; height: 8px; transform: translate(-50%, -50%); border-radius: 50%; background: #ff8c00; pointer-events: none; }
+  [data-pl-stage] .vdot { position: absolute; width: 12px; height: 12px; transform: translate(-50%, -50%); border-radius: 50%; background: #754be9; box-shadow: 0 0 0 3px #fff; pointer-events: none; }
+  [data-pl-stage] .vdot.on { background: #ff8c00; }
+  [data-pl-stage] .vsec { position: absolute; width: 40%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+    background: conic-gradient(from var(--from), rgb(255 140 0 / .5) 0 var(--w), transparent var(--w));
+    -webkit-mask-image: radial-gradient(closest-side, #000 25%, transparent); mask-image: radial-gradient(closest-side, #000 25%, transparent); }
+</style>
+<script>
+  type Pt = [number, number];
+  type Shape = { id: string; points: Pt[] };
+  type FloorPlan = { block: string; floors: number[]; image: string; flats: Shape[] };
+  type Mark = { block: string; no: string; x: number; y: number; dir: number; spread?: number };
+  type Plans = { genplan?: { image: string; blocks: Shape[] } | null; floors?: Record<string, number>; floorPlans?: FloorPlan[]; view?: { image: string; marks: Mark[] } | null };
+  type Flat = { b: string; no: string; f: number | null; r: string; id: string };
+  type Project = { code: string; title: string; url: string; image: string | null; flats: Flat[] };
+
+  const el = document.getElementById('plans-data');
+  if (el) {
+    const { projects, db } = JSON.parse(el.textContent || '{}') as { projects: Project[]; db: Record<string, Plans> };
+    const q = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector(s) as T;
+    const esc = (s: unknown) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const side = q('[data-pl-side]'), stage = q('[data-pl-stage]'), hint = q('[data-pl-hint]'), status = q('[data-pl-status]');
+    const sel = q<HTMLSelectElement>('[data-pl-project]');
+    let code = projects[0]?.code ?? '';
+    let tab = 'genplan';
+    let fpIdx = -1; // выбранный план этажа
+    // Что сейчас рисуем: контур (массив точек) или точку/направление для вида из окна.
+    let draw: { kind: 'poly'; shape: Shape } | { kind: 'mark'; mark: Mark; step: 0 | 1 } | null = null;
+    let dirty = false;
+    const touch = () => { dirty = true; status.textContent = 'Есть несохранённые изменения'; };
+    const P = () => (db[code] ??= {});
+    const proj = () => projects.find((p) => p.code === code)!;
+    const blocksOf = () => [...new Set(proj().flats.map((f) => f.b).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const maxFloor = (b: string) => Math.max(0, ...proj().flats.filter((f) => f.b === b).map((f) => f.f ?? 0));
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+    const parseFloors = (s: string) => {
+      const out = new Set<number>();
+      for (const part of s.split(/[,;\s]+/).filter(Boolean)) {
+        const m = part.match(/^(-?\d+)(?:-(-?\d+))?$/);
+        if (!m) continue;
+        const a = Number(m[1]), b = m[2] != null ? Number(m[2]) : a;
+        for (let i = Math.min(a, b); i <= Math.max(a, b) && out.size < 200; i++) out.add(i);
+      }
+      return [...out].sort((a, b) => a - b);
+    };
+    const floorsText = (fs: number[]) => {
+      const out: string[] = [];
+      for (let i = 0; i < fs.length; i++) {
+        let j = i;
+        while (j + 1 < fs.length && fs[j + 1] === fs[j] + 1) j++;
+        out.push(i === j ? String(fs[i]) : `${fs[i]}-${fs[j]}`);
+        i = j;
+      }
+      return out.join(', ');
+    };
+    const centroid = (pts: Pt[]) => [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+    const poly = (s: Shape, on: boolean) => `<polygon points="${s.points.map((p) => p.join(',')).join(' ')}" class="${on ? 'on' : ''}"/>`;
+
+    sel.innerHTML = projects.map((p) => `<option value="${esc(p.code)}">${esc(p.title)} · ${p.flats.length} кв.</option>`).join('');
+
+    /** Картинка + слой. shapes — контуры, active — выделенный. */
+    function renderStage(image: string | undefined, shapes: Shape[], active: Shape | null, extra = '') {
+      if (!image) { stage.innerHTML = '<p class="rounded-2xl bg-lavender-2 p-6 text-muted">Укажите ссылку на картинку слева.</p>'; return; }
+      const all = active && !shapes.includes(active) ? [...shapes, active] : shapes;
+      stage.innerHTML = `<img src="${esc(image)}" alt="" draggable="false" onerror="this.replaceWith(Object.assign(document.createElement('p'),{className:'rounded-2xl bg-peach p-6 text-sm',textContent:'Картинка не открылась — проверьте ссылку.'}))">
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none">${all.filter((s) => s.points.length >= 2).map((s) => poly(s, s === active)).join('')}</svg>
+        ${all.filter((s) => s.points.length >= 3).map((s) => { const [x, y] = centroid(s.points); return `<span class="lbl" style="left:${x}%;top:${y}%">${esc(s.id)}</span>`; }).join('')}
+        ${active ? active.points.map(([x, y]) => `<span class="pt" style="left:${x}%;top:${y}%"></span>`).join('') : ''}${extra}`;
+    }
+    const drawBar = () => draw?.kind === 'poly'
+      ? `<div class="flex flex-wrap gap-2 rounded-2xl bg-peach p-3 text-sm"><span class="w-full">Рисуем «${esc(draw.shape.id)}»: точек ${draw.shape.points.length}</span>
+          <button type="button" class="pl-mini" data-act="undo">Убрать точку</button><button type="button" class="pl-mini" data-act="done">Готово</button></div>`
+      : draw?.kind === 'mark' ? `<div class="flex flex-wrap gap-2 rounded-2xl bg-peach p-3 text-sm"><span class="w-full">${draw.step === 0 ? 'Кликните, где квартира' : 'Кликните, куда смотрят окна'}</span><button type="button" class="pl-mini" data-act="done">Готово</button></div>` : '';
+    const imgField = (val: string | undefined, key: string) => `<div><label class="label">Картинка</label><input class="field" data-img="${key}" value="${esc(val ?? '')}" placeholder="https://… или /media/…"></div>`;
+
+    function render() {
+      document.querySelectorAll<HTMLElement>('[data-pl-tabs] [data-t]').forEach((b) => b.classList.toggle('on', b.dataset.t === tab));
+      q<HTMLAnchorElement>('[data-pl-open]').href = proj()?.url ?? '#';
+      if (!proj()) { side.innerHTML = '<p class="text-muted">Нет проектов STAY PROJECTS.</p>'; stage.innerHTML = ''; return; }
+      const p = P();
+      const blocks = blocksOf();
+      if (tab === 'genplan') {
+        const g = p.genplan ?? { image: '', blocks: [] };
+        const ids = [...new Set([...blocks, ...g.blocks.map((s) => s.id)])];
+        side.innerHTML = imgField(g.image, 'genplan') + (g.image ? '' : `<p class="text-sm text-muted">Пока картинки нет, на странице ЖК вместо генплана — фото проекта и кнопки корпусов.</p>`)
+          + (ids.length ? ids.map((id) => { const s = g.blocks.find((x) => x.id === id); const on = draw?.kind === 'poly' && draw.shape.id === id;
+            return `<div class="pl-row ${on ? 'on' : ''}"><span class="grow">Корпус ${esc(id)} ${s ? '<span class="pl-ok">✓ контур</span>' : '<span class="pl-no">нет контура</span>'}</span>
+              <button type="button" class="pl-mini" data-draw="${esc(id)}">${s ? 'Перерисовать' : 'Нарисовать'}</button>${s ? `<button type="button" class="pl-mini" data-del="${esc(id)}">✕</button>` : ''}</div>`; }).join('')
+            : '<p class="text-sm text-muted">В названиях лотов этого проекта нет корпусов («Блок A»), поэтому на странице ЖК сразу показывается шахматка этажей.</p>')
+          + drawBar();
+        hint.textContent = draw ? 'Кликайте по углам корпуса на картинке.' : 'Выберите корпус слева и нажмите «Нарисовать».';
+        renderStage(g.image || undefined, g.blocks, draw?.kind === 'poly' ? draw.shape : null);
+      }
+      if (tab === 'floors') {
+        const ids = blocks;
+        side.innerHTML = `<p class="text-sm text-muted">${ids.length ? 'Сколько этажей в корпусе. Пусто — считаем по самому высокому этажу среди лотов.' : 'В лотах этого проекта нет корпусов — этажность считается по самому высокому этажу среди лотов.'}</p>`
+          + ids.map((b) => `<div class="pl-row"><span class="grow">${b ? `Корпус ${esc(b)}` : 'Дом'}</span><input type="number" min="1" max="200" class="field w-24" data-floors="${esc(b)}" value="${p.floors?.[b] ?? ''}" placeholder="${maxFloor(b) || ''}"></div>`).join('');
+        hint.textContent = '';
+        stage.innerHTML = '';
+      }
+      if (tab === 'floorPlans') {
+        const fps = p.floorPlans ?? [];
+        if (fpIdx >= fps.length) fpIdx = -1;
+        const fp = fps[fpIdx];
+        side.innerHTML = fps.map((f, i) => `<div class="pl-row ${i === fpIdx ? 'on' : ''}"><button type="button" class="grow text-left" data-fp="${i}">${f.block ? `Корпус ${esc(f.block)}` : 'Дом'}, этажи ${esc(floorsText(f.floors) || 'все')} <span class="pl-no">· ${f.flats.length} кв.</span></button><button type="button" class="pl-mini" data-fpdel="${i}">✕</button></div>`).join('')
+          + `<button type="button" class="btn btn-ghost" data-act="fpadd">Добавить план этажа</button>`;
+        if (fp) {
+          const flats = proj().flats.filter((f) => f.b === fp.block && (!fp.floors.length || (f.f != null && fp.floors.includes(f.f))));
+          const nos = [...new Set([...flats.map((f) => f.no), ...fp.flats.map((s) => s.id)])].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+          side.innerHTML += `<hr class="my-2 border-line">
+            <div class="grid grid-cols-2 gap-3"><div><label class="label">Корпус</label><select class="field" data-fpf="block">${(blocks.length ? blocks : ['']).map((b) => `<option value="${esc(b)}" ${b === fp.block ? 'selected' : ''}>${b || '—'}</option>`).join('')}</select></div>
+            <div><label class="label">Этажи (1-4, 6)</label><input class="field" data-fpf="floors" value="${esc(floorsText(fp.floors))}" placeholder="все"></div></div>
+            ${imgField(fp.image, 'fp')}
+            <p class="text-sm text-muted">Квартиры этого корпуса на этих этажах (номер одинаковый на всех этажах плана):</p>
+            ${nos.map((no) => { const s = fp.flats.find((x) => x.id === no); const on = draw?.kind === 'poly' && draw.shape.id === no;
+              return `<div class="pl-row ${on ? 'on' : ''}"><span class="grow">№${esc(no)} ${s ? '<span class="pl-ok">✓</span>' : '<span class="pl-no">нет контура</span>'}</span><button type="button" class="pl-mini" data-draw="${esc(no)}">${s ? 'Перерисовать' : 'Нарисовать'}</button>${s ? `<button type="button" class="pl-mini" data-del="${esc(no)}">✕</button>` : ''}</div>`; }).join('') || '<p class="text-sm text-muted">Лотов нет — добавьте номер вручную.</p>'}
+            <div class="flex gap-2"><input class="field" data-newno placeholder="Другой номер, напр. 12"><button type="button" class="pl-mini" data-act="addno">Добавить</button></div>${drawBar()}`;
+        }
+        hint.textContent = fp ? (draw ? 'Кликайте по углам квартиры на плане.' : 'Выберите номер квартиры и нажмите «Нарисовать».') : 'Добавьте план этажа: корпус, этажи, на которые он подходит, и картинку.';
+        if (fp) renderStage(fp.image || undefined, fp.flats, draw?.kind === 'poly' ? draw.shape : null); else stage.innerHTML = '';
+      }
+      if (tab === 'view') {
+        const v = p.view ?? { image: '', marks: [] };
+        const keyOf = (b: string, no: string) => `${b}|${no}`;
+        const flats = [...new Map(proj().flats.map((f) => [keyOf(f.b, f.no), f])).values()].sort((a, b) => a.b.localeCompare(b.b) || a.no.localeCompare(b.no, 'en', { numeric: true }));
+        const cur = draw?.kind === 'mark' ? draw.mark : null;
+        side.innerHTML = imgField(v.image, 'view')
+          + `<p class="text-sm text-muted">Для каждой квартиры: первый клик — где она на плане, второй — куда смотрят окна. Одна отметка на номер (для всех этажей).</p>`
+          + (cur ? `<div><label class="label">Ширина обзора, °</label><input type="number" min="10" max="180" class="field w-28" data-spread value="${cur.spread ?? 60}"></div>` : '')
+          + drawBar()
+          + `<div class="grid max-h-[50vh] gap-2 overflow-auto pr-1">${flats.map((f) => { const m = v.marks.find((x) => x.block === f.b && x.no === f.no); const on = cur && cur.block === f.b && cur.no === f.no;
+            return `<div class="pl-row ${on ? 'on' : ''}"><span class="grow">${f.b ? `${esc(f.b)}, ` : ''}№${esc(f.no)} <span class="pl-no">${esc(f.r)}</span> ${m ? '<span class="pl-ok">✓</span>' : ''}</span><button type="button" class="pl-mini" data-mark="${esc(keyOf(f.b, f.no))}">${m ? 'Изменить' : 'Поставить'}</button>${m ? `<button type="button" class="pl-mini" data-unmark="${esc(keyOf(f.b, f.no))}">✕</button>` : ''}</div>`; }).join('')}</div>`;
+        const marks = cur && !v.marks.includes(cur) ? [...v.marks, cur] : v.marks;
+        const extra = marks.map((m) => `${m === cur ? `<span class="vsec" style="left:${m.x}%;top:${m.y}%;--from:${m.dir - (m.spread ?? 60) / 2}deg;--w:${m.spread ?? 60}deg"></span>` : ''}<span class="vdot ${m === cur ? 'on' : ''}" style="left:${m.x}%;top:${m.y}%" title="${esc(m.no)}"></span>`).join('');
+        hint.textContent = cur ? (draw?.kind === 'mark' && draw.step === 0 ? 'Клик — где квартира.' : 'Клик — куда смотрят окна (можно кликать ещё, пока не нажмёте «Готово»).') : 'Выберите квартиру слева.';
+        renderStage(v.image || undefined, [], null, extra);
+      }
+    }
+
+    // Клик по картинке: добавить точку контура / поставить отметку.
+    stage.addEventListener('click', (e) => {
+      const img = stage.querySelector('img');
+      if (!img || !draw) return;
+      const r = img.getBoundingClientRect();
+      const x = r2(((e.clientX - r.left) / r.width) * 100), y = r2(((e.clientY - r.top) / r.height) * 100);
+      if (x < 0 || x > 100 || y < 0 || y > 100) return;
+      if (draw.kind === 'poly') draw.shape.points.push([x, y]);
+      else if (draw.step === 0) { draw.mark.x = x; draw.mark.y = y; draw.step = 1; }
+      else {
+        const dx = (x - draw.mark.x) * r.width, dy = (y - draw.mark.y) * r.height;
+        draw.mark.dir = Math.round(((Math.atan2(dx, -dy) * 180) / Math.PI + 360) % 360);
+      }
+      touch(); render();
+    });
+
+    const finish = () => {
+      const p = P();
+      if (draw?.kind === 'poly' && draw.shape.points.length >= 3) {
+        const list = tab === 'genplan' ? (p.genplan ??= { image: '', blocks: [] }).blocks : p.floorPlans![fpIdx].flats;
+        const i = list.findIndex((s) => s.id === draw!.shape.id);
+        if (i >= 0) list[i] = draw.shape; else list.push(draw.shape);
+      }
+      if (draw?.kind === 'mark' && draw.step === 1) {
+        const v = (p.view ??= { image: '', marks: [] });
+        const i = v.marks.findIndex((m) => m.block === draw!.mark.block && m.no === draw!.mark.no);
+        if (i >= 0) v.marks[i] = draw.mark; else v.marks.push(draw.mark);
+      }
+      draw = null;
+    };
+
+    side.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest<HTMLElement>('[data-draw],[data-del],[data-act],[data-fp],[data-fpdel],[data-mark],[data-unmark]');
+      if (!t) return;
+      const p = P();
+      if (t.dataset.draw != null) { finish(); draw = { kind: 'poly', shape: { id: t.dataset.draw, points: [] } }; }
+      if (t.dataset.del != null) {
+        if (tab === 'genplan' && p.genplan) p.genplan.blocks = p.genplan.blocks.filter((s) => s.id !== t.dataset.del);
+        if (tab === 'floorPlans') p.floorPlans![fpIdx].flats = p.floorPlans![fpIdx].flats.filter((s) => s.id !== t.dataset.del);
+        touch();
+      }
+      if (t.dataset.act === 'undo' && draw?.kind === 'poly') draw.shape.points.pop();
+      if (t.dataset.act === 'done') { if (draw?.kind === 'poly' && draw.shape.points.length > 0 && draw.shape.points.length < 3) { hint.textContent = 'Нужно минимум 3 точки.'; return; } finish(); touch(); }
+      if (t.dataset.act === 'fpadd') { finish(); (p.floorPlans ??= []).push({ block: blocksOf()[0] ?? '', floors: [], image: '', flats: [] }); fpIdx = p.floorPlans.length - 1; touch(); }
+      if (t.dataset.act === 'addno') {
+        const inp = side.querySelector<HTMLInputElement>('[data-newno]')!;
+        const no = inp.value.trim().replace(/^№\s*/, '').toUpperCase();
+        if (no) { finish(); draw = { kind: 'poly', shape: { id: no, points: [] } }; }
+      }
+      if (t.dataset.fp != null) { finish(); fpIdx = Number(t.dataset.fp); }
+      if (t.dataset.fpdel != null && confirm('Удалить этот план этажа?')) { finish(); p.floorPlans!.splice(Number(t.dataset.fpdel), 1); fpIdx = -1; touch(); }
+      if (t.dataset.mark != null) {
+        finish();
+        const [block, no] = t.dataset.mark.split('|');
+        const old = p.view?.marks.find((m) => m.block === block && m.no === no);
+        draw = { kind: 'mark', mark: old ? { ...old } : { block, no, x: 50, y: 50, dir: 0, spread: 60 }, step: 0 };
+      }
+      if (t.dataset.unmark != null && p.view) { const [block, no] = t.dataset.unmark.split('|'); p.view.marks = p.view.marks.filter((m) => !(m.block === block && m.no === no)); touch(); }
+      render();
+    });
+
+    side.addEventListener('change', (e) => {
+      const f = e.target as HTMLInputElement;
+      const p = P();
+      if (f.dataset.img === 'genplan') (p.genplan ??= { image: '', blocks: [] }).image = f.value.trim();
+      if (f.dataset.img === 'view') (p.view ??= { image: '', marks: [] }).image = f.value.trim();
+      if (f.dataset.img === 'fp') p.floorPlans![fpIdx].image = f.value.trim();
+      if (f.dataset.floors != null) { p.floors ??= {}; const n = Math.round(Number(f.value)); if (n > 0) p.floors[f.dataset.floors] = n; else delete p.floors[f.dataset.floors]; }
+      if (f.dataset.fpf === 'block') { p.floorPlans![fpIdx].block = f.value; draw = null; }
+      if (f.dataset.fpf === 'floors') p.floorPlans![fpIdx].floors = parseFloors(f.value);
+      if (f.dataset.spread != null && draw?.kind === 'mark') draw.mark.spread = Math.min(180, Math.max(10, Number(f.value) || 60));
+      touch(); render();
+    });
+
+    q('[data-pl-tabs]').addEventListener('click', (e) => { const b = (e.target as HTMLElement).closest<HTMLElement>('[data-t]'); if (b) { finish(); tab = b.dataset.t!; render(); } });
+    sel.addEventListener('change', () => { finish(); code = sel.value; fpIdx = -1; render(); });
+
+    q('[data-pl-save]').addEventListener('click', async () => {
+      finish();
+      const bad = Object.entries(db).flatMap(([c, p]) => (p.floorPlans ?? []).filter((f) => !f.image).map(() => projects.find((x) => x.code === c)?.title ?? c));
+      if (bad.length) { status.textContent = `У плана этажа нет картинки (${bad[0]}). Добавьте картинку или удалите этот план.`; return; }
+      status.textContent = 'Сохраняю…';
+      const res = await fetch('/api/admin/plans', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plans: db }) });
+      const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+      dirty = !r.ok;
+      if (r.ok) { for (const k of Object.keys(db)) delete db[k]; Object.assign(db, r.saved); fpIdx = -1; render(); }
+      status.textContent = r.ok ? 'Сохранено. На сайте — в течение минуты.' : 'Ошибка: ' + (r.error || res.status);
+    });
+    window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+    render();
+  }
+</script>
