@@ -3,7 +3,7 @@
  * (пороги — как на самих страницах), у каждой — hreflang-альтернативы и lastmod.
  */
 import { LANGS, SITE, HREFLANG, type Lang } from '../i18n/config';
-import { getItems, getUnits, getComplexes, getOurComplexes, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
+import { getItems, getUnits, getComplexes, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
 import { translatedIds } from './api';
 import { allServices, serviceUrl } from './services';
 import { BLOG_CATS, blogUrl, postsOf } from './blog';
@@ -135,7 +135,6 @@ export async function urlsOf(kind: Kind, lang: Lang): Promise<Url[]> {
     `/${lang}/`, `/${lang}/about/`, `/${lang}/team/`, `/${lang}/reviews/`, `/${lang}/contacts/`, `/${lang}/prive/`, `/${lang}/stay-projects/`, serviceUrl(lang),
     ...(await allServices(lang)).map((s) => serviceUrl(lang, s.slug)),
     ...TEAM.map((m) => `/${lang}/team/${m.slug}/`), `/${lang}/team/${EDITORIAL.slug}/`,
-    ...[...new Set((await getOurComplexes()).map((c) => c.city))].map((c) => `/${lang}/stay-projects/${c}/`),
   ];
   return paths.map((loc) => ({ loc, lastmod: d, alts: allLangs(loc) }));
 }

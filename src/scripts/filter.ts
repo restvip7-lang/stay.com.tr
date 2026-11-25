@@ -218,10 +218,11 @@ export function initFilters() {
     });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      // Страница PRIVE: выдача лотов на ней же, ниже проектов.
+      // Страницы PRIVE и STAY PROJECTS: выдача лотов на ней же, ниже проектов.
       if (form.dataset.mode === 'prive') {
         const sp = new URL(buildUrl(form), location.origin).searchParams;
         sp.delete('prive');
+        sp.delete('own');
         const q = sp.toString();
         location.href = `${location.pathname}${q ? `?${q}` : ''}#lots`;
         return;

@@ -13,8 +13,8 @@ import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type
 const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
 import { numL, pluralL } from '../lib/format';
 
-interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges; preset?: boolean }
-const { cat, f, total, mode = 'catalog', ranges, preset = false } = Astro.props;
+interface Props { cat: Cat & { deal: Deal }; f: Filters; total: number; mode?: 'catalog' | 'home' | 'prive'; types?: string[]; ranges?: Ranges; preset?: boolean; /** Режим prive: какие лоты считать — PRIVE или «Объекты Stay» (страница STAY PROJECTS). */ lots?: 'prive' | 'own' }
+const { cat, f, total, mode = 'catalog', ranges, preset = false, lots = 'prive' } = Astro.props;
 // preset: блок «как на главной» на странице всех стран — поля заполнены текущим фильтром (на самой главной — пустые).
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
@@ -75,7 +75,7 @@ const strings = { found: tf.found, show: tf.show, remove: tf.remove('{l}'), priv
       <!-- Страница PRIVE — уменьшенный фильтр по образцу (mr-group.ru/private/): стоимость, комнаты, площадь и «Показать N квартир».
            Считает и показывает только PRIVE-лоты. -->
       <input type="hidden" name="deal" value="sale" />
-      <input type="hidden" name="prive" value="1" />
+      <input type="hidden" name={lots} value="1" />
       <div class="grid items-start gap-x-6 gap-y-5 lg:grid-cols-[minmax(0,1.2fr)_auto_minmax(0,1fr)_auto]">
         <fieldset class="range min-w-0" data-range data-min={pPrice[0]} data-max={pPrice[1]} data-step="1" aria-labelledby="p-price-l">
           <span class="hlabel" id="p-price-l">{tf.price}</span>
