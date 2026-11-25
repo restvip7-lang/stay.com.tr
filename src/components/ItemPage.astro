@@ -15,9 +15,7 @@ import { t } from '../i18n/ui';
 import { LABEL_TEXT, LABEL_STYLE } from '../lib/objectsConfig';
 import { LANGS, SITE, type Lang } from '../i18n/config';
 import { getDetailL, type DetailL } from '../lib/api';
-import { getItems, getUnits, itemUrl, catUrl, countOf, getComplexes, complexUrl, isOurComplex, ownInfo, INDEX_MIN, type Item } from '../lib/catalog';
-import { plansOf, floorPlanFor, flatNo, polyPoints, planSrc } from '../lib/plans';
-import { ownUrl } from '../lib/ownUrl';
+import { getItems, getUnits, itemUrl, catUrl, countOf, getComplexes, complexUrl, INDEX_MIN, type Item } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { geoOf, itemMeta } from '../lib/seo';
 import { FEATURE_LABEL, TYPE_WORDS } from '../lib/segments';
@@ -67,40 +65,17 @@ const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth 
 const perM2 = (own ?? fallback)?.pricePerSquare ?? (x.price && x.area && x.deal === 'sale' ? Math.round(x.price / x.area) : null);
 const isNew = x.features.includes('new');
 const complex = x.complex ? (await getComplexes()).find((c) => c.code === x.complex) ?? null : null;
-
-// Квартира нашего проекта (STAY PROJECTS): карточка как у образца — вкладки «Планировка / План этажа / Вид из окна / Генплан»,
-// «этаж N из M», корпус, номер квартиры, срок сдачи. Планы берутся из раздела админки «Планы проектов».
-const ourFlat = !!(x.unit && complex && isOurComplex(complex));
-const plans = ourFlat ? await plansOf(complex!.code) : null;
-const flatNum = ourFlat ? flatNo(x.titleRu) : null;
-const sameBlock = ourFlat ? (await getUnits()).filter((y) => y.complex === x.complex && (y.block ?? '') === (x.block ?? '')) : [];
-const topFloor = ourFlat ? plans?.floors?.[x.block ?? ''] ?? Math.max(0, ...sameBlock.map((y) => y.floor ?? 0)) : null;
-const ready = ourFlat ? (await ownInfo()).get(complex!.code)?.ready ?? null : null;
-const fPlan = ourFlat ? floorPlanFor(plans, x.block, x.floor) : null;
-const fShape = fPlan && flatNum ? fPlan.flats.find((f) => f.id === flatNum) ?? null : null;
-const vMark = ourFlat && flatNum ? plans?.view?.marks.find((m) => m.no === flatNum && (!m.block || m.block === (x.block ?? ''))) ?? null : null;
-const gShape = ourFlat && x.block ? plans?.genplan?.blocks.find((b) => b.id === x.block) ?? null : null;
-const gImage = ourFlat ? plans?.genplan?.image ?? complex!.image : null;
-const TABS = { plan: 'Планировка', floor: 'План этажа', view: 'Вид из окна', genplan: 'Генплан' };
-const tabs = ourFlat ? ([['plan', true], ['floor', !!fPlan], ['view', !!(plans?.view && vMark)], ['genplan', !!gImage]] as const).filter(([, on]) => on).map(([k]) => k) : [];
-const floorText = x.floor != null ? (x.floor === 0 ? 'цокольный' : topFloor && topFloor >= x.floor ? `${x.floor} из ${topFloor}` : String(x.floor)) : null;
 const facts: [string, string | null, string?][] = [
   [ti.type, `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}`],
   [ti.rooms, x.rooms],
   [ti.area, x.area ? `${numL(lang, x.area)} ${d.m2}` : null],
-  ...(ourFlat ? [
-    ['Проект', complex!.title, ownUrl(lang, 'all', { projectSlugs: [complex!.slug] })] as [string, string, string],
-    ['Корпус', x.block, x.block ? ownUrl(lang, 'all', { projectSlugs: [complex!.slug], blocks: [x.block] }) : undefined] as [string, string | null, string?],
-    ['Номер квартиры', flatNum ? `№${flatNum}` : null] as [string, string | null],
-    ['Срок сдачи', ready] as [string, string | null],
-  ] : []),
-  [ti.floor, ourFlat ? floorText : x.floor ? String(x.floor) : null],
+  [ti.floor, x.floor ? String(x.floor) : null],
   [ti.toSea, x.sea ? `${numL(lang, x.sea)} ${d.m}` : null],
   [ti.year, (own ?? fallback)?.yearBuilt ?? null],
   [ti.status, x.deal === 'sale' ? (isNew ? ti.newBuild : x.features.includes('resale') ? ti.resale : null) : null],
   [ti.district, district?.name[lang] ?? null, x.district ? catUrl(lang, { country: x.country, city: x.city, district: x.district }) : undefined],
   [ti.city, city.name[lang], catUrl(lang, { country: x.country, city: x.city })],
-  [ti.complex, ourFlat ? null : complex?.title ?? null, complex ? complexUrl(lang, complex) : undefined],
+  [ti.complex, complex?.title ?? null, complex ? complexUrl(lang, complex) : undefined],
   [ti.id, x.ref ?? x.id],
 ];
 
@@ -119,9 +94,7 @@ const similar = pool
   .sort((a, b) => Number(b.district === x.district) - Number(a.district === x.district) || Math.abs((a.price ?? 0) - (x.price ?? 0)) - Math.abs((b.price ?? 0) - (x.price ?? 0)))
   .slice(0, 6);
 
-const crumbs = ourFlat
-  ? [{ label: d.home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, { label: complex!.title, href: complexUrl(lang, complex!) }, { label: meta.h1 }]
-  : catCrumbs(lang, { country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type }, meta.h1);
+const crumbs = catCrumbs(lang, { country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type }, meta.h1);
 const video = (own ?? fallback)?.video ?? null;
 const vld = video ? videoLd(video, meta.h1, meta.description, (own ?? fallback)?.updated ?? new Date().toISOString()) : null;
 const updated = (own ?? fallback)?.updated ?? null;
@@ -156,8 +129,6 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
               <h1 class="text-[21px] font-medium leading-[26px] tracking-[.2px] text-ink lg:text-[20px] lg:leading-[24px] lg:tracking-[.1px]">{meta.h1}</h1>
               <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] leading-[20px] text-soft">
                 {complex ? <a href={complexUrl(lang, complex)} class="font-medium text-ink hover:text-accent">{complex.title}</a> : <span class="font-medium text-ink">{tw.one}{x.rooms ? ` ${x.rooms}` : ''}</span>}
-                {ourFlat && x.block && <><span aria-hidden="true">·</span><span>Корпус {x.block}</span></>}
-                {ourFlat && ready && <><span aria-hidden="true">·</span><span>Срок сдачи: {ready}</span></>}
                 <span aria-hidden="true">·</span><span>{place}</span>
                 {x.sea ? <><span aria-hidden="true">·</span><span>{ti.toSea} {numL(lang, x.sea)} {d.m}</span></> : null}
                 <span aria-hidden="true">·</span><span>ID {x.ref ?? x.id}</span>
@@ -168,48 +139,7 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
               <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" class="btn-n btn-n-white btn-n-icon" aria-label={d.addFav}><Icon name="heart" class="size-5" /></button>
             </div>
           </div>
-          {ourFlat ? (
-            <div data-tabs>
-              {tabs.length > 1 && (
-                <div class="flat-tabs mx-2 mb-3 lg:mx-5" role="tablist">
-                  {tabs.map((k, i) => <button type="button" role="tab" data-tab={k} aria-selected={i === 0 ? 'true' : 'false'}>{TABS[k]}</button>)}
-                </div>
-              )}
-              <div data-panel="plan" role="tabpanel"><Gallery images={images} alt={altBase} /></div>
-              {fPlan && (
-                <div data-panel="floor" role="tabpanel" hidden class="flat-stage">
-                  <div class="relative mx-auto w-fit">
-                    <img src={planSrc(fPlan.image)} alt={`План этажа ${x.floor ?? ''}${x.block ? `, корпус ${x.block}` : ''}`} loading="lazy" class="block max-h-[620px] w-auto max-w-full" />
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full" aria-hidden="true">
-                      {fPlan.flats.map((f) => <polygon points={polyPoints(f.points)} class:list={['fp-flat', f.id === flatNum && 'is-me']} />)}
-                    </svg>
-                  </div>
-                  <p class="mt-3 text-center text-[14px] text-soft">{fShape ? `Квартира №${flatNum} выделена на плане` : `${x.floor ?? ''} этаж${x.block ? `, корпус ${x.block}` : ''}`}</p>
-                </div>
-              )}
-              {plans?.view && vMark && (
-                <div data-panel="view" role="tabpanel" hidden class="flat-stage">
-                  <div class="relative mx-auto w-fit overflow-hidden rounded-[16px]">
-                    <img src={planSrc(plans.view.image)} alt="Вид из окна — план" loading="lazy" class="block max-h-[620px] w-auto max-w-full" />
-                    <span class="view-sector" style={`left:${vMark.x}%;top:${vMark.y}%;--from:${vMark.dir - (vMark.spread ?? 60) / 2}deg;--w:${vMark.spread ?? 60}deg`}></span>
-                    <span class="view-dot" style={`left:${vMark.x}%;top:${vMark.y}%`}></span>
-                  </div>
-                  <p class="mt-3 text-center text-[14px] text-soft">Сектор показывает, куда выходят окна квартиры</p>
-                </div>
-              )}
-              {gImage && (
-                <div data-panel="genplan" role="tabpanel" hidden class="flat-stage">
-                  <div class="relative mx-auto w-fit overflow-hidden rounded-[16px]">
-                    <img src={planSrc(gImage)} alt={`${complex!.title} — генплан`} loading="lazy" class="block max-h-[620px] w-auto max-w-full" />
-                    {gShape && <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full" aria-hidden="true"><polygon points={polyPoints(gShape.points)} class="fp-flat is-me" /></svg>}
-                  </div>
-                  <p class="mt-3 text-center text-[14px] text-soft">
-                    {x.block ? `Корпус ${x.block}` : complex!.title} · <a href={`${complexUrl(lang, complex!)}#genplan`} class="font-medium text-ink underline underline-offset-4 hover:text-accent">Генплан проекта</a>
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : <Gallery images={images} alt={altBase} />}
+          <Gallery images={images} alt={altBase} />
         </div>
       </div>
 
@@ -324,21 +254,12 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
 <style>
   .cur-chip { height: 28px; padding: 0 10px; border-radius: 1000px; border: .67px solid #d0d1d7; font-size: 12px; font-weight: 500; color: var(--color-soft); transition: color .2s, border-color .2s; }
   .cur-chip:hover, .cur-chip.is-on { color: var(--color-ink); border-color: var(--color-ink); }
-  .flat-tabs { display: flex; gap: 4px; overflow-x: auto; padding: 4px; border-radius: 14px; background: var(--color-page-n, #f1f2f6); width: fit-content; max-width: calc(100% - 16px); }
-  .flat-tabs button { height: 36px; padding: 0 16px; border-radius: 10px; font-size: 14px; font-weight: 500; color: var(--color-soft); white-space: nowrap; transition: background .2s, color .2s; }
-  .flat-tabs button[aria-selected='true'] { background: #fff; color: var(--color-ink); box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
-  .flat-stage { padding: 8px 8px 16px; border-radius: 16px; background: var(--color-page-n, #f1f2f6); }
-  .fp-flat { fill: transparent; stroke: transparent; }
-  .fp-flat.is-me { fill: rgb(124 92 255 / .35); stroke: #7c5cff; stroke-width: .4; vector-effect: non-scaling-stroke; }
-  .view-sector { position: absolute; width: 55%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
-    background: conic-gradient(from var(--from), rgb(124 92 255 / .45) 0 var(--w), transparent var(--w));
-    -webkit-mask-image: radial-gradient(closest-side, #000 20%, transparent); mask-image: radial-gradient(closest-side, #000 20%, transparent); }
-  .view-dot { position: absolute; width: 14px; height: 14px; transform: translate(-50%, -50%); border-radius: 50%; background: #7c5cff; box-shadow: 0 0 0 4px #fff; }
   .about-text { font-size: 16px; line-height: 22px; letter-spacing: .2px; color: var(--color-ink-n); }
   .about-text[data-clamped] { max-height: 176px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
 </style>
 <script>
-  import { T, pageLocale } from '../scripts/client';
+  import { T } from '../scripts/client';
+  import { initCurrency } from '../scripts/currency';
   import { mountMap } from '../scripts/map';
   document.querySelectorAll<HTMLButtonElement>('[data-share]').forEach((b) => b.addEventListener('click', async () => {
     const data = { title: document.title, url: location.href };
@@ -347,44 +268,7 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       else { await navigator.clipboard.writeText(location.href); b.title = T().linkCopied; }
     } catch { /* отмена */ }
   }));
-  // Валюта: цена в HTML — в евро. Курсы ЕЦБ подгружаем сразу, поэтому по клику цена
-  // и цена за м² пересчитываются мгновенно; выбор запоминается для других объектов.
-  const box = document.querySelector<HTMLElement>('[data-currency]');
-  const priceEl = document.querySelector<HTMLElement>('[data-price-eur]');
-  const m2El = document.querySelector<HTMLElement>('[data-m2-eur]');
-  const eur = Number(priceEl?.dataset.priceEur || 0);
-  if (box && priceEl && eur) {
-    const orig = { price: priceEl.textContent ?? '', m2: m2El?.textContent ?? '' };
-    const suffix = priceEl.dataset.priceSuffix ?? '';
-    const m2eur = Number(m2El?.dataset.m2Eur || 0);
-    let saved = 'EUR';
-    try { saved = localStorage.getItem('stay-cur') || 'EUR'; } catch { /* без хранилища */ }
-    const ratesP: Promise<Record<string, number>> = fetch('/api/rates').then((r) => r.json()).then((j) => j.rates ?? {}).catch(() => ({}));
-    let rates: Record<string, number> | null = null;
-    let want = saved;
-    ratesP.then((r) => { rates = r; });
-    const fmt = (n: number, cur: string) => Math.round(n).toLocaleString(pageLocale(), { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 });
-    const apply = (cur: string, r: Record<string, number> | null) => {
-      const k = cur === 'EUR' ? 1 : r?.[cur];
-      if (!k) return false;
-      box.querySelectorAll<HTMLElement>('[data-cur]').forEach((x) => { const on = x.dataset.cur === cur; x.setAttribute('aria-pressed', String(on)); x.classList.toggle('is-on', on); });
-      if (cur === 'EUR') { priceEl.textContent = orig.price; if (m2El) m2El.textContent = orig.m2; return true; }
-      priceEl.textContent = fmt(eur * k, cur) + suffix;
-      if (m2El && m2eur) m2El.textContent = fmt(m2eur * k, cur);
-      return true;
-    };
-    box.addEventListener('click', async (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cur]');
-      if (!b) return;
-      const cur = (want = b.dataset.cur!);
-      const r = rates ?? (cur === 'EUR' ? null : await ratesP);
-      if (cur !== want) return; // пока грузились курсы, выбрали другую валюту
-      if (apply(cur, r)) {
-        try { localStorage.setItem('stay-cur', cur); } catch { /* без хранилища */ }
-      }
-    });
-    if (saved !== 'EUR') ratesP.then((r) => { if (want === saved) apply(saved, r); });
-  }
+  initCurrency();
   document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
     v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }));
@@ -403,13 +287,6 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       if (!open) txt.closest('section')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     });
   }
-  // Вкладки карточки квартиры нашего проекта
-  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((box) => box.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-tab]');
-    if (!b) return;
-    box.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-    box.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
-  }));
   const mapEl = document.querySelector<HTMLElement>('[data-map]');
   if (mapEl) {
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });

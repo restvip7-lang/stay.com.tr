@@ -1,0 +1,351 @@
+---
+/**
+ * Карточка квартиры проекта STAY PROJECTS по образцу mr-group (решение Anuar 26.11.2026).
+ * Слева: короткий заголовок, планировка крупно, вкладки под ней (Планировка / План этажа / Вид из окна / Генплан).
+ * Справа: цена (валюты), «Заказать звонок», WhatsApp, «Параметры квартиры», «Этапы покупки».
+ * Ниже: «Способы покупки» (100% оплата, рассрочка + калькулятор), акция проекта, галерея проекта,
+ * «Об этой квартире» (текст из данных), заявка, похожие. Кнопка PDF — /api/flat-pdf/{id}.
+ * Планы этажей, вид из окна и генплан — из админки «Планы проектов» (src/lib/plans.ts).
+ */
+import Base from '../layouts/Base.astro';
+import Breadcrumbs from './Breadcrumbs.astro';
+import Img from './Img.astro';
+import Calculator from './Calculator.astro';
+import LeadSection from './LeadSection.astro';
+import SaleCard from './SaleCard.astro';
+import Icon from './Icon.astro';
+import { t } from '../i18n/ui';
+import { LABEL_TEXT, LABEL_STYLE } from '../lib/objectsConfig';
+import { getComplex } from '../lib/api';
+import { getUnits, itemUrl, complexUrl, ownInfo, type Item, type Complex } from '../lib/catalog';
+import { cityBySlug, districtBySlug } from '../lib/geo';
+import { geoOf, itemMeta } from '../lib/seo';
+import { FEATURE_LABEL, TYPE_WORDS } from '../lib/segments';
+import { listingLd } from '../lib/ld';
+import { moneyL, numL, dateL, pluralL } from '../lib/format';
+import { sanitize } from '../lib/sanitize';
+import { site } from '../lib/site';
+import { ownUrl } from '../lib/ownUrl';
+import { plansOf, floorPlanFor, flatNo, polyPoints, planSrc } from '../lib/plans';
+import { flatText, FLAT_UI } from '../lib/flatText';
+import type { Robots } from '../lib/page';
+
+interface Props { x: Item; complex: Complex; sold?: boolean; soldAt?: string | null }
+const { x, complex, sold = false, soldAt = null } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const ti = d.item;
+const L = FLAT_UI[lang] ?? FLAT_UI.en;
+const city = cityBySlug(x.city)!;
+const district = x.district ? districtBySlug(x.city, x.district) : null;
+const place = [district?.name[lang], city.name[lang]].filter(Boolean).join(', ');
+const tw = TYPE_WORDS[lang][x.type];
+const self = itemUrl(lang, x);
+const g = geoOf(x);
+
+const [pd, info, plans, units] = await Promise.all([
+  getComplex(complex.project.slug).catch(() => null),
+  ownInfo().then((m) => m.get(complex.code) ?? null),
+  plansOf(complex.code),
+  getUnits(),
+]);
+const ready = info?.ready ?? null;
+const flatNum = flatNo(x.titleRu);
+const sameBlock = units.filter((y) => y.complex === x.complex && (y.block ?? '') === (x.block ?? ''));
+const topFloor = plans?.floors?.[x.block ?? ''] ?? (Math.max(0, ...sameBlock.map((y) => y.floor ?? 0)) || null);
+const fPlan = floorPlanFor(plans, x.block, x.floor);
+const fShape = fPlan && flatNum ? fPlan.flats.find((f) => f.id === flatNum) ?? null : null;
+const vMark = flatNum ? plans?.view?.marks.find((m) => m.no === flatNum && (!m.block || m.block === (x.block ?? ''))) ?? null : null;
+const gShape = x.block ? plans?.genplan?.blocks.find((b) => b.id === x.block) ?? null : null;
+const hero = pd?.heroImages[0] ?? complex.image;
+const gImage = plans?.genplan?.image ?? hero;
+const tabs = ([['plan', true], ['floor', !!fPlan], ['view', !!(plans?.view && vMark)], ['genplan', !!gImage]] as const).filter(([, on]) => on).map(([k]) => k);
+
+const loc = lang === 'sr' ? 'sr-Latn' : lang;
+const area = x.area ? x.area.toLocaleString(loc, { maximumFractionDigits: 2 }) : null;
+const m2 = lang === 'ru' ? 'м²' : 'm²';
+const title = `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}${area ? `, ${area} ${m2}` : ''}`;
+const floorText = x.floor == null ? null : x.floor === 0 ? L.ground : topFloor && topFloor >= x.floor ? L.floorOf(x.floor, topFloor) : String(x.floor);
+const about = flatText(lang, { rooms: x.rooms, area, block: x.block, project: complex.title, place, floor: x.floor, top: topFloor, sea: x.sea, ready, type: tw.one });
+const intro = lang === 'ru' && pd?.introHtml ? sanitize(pd.introHtml) : '';
+const meta = itemMeta(lang, x, g, about);
+const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
+
+const price = x.price ? moneyL(lang, x.price) : d.priceOnRequest;
+const perM2 = x.price && x.area ? Math.round(x.price / x.area) : null;
+// Чипы как у образца («Без отделки», «Панорамное остекление»): без комнатности и «Новостройки» — это и так видно.
+const chips = x.features.filter((f) => !/price-to/.test(f) && f !== 'new').map((f) => FEATURE_LABEL[lang][f]).filter((c) => c && c !== x.rooms).slice(0, 3);
+const params: [string, string | null, string?][] = [
+  [L.ppm, perM2 ? `${moneyL(lang, perM2)} ${L.perM2}` : null],
+  [L.project, complex.title, ownUrl(lang, 'all', { projectSlugs: [complex.slug] })],
+  [L.block, x.block, x.block ? ownUrl(lang, 'all', { projectSlugs: [complex.slug], blocks: [x.block] }) : undefined],
+  [L.floor, floorText],
+  [L.number, flatNum],
+  [L.ready, ready],
+  [L.sea, x.sea ? `${numL(lang, x.sea)} ${d.m}` : null],
+  [L.place, place],
+  [L.article, x.ref ?? x.id.toUpperCase()],
+];
+
+// Способы покупки: 100% оплата и рассрочка застройщика (условия проекта из карточки ЖК).
+const inst = pd?.installment ?? null;
+const instText = inst?.conditions ? inst.conditions.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim().replace(/([^.!?:;(])\s+(?=[А-ЯA-Z][а-яa-z])/g, '$1. ').replace(/([^.!?)])$/, '$1.') : inst?.initialPay ? L.instShort(inst.initialPay, inst.months) : L.instText;
+const gallery = (pd?.gallery.length ? pd.gallery : pd?.heroImages ?? []).filter(Boolean).slice(0, 12);
+
+// Похожие: сначала квартиры этого же проекта с той же комнатностью, затем той же комнатности в других наших проектах.
+const ourCodes = new Set((await ownInfo()).keys());
+const similar = units
+  .filter((y) => y.id !== x.id && y.label !== 'sold' && y.deal === 'sale' && y.complex && ourCodes.has(y.complex) && y.rooms === x.rooms)
+  .sort((a, b) => Number(b.complex === x.complex) - Number(a.complex === x.complex) || Math.abs((a.price ?? 0) - (x.price ?? 0)) - Math.abs((b.price ?? 0) - (x.price ?? 0)))
+  .slice(0, 6);
+const ownMap = await ownInfo();
+
+const crumbs = [{ label: d.home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, { label: complex.title, href: complexUrl(lang, complex) }, { label: title }];
+const ld = [listingLd({
+  url: self, name: meta.h1, description: meta.description, images: [x.image, hero].filter(Boolean) as string[], price: x.price, deal: x.deal, type: x.type,
+  rooms: x.bedrooms != null ? x.bedrooms + 1 : null, area: x.area, city: city.name.en, region: district?.name.en ?? city.name.en, country: x.country === 'turkey' ? 'TR' : x.country === 'uae' ? 'AE' : 'CY', sold,
+})];
+const fav = { id: x.id, url: self, title, image: x.image, price, meta: `${complex.title} · ${place}` };
+const pdfHref = `/api/flat-pdf/${encodeURIComponent(x.id)}?lang=${lang}`;
+const ogImage = `/og/item/${x.deal}/${x.id}.jpg?lang=${lang}`;
+const stepsId = 'flat-steps';
+---
+<Base system="new" title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={{ ru: itemUrl('ru', x) }} image={ogImage} ogType="product" jsonLd={ld}>
+  <div class="container-n pt-5 lg:pt-6">
+    <Breadcrumbs items={crumbs} />
+    {sold && (
+      <div class="mt-5 rounded-[var(--radius-big)] bg-ink p-5 text-white md:p-6" role="status">
+        <p class="text-xl font-medium">{d.sold}</p>
+        {soldAt && <p class="mt-1 text-white/70">{d.pages.goneText} · {dateL(lang, soldAt)}</p>}
+        <a href="#similar" class="btn-n btn-n-white mt-4">{ti.similar}</a>
+      </div>
+    )}
+    <div class="mt-5 grid items-start gap-5 lg:grid-cols-[minmax(0,868fr)_minmax(0,424fr)]">
+      <!-- Слева: планировка и вкладки -->
+      <div class="min-w-0" data-tabs>
+        <div class="card-n p-4 lg:p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <h1 class="text-[21px] font-medium leading-[26px] text-ink-n lg:text-[24px] lg:leading-[30px]">{title}</h1>
+              <p class="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] leading-[20px] text-soft">
+                <a href={complexUrl(lang, complex)} class="font-medium uppercase text-ink hover:text-accent">{complex.title}</a>
+                {x.block && <><span aria-hidden="true">·</span><span>{L.block} {x.block}</span></>}
+                {ready && <><span aria-hidden="true">·</span><span>{L.ready} {ready}</span></>}
+                {x.sea ? <><span aria-hidden="true">·</span><span class="inline-flex items-center gap-1"><Icon name="wave" class="size-3.5" />{numL(lang, x.sea)} {d.m}</span></> : null}
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-2">
+              <a href={pdfHref} download class="btn-n btn-n-white btn-n-icon" aria-label={L.pdf} title={L.pdf}><span class="text-[10px] font-bold leading-none">PDF</span></a>
+              <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" class="btn-n btn-n-white btn-n-icon" aria-label={d.addFav}><Icon name="heart" class="size-5" /></button>
+            </div>
+          </div>
+          <div class="mt-4" data-panel="plan" role="tabpanel">
+            {x.image
+              ? <Img src={x.image} alt={`${title} — ${L.tabs.plan}`} class="mx-auto aspect-[4/3] max-h-[560px] w-full !object-contain" width={1200} height={900} sizes="(min-width: 1024px) 860px, 100vw" priority />
+              : <div class="img-fallback aspect-[4/3] w-full rounded-[16px]"></div>}
+          </div>
+          {fPlan && (
+            <div data-panel="floor" role="tabpanel" hidden class="mt-4">
+              <div class="relative mx-auto w-fit">
+                <img src={planSrc(fPlan.image)} alt={L.floorAlt(x.floor, x.block)} loading="lazy" class="block max-h-[560px] w-auto max-w-full" />
+                <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full" aria-hidden="true">
+                  {fShape && <polygon points={polyPoints(fShape.points)} class="fp-me" />}
+                </svg>
+              </div>
+            </div>
+          )}
+          {plans?.view && vMark && (
+            <div data-panel="view" role="tabpanel" hidden class="mt-4">
+              <div class="relative mx-auto w-fit overflow-hidden rounded-[16px]">
+                <img src={planSrc(plans.view.image)} alt={L.tabs.view} loading="lazy" class="block max-h-[560px] w-auto max-w-full" />
+                <span class="view-sector" style={`left:${vMark.x}%;top:${vMark.y}%;--from:${vMark.dir - (vMark.spread ?? 60) / 2}deg;--w:${vMark.spread ?? 60}deg`}></span>
+                <span class="view-dot" style={`left:${vMark.x}%;top:${vMark.y}%`}></span>
+              </div>
+            </div>
+          )}
+          {gImage && (
+            <div data-panel="genplan" role="tabpanel" hidden class="mt-4">
+              <div class="relative mx-auto w-fit overflow-hidden rounded-[16px]">
+                <img src={planSrc(gImage)} alt={`${complex.title} — ${L.tabs.genplan}`} loading="lazy" class="block max-h-[560px] w-auto max-w-full" />
+                {gShape && <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 size-full" aria-hidden="true"><polygon points={polyPoints(gShape.points)} class="fp-me" /></svg>}
+              </div>
+              <p class="mt-3 text-center text-[14px] text-soft"><a href={`${complexUrl(lang, complex)}#genplan`} class="font-medium text-ink underline underline-offset-4 hover:text-accent">{L.toGenplan}</a></p>
+            </div>
+          )}
+        </div>
+        {tabs.length > 1 && (
+          <div class="mt-4 flex justify-center">
+            <div class="seg max-w-full overflow-x-auto" role="tablist">
+              {tabs.map((k, i) => <button type="button" role="tab" data-tab={k} aria-selected={i === 0 ? 'true' : 'false'}>{L.tabs[k]}</button>)}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <!-- Справа: цена, параметры, этапы покупки -->
+      <div class="space-y-3 lg:sticky lg:top-24">
+        <div class="card-n p-5">
+          {x.label && x.label !== 'sold' && <p class="mb-3"><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></p>}
+          <p class:list={['text-[26px] font-medium leading-[32px] text-ink-n', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''} data-price-suffix="">{price}</p>
+          {perM2 && <p class="mt-1 text-[14px] leading-[20px] text-soft">{L.or} <span data-m2-eur={perM2}>{moneyL(lang, perM2)}</span> {L.perM2}</p>}
+          {x.price && (
+            <div class="mt-3 flex flex-wrap items-center gap-1.5 text-sm" data-currency>
+              <span class="sr-only">{ti.currency}</span>
+              {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['cur-chip', c === 'EUR' && 'is-on']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}
+            </div>
+          )}
+          {!sold && <a href="#lead" class="btn-n btn-n-dark mt-5 w-full"><Icon name="phone" class="size-4" />{L.call}</a>}
+          <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn-n btn-n-white mt-2 w-full"><Icon name="whatsapp" class="size-4" />{d.whatsapp}</a>
+        </div>
+        <div class="card-n p-5">
+          <h2 class="text-[19px] font-medium leading-[24px]">{L.params}</h2>
+          {chips.length > 0 && <ul class="mt-3 flex flex-wrap gap-1.5">{chips.map((c) => <li class="param-chip">{c}</li>)}</ul>}
+          <dl class="mt-4 space-y-2.5 text-[14px] leading-[20px]">
+            {params.filter(([, v]) => v).map(([k, v, href]) => (
+              <div class="flex justify-between gap-4"><dt class="text-soft">{k}</dt><dd class="text-right font-medium text-ink">{href ? <a href={href} class="underline underline-offset-4 hover:text-accent">{v}</a> : v}</dd></div>
+            ))}
+          </dl>
+        </div>
+        <button type="button" data-open-steps={stepsId} class="group flex w-full items-center justify-between gap-4 overflow-hidden rounded-[20px] bg-white p-5 text-left transition hover:shadow-[var(--shadow-btn)]">
+          <span><span class="block text-[14px] font-medium leading-[20px]">{L.steps}</span><span class="mt-0.5 block text-[14px] leading-[20px] text-soft">{L.stepsSub}</span></span>
+          <span class="grid size-11 shrink-0 place-items-center rounded-[12px] bg-page-n text-ink-2 transition group-hover:bg-ink group-hover:text-white"><Icon name="arrowUpRight" class="size-4" /></span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <dialog id={stepsId} class="steps-dlg m-auto w-[min(560px,calc(100%-32px))] rounded-[24px] p-0 backdrop:bg-black/40">
+    <div class="p-6 lg:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <h2 class="display text-[26px] leading-[30px]">{L.steps}</h2>
+        <form method="dialog"><button class="btn-n btn-n-white btn-n-icon" aria-label={d.close}><Icon name="close" class="size-4" /></button></form>
+      </div>
+      <ol class="mt-6 space-y-4">
+        {L.stepList.map(([h, p], i) => (
+          <li class="flex gap-4"><span class="grid size-8 shrink-0 place-items-center rounded-full bg-page-n text-[13px] font-medium">{i + 1}</span><span><span class="block font-medium">{h}</span><span class="mt-0.5 block text-[14px] leading-[20px] text-soft">{p}</span></span></li>
+        ))}
+      </ol>
+      <a href="#lead" data-close-steps class="btn-n btn-n-dark mt-6 w-full">{L.consult}</a>
+    </div>
+  </dialog>
+
+  <!-- Способы покупки и акция -->
+  <section class="panel mt-16 py-12 lg:mt-20 lg:py-20">
+    <div class="container-n">
+      <h2 class="display h-section-n mb-6 lg:mb-8">{L.buy}</h2>
+      <div class="grid gap-5 md:grid-cols-2">
+        <div class="flex min-h-[220px] flex-col gap-6 rounded-[24px] bg-page-n p-6">
+          <span class="grid size-12 place-items-center rounded-[14px] bg-white text-ink-n"><Icon name="wallet" class="size-5" /></span>
+          <span><h3 class="text-[20px] leading-[26px] text-ink-n">{L.full}</h3><p class="mt-2 text-[14px] leading-[20px] text-soft">{L.fullText}</p></span>
+        </div>
+        <div class="flex min-h-[220px] flex-col gap-6 rounded-[24px] bg-page-n p-6">
+          <span class="grid size-12 place-items-center rounded-[14px] bg-white text-ink-n"><Icon name="calendar" class="size-5" /></span>
+          <span><h3 class="text-[20px] leading-[26px] text-ink-n">{L.inst}</h3><p class="mt-2 text-[14px] leading-[20px] text-soft">{instText}</p></span>
+        </div>
+      </div>
+      {x.price && !sold && (
+        <div class="mt-5 rounded-[24px] bg-page-n p-6 lg:p-8">
+          <h3 class="mb-5 text-[20px] leading-[26px] text-ink-n">{ti.calc}</h3>
+          <Calculator price={x.price} downPct={inst?.initialPay ?? null} months={inst?.months ?? null} />
+        </div>
+      )}
+      {pd?.promo && lang === 'ru' && (
+        <>
+          <h2 class="display h-section-n mb-6 mt-14 lg:mb-8 lg:mt-20">{L.promo}</h2>
+          <div class="relative overflow-hidden rounded-[24px] bg-ink-n text-white md:max-w-[640px]">
+            <Img src={gallery[1] ?? hero} alt="" class="absolute inset-0 size-full opacity-70" width={800} height={400} />
+            <div class="absolute inset-0 bg-gradient-to-r from-ink/80 to-transparent"></div>
+            <div class="relative flex min-h-[260px] flex-col p-6">
+              <p class="text-[24px] leading-[30px]">{pd.promo}</p>
+              <a href="#lead" class="btn-n btn-n-white mt-auto self-start">{L.request}<Icon name="arrowRight" class="size-4" /></a>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  </section>
+
+  {gallery.length > 1 && (
+    <section class="container-n mt-16 lg:mt-20" data-fcar>
+      <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
+        <h2 class="display h-section-n">{L.gallery}</h2>
+        <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-fcar-prev aria-label="←"><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-fcar-next aria-label="→"><Icon name="arrowRight" class="size-4" /></button></div>
+      </div>
+      <ul class="scroll-x flex snap-x gap-4" data-fcar-track>
+        {gallery.map((src, i) => (
+          <li class="relative aspect-[4/3] w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] md:w-[calc((100%-16px)/2)]">
+            <Img src={src} alt={`${complex.title} — ${i + 1}`} class="size-full" width={960} height={720} sizes="(min-width: 768px) 50vw, 86vw" />
+            <span class="absolute left-4 top-4 rounded-[8px] bg-black/40 px-2 py-0.5 text-[11px] font-medium text-white">{String(i + 1).padStart(2, '0')} / {String(gallery.length).padStart(2, '0')}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <section class="container-n mt-16 lg:mt-20">
+    <div class="mx-auto max-w-[760px]">
+      <h2 class="display h-section-n mb-5 text-center">{L.about}</h2>
+      <p class="about-text">{about}</p>
+      {intro && (
+        <>
+          <div class="prose-stay about-text mt-4" data-clamp data-clamped set:html={intro} />
+          <button type="button" data-clamp-btn aria-expanded="false" data-more={L.readMore} data-less={L.less} class="btn-n btn-n-white mt-4"><span>{L.readMore}</span><Icon name="chevronDown" class="size-4 transition-transform" /></button>
+        </>
+      )}
+    </div>
+  </section>
+
+  <LeadSection n context={`listing-${x.id}`} />
+
+  {similar.length > 0 && (
+    <section id="similar" class="container-n mt-20 scroll-mt-28 lg:mt-28">
+      <h2 class="display h-section-n mb-6 lg:mb-8">{ti.similar}</h2>
+      <ul class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{similar.map((s) => <li><SaleCard x={s} project={s.complex ? ownMap.get(s.complex) ?? null : null} /></li>)}</ul>
+      <a href={ownUrl(lang, x.type, { projectSlugs: [complex.slug] })} class="btn-n btn-n-white mt-8">{L.allIn(complex.title)}<Icon name="arrowRight" class="size-4" /></a>
+    </section>
+  )}
+</Base>
+<style>
+  .cur-chip { height: 28px; padding: 0 10px; border-radius: 1000px; border: .67px solid #d0d1d7; font-size: 12px; font-weight: 500; color: var(--color-soft); transition: color .2s, border-color .2s; }
+  .cur-chip:hover, .cur-chip.is-on { color: var(--color-ink); border-color: var(--color-ink); }
+  .param-chip { height: 24px; padding: 0 10px; display: inline-flex; align-items: center; border-radius: 1000px; border: .67px solid #d0d1d7; font-size: 10px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; }
+  .about-text { font-size: 16px; line-height: 24px; letter-spacing: .2px; color: var(--color-ink-n); }
+  .about-text[data-clamped] { max-height: 96px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 40%, transparent); mask-image: linear-gradient(#000 40%, transparent); }
+  .fp-me { fill: rgb(124 92 255 / .35); stroke: #7c5cff; stroke-width: .4; vector-effect: non-scaling-stroke; }
+  .view-sector { position: absolute; width: 55%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+    background: conic-gradient(from var(--from), rgb(124 92 255 / .45) 0 var(--w), transparent var(--w));
+    -webkit-mask-image: radial-gradient(closest-side, #000 20%, transparent); mask-image: radial-gradient(closest-side, #000 20%, transparent); }
+  .view-dot { position: absolute; width: 14px; height: 14px; transform: translate(-50%, -50%); border-radius: 50%; background: #7c5cff; box-shadow: 0 0 0 4px #fff; }
+  .car-btn { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; box-shadow: var(--shadow-btn); }
+</style>
+<script>
+  import { initCurrency } from '../scripts/currency';
+  initCurrency();
+  // Вкладки под планировкой
+  document.querySelectorAll<HTMLElement>('[data-tabs]').forEach((box) => box.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-tab]');
+    if (!b) return;
+    box.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+    box.querySelectorAll<HTMLElement>('[data-panel]').forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
+  }));
+  // «Этапы покупки»
+  document.querySelectorAll<HTMLElement>('[data-open-steps]').forEach((b) => b.addEventListener('click', () => (document.getElementById(b.dataset.openSteps!) as HTMLDialogElement | null)?.showModal()));
+  document.querySelectorAll<HTMLElement>('[data-close-steps]').forEach((a) => a.addEventListener('click', () => a.closest('dialog')?.close()));
+  // «Читать далее»
+  const txt = document.querySelector<HTMLElement>('[data-clamp]');
+  const more = document.querySelector<HTMLButtonElement>('[data-clamp-btn]');
+  if (txt && more) more.addEventListener('click', () => {
+    const open = 'clamped' in txt.dataset;
+    if (open) delete txt.dataset.clamped; else txt.dataset.clamped = '';
+    more.setAttribute('aria-expanded', String(open));
+    more.querySelector('span')!.textContent = (open ? more.dataset.less : more.dataset.more) ?? '';
+    more.querySelector('svg')?.classList.toggle('rotate-180', open);
+  });
+  // Галерея проекта: стрелки листают на одну карточку
+  document.querySelectorAll<HTMLElement>('[data-fcar]').forEach((c) => {
+    const track = c.querySelector<HTMLElement>('[data-fcar-track]')!;
+    const step = () => (track.firstElementChild as HTMLElement | null)?.offsetWidth ?? 300;
+    c.querySelector('[data-fcar-prev]')?.addEventListener('click', () => track.scrollBy({ left: -step() - 16, behavior: 'smooth' }));
+    c.querySelector('[data-fcar-next]')?.addEventListener('click', () => track.scrollBy({ left: step() + 16, behavior: 'smooth' }));
+  });
+</script>

@@ -9,7 +9,7 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export const IMAGE_DOMAINS = new Set(String(import.meta.env.STAY_IMAGE_DOMAINS || '').split(',').filter(Boolean));
-export const LOCAL_IMAGE = /^\/(?:media|hero)\/[\w\-./]+\.(?:jpe?g|png|webp|avif)$/i;
+export const LOCAL_IMAGE = /^\/(?:media|hero|picker)\/[\w\-./]+\.(?:jpe?g|png|webp|avif)$/i;
 const MAX_BYTES = 25 * 1024 * 1024;
 const originalsDir = () => path.resolve(process.env.STAY_DATA_DIR || 'data', 'media-src');
 /** Свои картинки: после сборки они в dist/client, при `astro dev` — в public. */

@@ -18,10 +18,10 @@ export interface PdfCard { title: string; subtitle: string; price: string; image
 
 const fontBuf = (dataUrl: string) => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
 let fonts: { r: Buffer; s: Buffer; b: Buffer } | null = null;
-const getFonts = () => (fonts ??= { r: fontBuf(interRegular), s: fontBuf(interSemi), b: fontBuf(interBold) });
+export const getFonts = () => (fonts ??= { r: fontBuf(interRegular), s: fontBuf(interSemi), b: fontBuf(interBold) });
 
-const C = { text: '#141414', gray: '#6b6b76', accent: '#754be9', line: '#e3e3ea', head: '#f3f0fd', ph: '#ecebf5', logo: '#090714' };
-const LOGO_PATHS = [
+export const C = { text: '#141414', gray: '#6b6b76', accent: '#754be9', line: '#e3e3ea', head: '#f3f0fd', ph: '#ecebf5', logo: '#090714' };
+export const LOGO_PATHS = [
   'M12.717 12.722l2.54-2.54c3.662 3.639 6.52 6.537 10.181 10.176v7.207h-7.957l5.037-5.037-9.805-9.806h.004zM5.086 27.561v-7.208l7.212 7.208H5.086z',
   'M14.887 25.063l-9.801-9.8H0L15.262 0 30.53 15.262h-5.09L15.257 5.082l-7.631 7.63 9.805 9.81-2.545 2.541z',
 ];

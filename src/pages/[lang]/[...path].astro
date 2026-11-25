@@ -5,13 +5,14 @@
  */
 import CategoryPage from '../../components/CategoryPage.astro';
 import ItemPage from '../../components/ItemPage.astro';
+import FlatPage from '../../components/FlatPage.astro';
 import ComplexesPage from '../../components/ComplexesPage.astro';
 import ComplexPage from '../../components/ComplexPage.astro';
 import PickerPage from '../../components/PickerPage.astro';
 import { pickerFor } from '../../lib/pickers';
 import NotFound from '../../components/NotFound.astro';
 import { isLang } from '../../i18n/config';
-import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
+import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, isOurComplex, type Item } from '../../lib/catalog';
 import { findSeen, daysSince, SOLD_DAYS } from '../../lib/seen';
 
 const lang = Astro.params.lang;
@@ -77,11 +78,14 @@ if (route && isLang(lang)) {
     }
   }
 }
+// Квартира проекта STAY PROJECTS — своя карточка по образцу (FlatPage).
+const flatComplex = view === 'item' && item?.unit && item.complex ? (await getComplexes()).find((c) => c.code === item!.complex && isOurComplex(c)) ?? null : null;
 ---
 {view === 'cat' && route && (route.kind === 'hub' || route.kind === 'listing') && <CategoryPage cat={route.cat} page={route.kind === 'listing' ? route.page : 1} hub={route.kind === 'hub'} />}
 {view === 'complexes' && route?.kind === 'complexes' && <ComplexesPage cat={route.cat} page={route.page} />}
 {view === 'complex' && complex && <ComplexPage c={complex} />}
 {view === 'picker' && complex && <PickerPage c={complex} />}
-{view === 'item' && item && <ItemPage x={item} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
+{view === 'item' && item && flatComplex && <FlatPage x={item} complex={flatComplex} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
+{view === 'item' && item && !flatComplex && <ItemPage x={item} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
 {view === '404' && <NotFound />}
 {view === '410' && <NotFound gone />}
