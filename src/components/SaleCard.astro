@@ -25,16 +25,16 @@ const title = `${TYPE_WORDS[lang][x.type].one}${x.rooms ? ` ${x.rooms}` : ''}`;
 const area = x.area ? `${numL(lang, x.area)} ${d.m2}` : '';
 const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
 // Гражданство и ВНЖ показаны бейджами на фото, в чипах их не повторяем.
-const chips = x.features.filter((f) => !/bedroom|price-to|citizenship|residence-permit/.test(f)).slice(0, 3);
+const chips = x.features.filter((f) => !/bedroom|price-to/.test(f) && !(f === 'citizenship' && citizenship) && !(f === 'residence-permit' && residence)).slice(0, 3);
 const alt = `${title}${district ? ` — ${district.name[lang]}` : ''}${area ? `, ${area}` : ''} — ${d.photo} 1`;
 const perM2 = x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };
 const H = headingLevel;
 const sold = x.label === 'sold';
 const own = !!x.own;
-// Бейджи на фото справа сверху: право на гражданство и ВНЖ (Турция, продажа; правила — фичи citizenship / residence-permit в segments.ts).
-const citizenship = !sold && x.features.includes('citizenship');
-const residence = !sold && x.features.includes('residence-permit');
+// Бейджи на фото справа сверху: «Гражданство» и «ВНЖ» — только по ручным отметкам в админке (решение Anuar 25.11.2026: по цене не подходит).
+const citizenship = !sold && !!x.citMark;
+const residence = !sold && !!x.resMark;
 const RIGHTS: Record<string, { cit: string; res: string }> = {
   ru: { cit: 'Гражданство', res: 'ВНЖ' }, en: { cit: 'Citizenship', res: 'Residence permit' }, tr: { cit: 'Vatandaşlık', res: 'Oturma izni' },
   de: { cit: 'Staatsbürgerschaft', res: 'Aufenthaltstitel' }, sr: { cit: 'Državljanstvo', res: 'Boravišna dozvola' },

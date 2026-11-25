@@ -39,6 +39,9 @@ export interface Item {
   pinned?: boolean;
   /** Наш объект (объект компании, отметка в админке): фиолетовое выделение; в общем списке продажи — только через фильтр. */
   own?: boolean;
+  /** Ручные отметки админки: бейджи «Гражданство» и «ВНЖ» на фото. */
+  citMark?: boolean;
+  resMark?: boolean;
 }
 
 const TYPE_MAP: Record<string, TypeSlug> = {
@@ -100,7 +103,7 @@ async function withMarks(list: Item[]) {
   if (hit && hit.marks === marks) return hit;
   const all = list.map((x) => {
     const m = marks[x.id];
-    return m ? { ...x, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own } : x;
+    return m ? { ...x, label: m.label ?? null, pinned: !!m.pinned, own: !!m.own, citMark: !!m.cit, resMark: !!m.res } : x;
   });
   const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);

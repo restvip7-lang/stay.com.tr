@@ -26,7 +26,8 @@ export const LABEL_STYLE: Record<Label, string> = {
   new: 'background:#754be9;color:#fff',
 };
 
-export interface Mark { hidden?: boolean; label?: Label; pinned?: boolean; own?: boolean }
+/** cit / res — ручные отметки «Гражданство» и «ВНЖ» (бейджи на фото карточки). */
+export interface Mark { hidden?: boolean; label?: Label; pinned?: boolean; own?: boolean; cit?: boolean; res?: boolean }
 export type Marks = Record<string, Mark>;
 
 const KEY = 'config/objects.json';
@@ -43,6 +44,8 @@ export function normalizeMark(v: any): Mark | null {
   if (LABELS.includes(v.label)) m.label = v.label;
   if (v.pinned === true) m.pinned = true;
   if (v.own === true) m.own = true;
+  if (v.cit === true) m.cit = true;
+  if (v.res === true) m.res = true;
   return Object.keys(m).length ? m : null;
 }
 
