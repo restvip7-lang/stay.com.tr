@@ -13,7 +13,7 @@ import { t } from '../../../../i18n/ui';
 import { SITE } from '../../../../i18n/config';
 import { BLOG_CATS, BLOG_CAT_NAME, BLOG_CAT_LEAD, blogUrl, postsOf, lawBySlug, guideBySlug, guideCat, guideImage, guideName, guideTitle, type BlogCat } from '../../../../lib/blog';
 import { getNewsItemL } from '../../../../lib/api';
-import { itemsOf, stats, catUrl, getComplexes, matchComplex, featureCounts, typeCounts, INDEX_MIN } from '../../../../lib/catalog';
+import { itemsOf, stats, catUrl, getOurComplexes, matchComplex, featureCounts, typeCounts, INDEX_MIN } from '../../../../lib/catalog';
 import { TYPE_WORDS, FEATURE_LABEL, DEAL_WORDS } from '../../../../lib/segments';
 import { moneyL, numL, mdToHtml, strip, monthYearL } from '../../../../lib/format';
 import { sanitize } from '../../../../lib/sanitize';
@@ -75,7 +75,7 @@ if (!isList && cat === 'laws') {
     ...feats.map(([f, n]) => ({ href: catUrl(lang, { ...sale, type: 'apartments', feature: f }), text: `${TYPE_WORDS[lang].apartments.pl}: ${FEATURE_LABEL[lang][f].toLocaleLowerCase(lang)}`, n })),
     ...(rentN >= INDEX_MIN ? [{ href: catUrl(lang, { ...gc, deal: 'rent' }), text: DEAL_WORDS[lang].rent.name, n: rentN }] : []),
   ];
-  const cx = (await getComplexes()).filter((x) => matchComplex(x, gc)).length;
+  const cx = (await getOurComplexes()).filter((x) => matchComplex(x, gc)).length;
   const total = (await itemsOf(sale)).length;
   guide = { name, inName: geoIn(lang, geoOf(gc)), rows, landings, complexes: cx, complexesHref: catUrl(lang, gc, { complexes: true }), total };
   const ids = ['about', 'life', 'buy'];
