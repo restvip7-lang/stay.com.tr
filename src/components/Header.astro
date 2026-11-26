@@ -195,6 +195,8 @@ const groups = [
   .site-header .brand-link { transition: color .3s; }
   .site-header.is-solid .brand-link:hover, .site-header.is-solid .brand-link.is-current { color: var(--color-accent); }
   .site-header.is-overlay .brand-link:hover { opacity: .7; }
+  /* Поверх фото текущий пункт тоже виден (Anuar 26.11.2026): светлый фиолетовый с тенью, как на странице STAY PROJECTS. */
+  .site-header.is-overlay .brand-link.is-current { color: #c3afff; text-shadow: 0 1px 12px #1f183899; }
   /* PRIVE подсвечивается золотом, как MR PRIVATE у образца (Anuar 25.11.2026). */
   .site-header .brand-link[data-brand="PRIVE"].is-current, .site-header.is-solid .brand-link[data-brand="PRIVE"]:hover { color: #bc906e; }
   .site-header .main-nav { border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
@@ -204,6 +206,7 @@ const groups = [
   .site-header.is-solid .nav-item:hover, .site-header.is-solid .nav-item.is-current { color: var(--color-ink-2); }
   .site-header.is-overlay .nav-item { color: #fff; }
   .site-header.is-overlay .nav-item:hover { color: #ffffffb3; }
+  .site-header.is-overlay .nav-item.is-current { text-decoration: underline; text-decoration-thickness: 1.5px; text-underline-offset: 6px; }
   .menu-group > summary::-webkit-details-marker { display: none; }
   .menu-group[open] > summary svg { transform: rotate(180deg); }
   @media (min-width: 1024px) { .menu-group > summary { pointer-events: none; } }
