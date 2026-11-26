@@ -1,7 +1,8 @@
 ---
 /**
  * Картинка (с чужого сайта или своя из public/media, public/hero): на проде — через оптимизатор (на Vercel — /_vercel/image, на своём сервере — /img, src/pages/img.ts; AVIF/WebP, размеры под экран), явные width/height
- * против сдвигов вёрстки, lazy ниже первого экрана (ТЗ 2.4, 2.6 п. 6). Если файла нет — мягкий фон.
+ * против сдвигов вёрстки, lazy ниже первого экрана (ТЗ 2.4, 2.6 п. 6). Если оптимизатор не отдал картинку (например, лимит Vercel) —
+ * берём исходный файл; если нет и его — мягкий фон.
  */
 interface Props { src?: string | null; alt: string; class?: string; loading?: 'lazy' | 'eager'; sizes?: string; width?: number; height?: number; priority?: boolean }
 const { src, alt, class: cls = '', loading, sizes = '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw', width = 800, height = 600, priority = false } = Astro.props;
@@ -12,5 +13,5 @@ const u = (w: number) => `${base}?url=${encodeURIComponent(src!)}&w=${w}&q=75`;
 const srcset = opt ? WIDTHS.map((w) => `${u(w)} ${w}w`).join(', ') : undefined;
 ---
 {src
-  ? <img src={opt ? u(960) : src} srcset={srcset} sizes={opt ? sizes : undefined} alt={alt} width={width} height={height} loading={loading ?? (priority ? 'eager' : 'lazy')} fetchpriority={priority ? 'high' : undefined} decoding="async" class:list={['img-fallback object-cover', cls]} onerror="this.removeAttribute('srcset');this.removeAttribute('src');this.style.visibility='hidden';this.parentElement&&this.parentElement.classList.add('img-fallback')" />
+  ? <img src={opt ? u(960) : src} srcset={srcset} sizes={opt ? sizes : undefined} alt={alt} width={width} height={height} loading={loading ?? (priority ? 'eager' : 'lazy')} fetchpriority={priority ? 'high' : undefined} decoding="async" class:list={['img-fallback object-cover', cls]} data-orig={opt ? src : undefined} onerror="var o=this.dataset.orig;if(o&&this.getAttribute('src')!==o){this.removeAttribute('srcset');this.removeAttribute('sizes');this.src=o;return}this.removeAttribute('srcset');this.removeAttribute('src');this.style.visibility='hidden';this.parentElement&&this.parentElement.classList.add('img-fallback')" />
   : <div class:list={['img-fallback', cls]} role="img" aria-label={alt}></div>}
