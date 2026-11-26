@@ -5,13 +5,14 @@
  */
 import CategoryPage from '../../components/CategoryPage.astro';
 import ItemPage from '../../components/ItemPage.astro';
+import FlatPage from '../../components/FlatPage.astro';
 import ComplexesPage from '../../components/ComplexesPage.astro';
 import ComplexPage from '../../components/ComplexPage.astro';
 import PickerPage from '../../components/PickerPage.astro';
 import { pickerFor } from '../../lib/pickers';
 import NotFound from '../../components/NotFound.astro';
 import { isLang } from '../../i18n/config';
-import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, type Item } from '../../lib/catalog';
+import { parseRoute, whitelistFeature, catUrl, findItem, isHidden, itemUrl, getComplexes, complexUrl, filtered, parseFilters, PER_PAGE, matchComplex, isOurComplex, isPublicComplex, COMPLEX_SLUG_ALIASES, complexPageCount, type Item } from '../../lib/catalog';
 import { findSeen, daysSince, SOLD_DAYS } from '../../lib/seen';
 
 const lang = Astro.params.lang;
@@ -33,10 +34,12 @@ if (route && isLang(lang)) {
     const n = route.page > 1 ? (await filtered(route.cat, parseFilters(Astro.url.searchParams))).length : 0;
     view = route.page > 1 && route.page > Math.ceil(n / PER_PAGE) ? '404' : 'cat';
   } else if (route.kind === 'complexes') {
-    const n = (await getComplexes()).filter((x) => matchComplex(x, route.cat)).length;
-    view = route.page > Math.max(1, Math.ceil(n / 24)) ? '404' : 'complexes';
+    const n = (await getComplexes()).filter((x) => matchComplex(x, route.cat) && isPublicComplex(x)).length;
+    view = route.page > complexPageCount(n) ? '404' : 'complexes';
   } else if (route.kind === 'complex') {
     complex = (await getComplexes()).find((c) => c.slug === route.slug) ?? null;
+    const alias = !complex && COMPLEX_SLUG_ALIASES[route.slug] ? (await getComplexes()).find((c) => c.slug === COMPLEX_SLUG_ALIASES[route.slug]) : null;
+    if (alias) return Astro.redirect(complexUrl(lang, alias), 301);
     if (complex) {
       const canon = complexUrl(lang, complex);
       if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
@@ -45,6 +48,8 @@ if (route && isLang(lang)) {
   } else if (route.kind === 'picker') {
     // Подборщик квартир на рендере — только у ЖК, для которых он настроен (lib/pickers.ts).
     complex = pickerFor(route.slug) ? (await getComplexes()).find((c) => c.slug === route.slug) ?? null : null;
+    const alias = !complex && COMPLEX_SLUG_ALIASES[route.slug] ? (await getComplexes()).find((c) => c.slug === COMPLEX_SLUG_ALIASES[route.slug]) : null;
+    if (alias) return Astro.redirect(complexUrl(lang, alias), 301);
     if (complex) {
       const canon = complexUrl(lang, complex) + '/picker/';
       if (canon !== Astro.url.pathname) return Astro.redirect(canon, 301);
@@ -77,11 +82,19 @@ if (route && isLang(lang)) {
     }
   }
 }
+// Квартира проекта STAY PROJECTS — своя карточка по образцу (FlatPage).
+const flatComplex = view === 'item' && item?.unit && item.complex ? (await getComplexes()).find((c) => c.code === item!.complex && isOurComplex(c)) ?? null : null;
+// Подсветка шапки (Anuar 26.11.2026): наш проект и его квартиры → STAY PROJECTS (даже если он ещё и PRIVE); PRIVE-ЖК, их квартиры и PRIVE-объекты → PRIVE.
+const itemComplex = view === 'item' && item?.complex ? (await getComplexes()).find((c) => c.code === item!.complex) ?? null : null;
+const navCx = (view === 'complex' || view === 'picker') ? complex : itemComplex;
+if (navCx && isOurComplex(navCx)) Astro.locals.navSection = 'own';
+else if (navCx?.isPrivate || (view === 'item' && item?.isPrivate)) Astro.locals.navSection = 'prive';
 ---
 {view === 'cat' && route && (route.kind === 'hub' || route.kind === 'listing') && <CategoryPage cat={route.cat} page={route.kind === 'listing' ? route.page : 1} hub={route.kind === 'hub'} />}
 {view === 'complexes' && route?.kind === 'complexes' && <ComplexesPage cat={route.cat} page={route.page} />}
 {view === 'complex' && complex && <ComplexPage c={complex} />}
 {view === 'picker' && complex && <PickerPage c={complex} />}
-{view === 'item' && item && <ItemPage x={item} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
+{view === 'item' && item && flatComplex && <FlatPage x={item} complex={flatComplex} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
+{view === 'item' && item && !flatComplex && <ItemPage x={item} sold={sold || item.label === 'sold'} soldAt={soldAt} />}
 {view === '404' && <NotFound />}
 {view === '410' && <NotFound gone />}

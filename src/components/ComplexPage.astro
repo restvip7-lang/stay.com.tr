@@ -13,20 +13,23 @@ import ProjectCard from './ProjectCard.astro';
 import LeadForm from './LeadForm.astro';
 import { t } from '../i18n/ui';
 import { getComplex } from '../lib/api';
-import { getComplexes, getUnits, getItems, complexUrl, catUrl, itemUrl, matchComplex, type Complex } from '../lib/catalog';
+import { getComplexes, getUnits, getItems, complexUrl, catUrl, itemUrl, matchComplex, isOurComplex, isPublicComplex, type Complex } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { geoOf, complexMeta } from '../lib/seo';
 import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
 import { complexLd, videoLd } from '../lib/ld';
 import { guideFor } from '../lib/blog';
 import { sanitize } from '../lib/sanitize';
-import { moneyL, numL, strip } from '../lib/format';
+import { moneyL, numL, pluralL, strip } from '../lib/format';
 import { TYPE_WORDS } from '../lib/segments';
 import type { Robots } from '../lib/page';
 import { pickerFor, pickerReals, PICKER_TEXT } from '../lib/pickers';
 import { COMPLEX_BLOCKS } from '../lib/complexBlocks';
 import ComplexGenplan from './ComplexGenplan.astro';
+import ProjectGenplan from './ProjectGenplan.astro';
+import { plansOf } from '../lib/plans';
 import { site } from '../lib/site';
+import { ownUrl } from '../lib/ownUrl';
 
 interface Props { c: Complex }
 const { c } = Astro.props;
@@ -59,8 +62,11 @@ const FACT_LABEL: Record<string, string> = { price: tc.priceRange, 'build-end': 
 const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
 const alternates = { ru: complexUrl('ru', c) };
 
-const nearby = (await getComplexes()).filter((x) => x.slug !== c.slug && matchComplex(x, { country: c.country, city: c.city, district: c.district ?? undefined }));
-const others = (nearby.length >= 3 ? nearby : [...nearby, ...(await getComplexes()).filter((x) => x.slug !== c.slug && x.city === c.city && !nearby.includes(x))]).slice(0, 3);
+// «Другие ЖК рядом»: PRIVE-ЖК только в разделе PRIVE (Anuar 26.11.2026) — у обычного ЖК их не показываем.
+const cPrive = !isPublicComplex(c);
+const okOther = (x: Complex) => x.slug !== c.slug && (cPrive || isPublicComplex(x));
+const nearby = (await getComplexes()).filter((x) => okOther(x) && matchComplex(x, { country: c.country, city: c.city, district: c.district ?? undefined }));
+const others = (nearby.length >= 3 ? nearby : [...nearby, ...(await getComplexes()).filter((x) => okOther(x) && x.city === c.city && !nearby.includes(x))]).slice(0, 3);
 const geoCat = { country: c.country, city: c.city, district: c.district ?? undefined };
 const guide = guideFor(lang, geoCat);
 const links = [
@@ -70,7 +76,11 @@ const links = [
   ...(guide ? [{ href: guide.href, text: guide.title }] : []),
   { href: `/${lang}/services/due-diligence/`, text: SERVICE_TITLES[lang]['due-diligence'] },
 ];
-const crumbs = catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
+// Наши проекты (решение Anuar 25.11): короткие крошки «Главная · STAY PROJECTS · Проект», как у образца.
+// PRIVE-ЖК (не наши) — «Главная · PRIVE · ЖК»: в «Новостройках» их нет (Anuar 26.11.2026).
+const crumbs = isOurComplex(c) ? [{ label: t(lang).home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, { label: c.title }]
+  : !isPublicComplex(c) ? [{ label: t(lang).home, href: `/${lang}/` }, { label: 'PRIVE', href: `/${lang}/prive/` }, { label: c.title }]
+  : catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
 const vld = p?.video ? videoLd(p.video, c.title, description, new Date().toISOString()) : null;
 const ld = [
   complexLd({ url: self, name: c.title, description, images: [hero, ...gallery].filter(Boolean) as string[], city: city.name.en, region: district?.name.en ?? city.name.en, country: c.country === 'turkey' ? 'TR' : c.country === 'uae' ? 'AE' : 'CY', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, units: objects.length || null, amenities: p?.amenities ?? [], low, high, offers: objects.length || units.length }),
@@ -81,8 +91,39 @@ const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
 const tb = COMPLEX_BLOCKS[lang];
 const picker = pickerFor(c.slug);
 const pickerUrl = `${self}/picker/`;
+// Полная страница проекта (генплан, статус, акции, материалы, ход строительства, новости) — только у наших
+// STAY PROJECTS и у ЖК с подборщиком (Anuar 25.11.2026). У остальных ЖК — короткая: без генплана и пустых блоков «скоро».
+const ours = isOurComplex(c);
+const full = ours || !!picker;
+const plans = ours ? await plansOf(c.code) : null;
 const real = picker ? await pickerReals(c.code, picker, lang).catch(() => []) : [];
-const flatCards = objects.filter((x) => x.image);
+// Карточки над описанием — по планировкам (тип + комнатность), как у образца: «Студии / от 28 м² / от … / 11 квартир».
+// Клик: у наших проектов — каталог с фильтром «Проект + комнатность», у остальных — список квартир планировки (одна — сразу её страница).
+const STUDIO: Record<string, string> = { ru: 'Студии', en: 'Studios', tr: 'Stüdyolar', de: 'Studios', sr: 'Garsonjere' };
+const TYPE_ORDER = ['apartments', 'duplexes', 'penthouses', 'townhouses', 'villas', 'commercial', 'land'];
+const roomsKey = (r: string | null) => { if (!r) return null; if (r === '1+0') return 'studio'; const n = Number(r.split('+')[0]); return Number.isFinite(n) ? (n >= 4 ? '4+' : `${n}+1`) : null; };
+const roomsN = (r: string | null) => (r === '1+0' ? 0 : r ? Number(r.split('+')[0]) || 99 : 99);
+const byPrice = (a: (typeof objects)[number], b: (typeof objects)[number]) => (a.price ?? Infinity) - (b.price ?? Infinity) || (a.area ?? 0) - (b.area ?? 0);
+const grouped = new Map<string, typeof objects>();
+for (const x of objects) { const k = `${x.type}|${x.rooms ?? ''}`; grouped.set(k, [...(grouped.get(k) ?? []), x]); }
+const flatGroups = [...grouped.entries()].map(([key, list], i) => {
+  const items = [...list].sort(byPrice);
+  const x0 = items[0];
+  const areas = items.map((x) => x.area).filter((v): v is number => !!v);
+  const pr = items.map((x) => x.price).filter((v): v is number => !!v);
+  const tw = TYPE_WORDS[lang][x0.type];
+  const studio = x0.rooms === '1+0' && x0.type === 'apartments';
+  return {
+    key, id: `grp-${i}`, items, type: x0.type, rooms: x0.rooms,
+    title: studio ? STUDIO[lang] : `${tw.pl}${x0.rooms ? ` ${x0.rooms}` : ''}`,
+    area: areas.length ? Math.min(...areas) : null,
+    price: pr.length ? Math.min(...pr) : null,
+    image: items.find((x) => x.image)?.image ?? null,
+    count: `${items.length} ${pluralL(lang, items.length, tw.n)}`,
+    // Наши проекты: карточка открывает каталог с галочкой «Объекты Stay», проектом и комнатностью (как у образца).
+    href: ours ? ownUrl(lang, x0.type, { projectSlugs: [c.slug], rooms: roomsKey(x0.rooms) ? [roomsKey(x0.rooms)!] : [] }) : items.length === 1 ? itemUrl(lang, x0) : null,
+  };
+}).sort((a, b) => roomsN(a.rooms) - roomsN(b.rooms) || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
 const infra = p?.infrastructure ?? [];
 const progressPhotos = gallery.slice(2, 6);
 // Карточка-характеристики вида «Планировка:» / «1+1, 2+1» / «Площадь:» / «от 61 до 147 кв.м.» → пары «название — значение».
@@ -135,7 +176,7 @@ const month = new Date().getMonth();
           {c.rooms.length > 0 && <span>{c.rooms.join(' · ')}</span>}
         </p>
         <div class="mt-6 flex flex-wrap gap-2.5">
-          {picker ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
+          {picker || ours ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
           {picker && <a href="#lead" class="btn-n btn-n-glass max-sm:w-full">{tc.getPrice}</a>}
         </div>
       </div>
@@ -151,21 +192,57 @@ const month = new Date().getMonth();
         </dl>
       )}
 
-      {flatCards.length > 0 ? (
+      {flatGroups.length > 0 ? (
         <div id="choose" class="relative mt-8 scroll-mt-28 lg:mt-10" data-car>
           <h2 class="sr-only">{tb.flats}</h2>
           <ul class="scroll-x -mx-5 flex snap-x scroll-px-5 gap-4 px-5 lg:mx-0 lg:scroll-px-0 lg:px-0" data-car-track>
-            {flatCards.map((x) => (
-              <li class="w-[248px] shrink-0 snap-start lg:w-[calc((100%-48px)/4)]">
-                <a href={itemUrl(lang, x)} class="tile-n group flex h-full flex-col gap-1 p-4 transition hover:shadow-[var(--shadow-card)]">
-                  <span class="text-[15px] leading-[20px] text-ink-n">{TYPE_WORDS[lang][x.type].one} {x.rooms}{x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}</span>
-                  <span class="text-[13px] text-soft">{x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
-                  <span class="mt-2 overflow-hidden rounded-[12px] bg-white"><Img src={x.image} alt="" class="aspect-[4/3] w-full object-contain" width={480} height={360} /></span>
-                </a>
-              </li>
-            ))}
+            {flatGroups.map((g) => {
+              const inner = (
+                <>
+                  <span class="flex items-start justify-between gap-3">
+                    <span class="text-[16px] leading-[22px] tracking-[.2px] text-ink-n">{g.title}</span>
+                    <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium uppercase leading-[14px] tracking-[.6px] text-ink-n">{g.count}</span>
+                  </span>
+                  {g.area && <span class="text-[14px] leading-[19px] text-ink-n">{d.from(`${numL(lang, g.area)} ${d.m2}`)}</span>}
+                  <span class="text-[14px] leading-[19px] text-soft">{g.price ? d.from(moneyL(lang, g.price)) : d.priceOnRequest}</span>
+                  <span class="mt-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-[12px] bg-white">{g.image ? <Img src={g.image} alt="" class="size-full object-contain" width={480} height={360} /> : <Icon name="building" class="size-8 text-soft" />}</span>
+                </>
+              );
+              return (
+                <li class="w-[248px] shrink-0 snap-start lg:w-[calc((100%-48px)/4)]">
+                  {g.href
+                    ? <a href={g.href} class="tile-n group flex h-full flex-col gap-1 p-4 transition hover:shadow-[var(--shadow-card)]">{inner}</a>
+                    : <button type="button" class="tile-n group flex h-full w-full flex-col gap-1 p-4 text-left transition hover:shadow-[var(--shadow-card)]" data-grp={g.id} aria-haspopup="dialog">{inner}</button>}
+                </li>
+              );
+            })}
           </ul>
-          {flatCards.length > 4 && <button type="button" class="car-btn absolute -right-5 top-1/2 hidden -translate-y-1/2 lg:grid" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button>}
+          {flatGroups.length > 4 && <button type="button" class="car-btn absolute -right-5 top-1/2 hidden -translate-y-1/2 lg:grid" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button>}
+          {flatGroups.filter((g) => !g.href).map((g) => (
+            <dialog id={g.id} class="grp-dlg m-auto w-[min(640px,calc(100%-32px))] rounded-[24px] bg-white p-0 text-ink-n backdrop:bg-black/50" aria-label={g.title}>
+              <div class="flex items-start justify-between gap-4 border-b border-line px-5 py-4 lg:px-6">
+                <div>
+                  <p class="display text-[22px] leading-[28px]">{g.title}</p>
+                  <p class="mt-1 text-[14px] text-soft">{c.title} · {g.count}</p>
+                </div>
+                <button type="button" class="grid size-9 shrink-0 place-items-center rounded-full bg-page" data-grp-close aria-label={d.close}><Icon name="close" class="size-4" /></button>
+              </div>
+              <ul class="max-h-[65vh] overflow-y-auto px-2 py-2 lg:px-3">
+                {g.items.map((x) => (
+                  <li>
+                    <a href={itemUrl(lang, x)} class="flex items-center gap-4 rounded-[14px] px-3 py-3 transition-colors hover:bg-page">
+                      <span class="grid size-16 shrink-0 place-items-center overflow-hidden rounded-[10px] bg-page">{x.image ? <Img src={x.image} alt="" class="size-full object-contain" width={128} height={128} /> : <Icon name="building" class="size-5 text-soft" />}</span>
+                      <span class="min-w-0 flex-1">
+                        <span class="block text-[15px] leading-[20px]">{TYPE_WORDS[lang][x.type].one} {x.rooms}{x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}</span>
+                        {x.floor != null && <span class="block text-[13px] text-soft">{d.item.floor}: {x.floor}</span>}
+                      </span>
+                      <span class="shrink-0 text-[15px] font-medium">{x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </dialog>
+          ))}
         </div>
       ) : units.length > 0 && (
         <div id="choose" class="mt-8 scroll-mt-28 lg:mt-10">
@@ -212,12 +289,14 @@ const month = new Date().getMonth();
           <div class="aspect-[1216/730] w-[92%] shrink-0 snap-center overflow-hidden rounded-[24px] lg:w-full"><Img src={src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="size-full" width={1280} height={720} /></div>
         ))}
       </div>
+      {full && (<>
       <h2 class="sr-only">{tb.status}</h2>
       <ul class="mt-3 grid gap-3 md:grid-cols-3">
         <li class="flex min-h-[220px] flex-col rounded-[24px] bg-white p-6 md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px] text-ink-n">{tb.status}</p><p class="mt-1 text-[13px] text-soft">{tc.deadline}: {buildEnd ?? '—'}</p><span class="mt-auto grid size-10 place-items-center self-start rounded-[12px] bg-page-n text-ink-n"><Icon name="building" class="size-5" /></span></li>
         <li class="flex min-h-[220px] flex-col rounded-[24px] bg-white p-6 md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px] text-ink-n">{tb.statusStage} <span class="stub">{tb.stub}</span></p><p class="mt-1 text-[13px] text-soft">{tb.statusStageText}</p><span class="mt-auto self-end text-soft"><Icon name="arrowRight" class="size-4" /></span></li>
         <li class="flex min-h-[220px] flex-col rounded-[24px] bg-accent p-6 text-white md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px]">{tb.viewing}</p><p class="mt-1 text-[13px] text-white/80">{tb.viewingText}</p><a href="#viewing" class="mt-auto grid size-10 place-items-center self-end rounded-[12px] bg-white text-ink" aria-label={tb.viewingBtn}><Icon name="arrowRight" class="size-4" /></a></li>
       </ul>
+      </>)}
     </div>
   </section>
 
@@ -242,7 +321,8 @@ const month = new Date().getMonth();
   )}
 
   {picker && <ComplexGenplan slug={c.slug} conf={picker} pickerUrl={pickerUrl} units={units} real={real} />}
-  {!picker && hero && (
+  {!picker && ours && <ProjectGenplan c={c} objects={objects} plans={plans} image={hero} />}
+  {!picker && full && !ours && hero && (
     <section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28">
       <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
         <h2 class="display h-section-n">{tb.genplan}</h2>
@@ -260,7 +340,7 @@ const month = new Date().getMonth();
 
   <section class="mt-20 lg:mt-28" data-tabs>
     <div class="mx-auto max-w-[988px] px-5 text-center">
-      <h2 class="display h-section-n mb-4">{tb.aboutProject}{infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
+      <h2 class="display h-section-n mb-4">{tb.aboutProject}{full && infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
       {about?.html && <div class="prose-stay about-text" lang="ru" set:html={about.html} />}
       {about?.pairs && (
         <dl class="mt-5 flex flex-wrap justify-center gap-3" lang="ru">
@@ -331,6 +411,7 @@ const month = new Date().getMonth();
         ))}
       </ul>
     </div>
+    {full && (
     <div class="container-n">
       <h2 class="display h-section-n mb-6 mt-14 lg:mb-8 lg:mt-20">{tb.promo} <span class="stub">{tb.stub}</span></h2>
       <div class="relative overflow-hidden rounded-[24px] bg-ink-n text-white">
@@ -344,8 +425,10 @@ const month = new Date().getMonth();
         </div>
       </div>
     </div>
+    )}
   </section>
 
+  {full && (
   <section class="container-n mt-20 lg:mt-28" data-tabs>
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.docs} <span class="stub">{tb.stub}</span></h2>
@@ -363,7 +446,9 @@ const month = new Date().getMonth();
       </ul>
     ))}
   </section>
+  )}
 
+  {full && (
   <section class="container-n mt-20 lg:mt-28" data-tabs>
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.progress} <span class="stub">{tb.stub}</span></h2>
@@ -383,7 +468,9 @@ const month = new Date().getMonth();
       {ytId ? <a href="#video" class="photo-card aspect-[16/7]"><img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" class="absolute inset-0 size-full object-cover" /><span class="absolute bottom-6 right-6 btn-n btn-n-white">{tc.video}</span></a> : <div class="grid aspect-[16/7] place-items-center rounded-[20px] bg-white p-6 text-center text-soft">{tb.streamSoon}</div>}
     </div>
   </section>
+  )}
 
+  {full && (
   <section class="container-n mt-20 lg:mt-28" data-car>
     <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.news} <span class="stub">{tb.stub}</span></h2>
@@ -394,6 +481,7 @@ const month = new Date().getMonth();
     </ul>
     <a href={`/${lang}/blog/`} class="btn-n btn-n-dark mt-6">{tb.newsAll}</a>
   </section>
+  )}
 
   <section id="viewing" class="panel mt-20 scroll-mt-24 py-12 lg:mt-28 lg:py-20" data-tabs>
     <div class="container-n">
@@ -504,6 +592,13 @@ const month = new Date().getMonth();
   document.querySelectorAll<HTMLElement>('[data-more-infra]').forEach((b) => b.addEventListener('click', () => {
     const box = b.closest('section')?.querySelector<HTMLElement>('[data-infra]'); box?.classList.remove('hidden'); b.remove(); box?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }));
+  // Карточка планировки открывает список её квартир; закрытие — крестик или клик по фону.
+  document.querySelectorAll<HTMLElement>('[data-grp]').forEach((b) => b.addEventListener('click', () => {
+    (document.getElementById(b.dataset.grp!) as HTMLDialogElement | null)?.showModal();
+  }));
+  document.querySelectorAll<HTMLDialogElement>('dialog.grp-dlg').forEach((dl) => {
+    dl.addEventListener('click', (e) => { if (e.target === dl || (e.target as HTMLElement).closest('[data-grp-close]')) dl.close(); });
+  });
   // «Подробнее» под описанием комплекса раскрывает весь текст.
   document.querySelectorAll<HTMLElement>('[data-more]').forEach((b) => b.addEventListener('click', () => {
     b.parentElement?.querySelector('[data-clamp]')?.classList.remove('clamp'); b.remove();

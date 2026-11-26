@@ -1,0 +1,197 @@
+---
+/**
+ * Генплан нашего проекта по образцу mr-group (ЖК МИРА): генплан → корпус → этажи → каталог.
+ * 1) Картинка генплана; корпуса — контуры из админки («Планы проектов»), а пока их нет — кнопки корпусов на картинке.
+ *    Наведение/нажатие показывает карточку корпуса: этажность, комнатность «от м² / от €», «Выбрать квартиру».
+ * 2) «Выбрать квартиру» открывает корпус по этажам (шахматка): этажи снизу вверх, у каждого «доступно N квартир».
+ * 3) Этаж ведёт в каталог STAY PROJECTS: проект + корпус + этаж (…/exodus-premium-town/block-c/floor-from-3-to-3/).
+ */
+import Img from './Img.astro';
+import Icon from './Icon.astro';
+import type { Complex, Item } from '../lib/catalog';
+import type { ProjectPlans } from '../lib/plans';
+import { polyPoints } from '../lib/plans';
+import { ownUrl } from '../lib/ownUrl';
+import { moneyL, numL, pluralL } from '../lib/format';
+import { t } from '../i18n/ui';
+
+interface Props { c: Complex; objects: Item[]; plans: ProjectPlans | null; image: string | null }
+const { c, objects, plans, image } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
+const T = ({
+  ru: { title: 'Генплан', block: 'Корпус', blockW: 'Блок', house: 'Дом', floorsN: (n: number) => `${n} ${pluralL('ru', n, ['этаж', 'этажа', 'этажей'])}`, choose: 'Выбрать квартиру', back: 'Вернуться к выбору корпуса', pickFloor: 'Выберите этаж', floor: (n: number) => (n === 0 ? 'Цокольный этаж' : `${n} этаж`), avail: (n: number) => `Доступно ${n} ${pluralL('ru', n, ['квартира', 'квартиры', 'квартир'])}`, none: 'Нет квартир в продаже', studio: 'Студии', rooms: (r: string) => r, hint: 'Наведите на корпус или нажмите на него' },
+  en: { title: 'Site plan', block: 'Building', blockW: 'Block', house: 'Building', floorsN: (n: number) => `${n} floor${n === 1 ? '' : 's'}`, choose: 'Choose an apartment', back: 'Back to buildings', pickFloor: 'Choose a floor', floor: (n: number) => (n === 0 ? 'Ground floor' : `Floor ${n}`), avail: (n: number) => `${n} apartment${n === 1 ? '' : 's'} available`, none: 'No apartments for sale', studio: 'Studios', rooms: (r: string) => r, hint: 'Hover over or tap a building' },
+  tr: { title: 'Vaziyet planı', block: 'Blok', blockW: 'Blok', house: 'Bina', floorsN: (n: number) => `${n} kat`, choose: 'Daire seçin', back: 'Blok seçimine dön', pickFloor: 'Kat seçin', floor: (n: number) => (n === 0 ? 'Zemin kat' : `${n}. kat`), avail: (n: number) => `${n} daire mevcut`, none: 'Satılık daire yok', studio: 'Stüdyolar', rooms: (r: string) => r, hint: 'Bir bloğun üzerine gelin veya dokunun' },
+  de: { title: 'Lageplan', block: 'Gebäude', blockW: 'Block', house: 'Gebäude', floorsN: (n: number) => `${n} Etage${n === 1 ? '' : 'n'}`, choose: 'Wohnung wählen', back: 'Zurück zur Gebäudeauswahl', pickFloor: 'Etage wählen', floor: (n: number) => (n === 0 ? 'Erdgeschoss' : `${n}. Etage`), avail: (n: number) => `${n} Wohnung${n === 1 ? '' : 'en'} verfügbar`, none: 'Keine Wohnungen im Verkauf', studio: 'Studios', rooms: (r: string) => r, hint: 'Gebäude antippen oder mit der Maus darüberfahren' },
+  sr: { title: 'Generalni plan', block: 'Zgrada', blockW: 'Blok', house: 'Zgrada', floorsN: (n: number) => `${n} spratova`, choose: 'Izaberite stan', back: 'Nazad na izbor zgrade', pickFloor: 'Izaberite sprat', floor: (n: number) => (n === 0 ? 'Prizemlje' : `${n}. sprat`), avail: (n: number) => `Dostupno stanova: ${n}`, none: 'Nema stanova u prodaji', studio: 'Garsonjere', rooms: (r: string) => r, hint: 'Pređite mišem ili dodirnite zgradu' },
+} as const)[lang as 'ru'] ?? null;
+const L = T!;
+
+const ROOM_ORDER = ['studio', '1+1', '2+1', '3+1', '4+'];
+const roomsKey = (r: string | null) => { if (!r) return null; if (r === '1+0') return 'studio'; const n = Number(r.split('+')[0]); return Number.isFinite(n) ? (n >= 4 ? '4+' : `${n}+1`) : null; };
+const live = objects.filter((x) => x.label !== 'sold' && x.deal === 'sale');
+/** Комнатность «от м² / от €» и ссылка в каталог с нужными корпусом/этажом. */
+const summary = (list: Item[], parts: { blocks?: string[]; floorFrom?: number; floorTo?: number }) => {
+  const m = new Map<string, Item[]>();
+  for (const x of list) { const k = roomsKey(x.rooms); if (k) m.set(k, [...(m.get(k) ?? []), x]); }
+  return [...m].sort((a, b) => ROOM_ORDER.indexOf(a[0]) - ROOM_ORDER.indexOf(b[0])).map(([k, xs]) => {
+    const areas = xs.map((x) => x.area).filter((v): v is number => !!v);
+    const prices = xs.map((x) => x.price).filter((v): v is number => !!v);
+    return {
+      label: k === 'studio' ? L.studio : k, n: xs.length,
+      area: areas.length ? Math.min(...areas) : null, price: prices.length ? Math.min(...prices) : null,
+      href: ownUrl(lang, 'all', { projectSlugs: [c.slug], rooms: [k], ...parts }),
+    };
+  });
+};
+// Лоты без корпуса показываем отдельным «Домом» только если корпусов в проекте нет совсем.
+const named = [...new Set(live.map((x) => x.block).filter((b): b is string => !!b))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+const keys = named.length ? named : [''];
+const blocks = keys.map((b) => {
+  const xs = live.filter((x) => (x.block ?? '') === b);
+  const fl = xs.map((x) => x.floor).filter((v): v is number => v != null);
+  const top = plans?.floors?.[b] ?? (fl.length ? Math.max(...fl) : 1);
+  const bottom = fl.includes(0) ? 0 : 1;
+  const floors = [];
+  for (let f = top; f >= bottom; f--) {
+    const here = xs.filter((x) => x.floor === f);
+    const parts = { blocks: b ? [b] : [], floorFrom: f, floorTo: f };
+    floors.push({ f, n: here.length, rows: summary(here, parts), href: ownUrl(lang, 'all', { projectSlugs: [c.slug], ...parts }) });
+  }
+  return {
+    id: b, name: b ? `${L.block} ${b}` : L.house, n: xs.length, top, floors,
+    rows: summary(xs, { blocks: b ? [b] : [] }),
+    href: ownUrl(lang, 'all', { projectSlugs: [c.slug], blocks: b ? [b] : [] }),
+    shape: plans?.genplan?.blocks.find((s) => s.id === b) ?? null,
+  };
+});
+const gpImage = plans?.genplan?.image ?? image;
+const hasShapes = blocks.some((b) => b.shape);
+const unknownFloor = live.filter((x) => x.floor == null).length;
+const from = (s: string) => d.from(s);
+---
+{blocks.length > 0 && (
+<section id="genplan" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-pg>
+  <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+    <h2 class="display h-section-n">{L.title}</h2>
+  </div>
+
+  <!-- Шаг 1: генплан и корпуса. -->
+  <div class:list={['pg-stage relative overflow-hidden rounded-[20px] bg-ink lg:rounded-[24px]', hasShapes && 'md:min-h-[460px]']} data-pg-plan>
+    {hasShapes ? (
+      <div class="relative mx-auto w-fit">
+        <Img src={gpImage} alt={`${c.title} — ${L.title}`} class="block h-auto max-h-[85vh] w-auto max-w-full" width={1600} height={810} sizes="100vw" />
+        <svg class="absolute inset-0 size-full" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {blocks.filter((b) => b.shape).map((b) => <polygon class="pg-zone" points={polyPoints(b.shape!.points)} data-pg-zone={b.id} vector-effect="non-scaling-stroke" />)}
+        </svg>
+      </div>
+    ) : <Img src={gpImage} alt={`${c.title} — ${L.title}`} class="aspect-[4/3] w-full md:aspect-[1384/700]" width={1600} height={810} sizes="100vw" />}
+    <ul class:list={['absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2 md:left-6 md:top-6', hasShapes && 'md:hidden']}>
+      {blocks.map((b) => (
+        <li><button type="button" class="pg-chip" data-pg-chip={b.id}>{b.name} <span class="text-soft">· {numL(lang, b.n)}</span></button></li>
+      ))}
+    </ul>
+    {blocks.map((b, i) => (
+      <div class:list={['pg-card absolute inset-x-3 bottom-3 rounded-[16px] bg-white p-4 text-ink-n md:inset-x-auto md:bottom-auto md:right-6 md:top-6 md:w-[380px] md:p-5', i > 0 && 'hidden']} data-pg-card={b.id}>
+        <p class="text-[20px] leading-[26px]">{b.name}</p>
+        <p class="mt-3 inline-block rounded-[8px] bg-page px-2.5 py-1 text-[13px] font-medium">{L.floorsN(b.top)}</p>
+        <ul class="mt-3 flex flex-col">
+          {b.rows.map((r) => (
+            <li><a href={r.href} class="pg-row"><span>{r.label}</span><span class="text-soft">{r.area ? from(`${numL(lang, r.area)} ${d.m2}`) : ''}</span><span class="font-medium">{r.price ? from(moneyL(lang, r.price)) : d.priceOnRequest}</span><Icon name="chevronRight" class="size-3.5" /></a></li>
+          ))}
+        </ul>
+        <button type="button" class="btn-n btn-n-dark mt-4 h-12! w-full rounded-[14px]!" data-pg-open={b.id}>{L.choose}</button>
+      </div>
+    ))}
+  </div>
+
+  <!-- Шаг 2: корпус по этажам (шахматка). -->
+  {blocks.map((b) => (
+    <div class="pg-floors hidden rounded-[20px] bg-[#e4e5ea] p-3 lg:rounded-[24px] lg:p-6" data-pg-block={b.id}>
+      <button type="button" class="inline-flex items-center gap-2 text-[14px]" data-pg-back><span class="grid size-8 place-items-center rounded-full bg-white"><Icon name="chevronRight" class="size-3.5 rotate-180" /></span>{L.back}</button>
+      <div class="mt-4 grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)_380px] lg:items-start">
+        <div class="rounded-[16px] bg-white p-4 lg:p-5">
+          <p class="text-[20px] leading-[26px]">{b.name}</p>
+          <p class="mt-3 inline-block rounded-[8px] bg-page px-2.5 py-1 text-[13px] font-medium">{L.floorsN(b.top)}</p>
+          <p class="mt-3 flex items-center gap-2 text-[14px] text-soft"><Icon name="info" class="size-4" />{L.pickFloor}</p>
+          {unknownFloor > 0 && <a href={b.href} class="mt-3 block text-[13px] text-soft underline">{L.choose} · {numL(lang, b.n)}</a>}
+        </div>
+        <ol class="pg-house mx-auto flex w-full max-w-[420px] flex-col gap-1 rounded-[14px] bg-[#cfd1d8] p-2">
+          {b.floors.map((fl) => (
+            <li>
+              {fl.n > 0
+                ? <a href={fl.href} class="pg-floor is-on" data-pg-floor={`${b.id}|${fl.f}`}><span>{L.floor(fl.f)}</span><span>{numL(lang, fl.n)}</span></a>
+                : <span class="pg-floor" data-pg-floor={`${b.id}|${fl.f}`}><span>{L.floor(fl.f)}</span><span>—</span></span>}
+            </li>
+          ))}
+        </ol>
+        <div>
+          {b.floors.map((fl, i) => (
+            <div class:list={['rounded-[16px] bg-white p-4 lg:p-5', i !== b.floors.findIndex((x) => x.n > 0) && 'hidden']} data-pg-fcard={`${b.id}|${fl.f}`}>
+              <p class="text-[20px] leading-[26px]">{L.floor(fl.f)}</p>
+              <p class="mt-3 inline-block rounded-[8px] bg-page px-2.5 py-1 text-[13px] font-medium">{fl.n ? L.avail(fl.n) : L.none}</p>
+              {fl.rows.length > 0 && (
+                <ul class="mt-3 flex flex-col">
+                  {fl.rows.map((r) => (
+                    <li><a href={r.href} class="pg-row"><span>{r.label}</span><span class="text-soft">{r.area ? from(`${numL(lang, r.area)} ${d.m2}`) : ''}</span><span class="font-medium">{r.price ? from(moneyL(lang, r.price)) : d.priceOnRequest}</span><Icon name="chevronRight" class="size-3.5" /></a></li>
+                  ))}
+                </ul>
+              )}
+              {fl.n > 0 && <a href={fl.href} class="btn-n btn-n-dark mt-4 h-12! w-full rounded-[14px]!">{L.choose}</a>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  ))}
+</section>
+)}
+
+<style>
+  .pg-zone { fill: #754be900; stroke: #ffffffb3; stroke-width: 1.5; cursor: pointer; transition: fill .15s; }
+  .pg-zone:hover, .pg-zone.is-on { fill: #754be966; stroke: #fff; }
+  .pg-chip { display: inline-flex; align-items: center; gap: 4px; height: 36px; padding: 0 14px; border-radius: 999px; background: #fff; font-size: 14px; box-shadow: 0 2px 10px #0000001f; }
+  .pg-chip.is-on { background: var(--color-ink-n); color: #fff; }
+  .pg-chip.is-on span { color: #ffffffb3; }
+  .pg-row { display: grid; grid-template-columns: 1fr auto auto 14px; align-items: center; gap: 12px; padding: 7px 0; font-size: 14px; color: var(--color-ink-n); }
+  .pg-row:hover { color: var(--color-accent); }
+  .pg-floor { display: flex; align-items: center; justify-content: space-between; height: 34px; padding: 0 14px; border-radius: 8px; background: #b9bcc6; color: #6b6f7b; font-size: 13px; }
+  .pg-floor.is-on { background: #fff; color: var(--color-ink-n); cursor: pointer; }
+  .pg-floor.is-on:hover, .pg-floor.is-sel { background: #754be9; color: #fff; }
+</style>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-pg]').forEach((root) => {
+    const plan = root.querySelector<HTMLElement>('[data-pg-plan]')!;
+    const show = (id: string) => {
+      root.querySelectorAll<HTMLElement>('[data-pg-card]').forEach((c) => c.classList.toggle('hidden', c.dataset.pgCard !== id));
+      root.querySelectorAll<HTMLElement>('[data-pg-zone]').forEach((z) => z.classList.toggle('is-on', z.dataset.pgZone === id));
+      root.querySelectorAll<HTMLElement>('[data-pg-chip]').forEach((z) => z.classList.toggle('is-on', z.dataset.pgChip === id));
+    };
+    const open = (id: string) => {
+      plan.classList.add('hidden');
+      root.querySelectorAll<HTMLElement>('[data-pg-block]').forEach((b) => b.classList.toggle('hidden', b.dataset.pgBlock !== id));
+      root.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    root.querySelectorAll<HTMLElement>('[data-pg-zone]').forEach((z) => {
+      z.addEventListener('mouseenter', () => show(z.dataset.pgZone!));
+      z.addEventListener('click', () => open(z.dataset.pgZone!));
+    });
+    root.querySelectorAll<HTMLElement>('[data-pg-chip]').forEach((z) => z.addEventListener('click', () => show(z.dataset.pgChip!)));
+    root.querySelectorAll<HTMLElement>('[data-pg-open]').forEach((b) => b.addEventListener('click', () => open(b.dataset.pgOpen!)));
+    root.querySelectorAll<HTMLElement>('[data-pg-back]').forEach((b) => b.addEventListener('click', () => {
+      root.querySelectorAll<HTMLElement>('[data-pg-block]').forEach((x) => x.classList.add('hidden'));
+      plan.classList.remove('hidden');
+    }));
+    // Этаж: наведение показывает карточку этажа справа (как у образца), нажатие ведёт в каталог.
+    root.querySelectorAll<HTMLElement>('[data-pg-floor]').forEach((f) => f.addEventListener('mouseenter', () => {
+      const [b] = f.dataset.pgFloor!.split('|');
+      const box = root.querySelector<HTMLElement>(`[data-pg-block="${CSS.escape(b)}"]`);
+      box?.querySelectorAll<HTMLElement>('[data-pg-fcard]').forEach((c) => c.classList.toggle('hidden', c.dataset.pgFcard !== f.dataset.pgFloor));
+      box?.querySelectorAll<HTMLElement>('[data-pg-floor]').forEach((x) => x.classList.toggle('is-sel', x === f));
+    }));
+    const first = root.querySelector<HTMLElement>('[data-pg-card]')?.dataset.pgCard;
+    if (first != null) show(first);
+  });
+</script>

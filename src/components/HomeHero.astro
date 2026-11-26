@@ -54,9 +54,9 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
       </button>
       <button type="button" data-prev class="grid size-[70px] place-items-center rounded-full text-muted transition-colors hover:bg-white/40 hover:text-ink" aria-label={d.hp.prevProject}><Icon name="arrowLeft" class="size-5" /></button>
     </div>
-    <div class="hero-thumbs scroll-x relative -m-[2px] flex min-w-0 flex-1 snap-x snap-mandatory gap-3 p-[2px]" data-thumbs>
+    <div class="hero-thumbs scroll-x relative -mx-[2px] -mb-[2px] -mt-[12px] flex min-w-0 flex-1 snap-x snap-mandatory gap-3 px-[2px] pb-[2px] pt-[12px]" data-thumbs>
       {slides.map((p, i) => (
-        <button type="button" data-go={i} class:list={['hero-thumb relative h-[166px] shrink-0 snap-start overflow-hidden rounded-[20px] bg-white text-left text-ink shadow-[0_8px_24px_#1c1e2614] transition-shadow', i === 0 && 'is-active']} aria-label={d.hp.showProject(p.title)}>
+        <a href={complexUrl(lang, p)} data-go={i} class:list={['hero-thumb relative h-[166px] shrink-0 snap-start overflow-hidden rounded-[20px] bg-white text-left text-ink shadow-[0_8px_24px_#1c1e2614] transition-[box-shadow,translate] duration-300', i === 0 && 'is-active']} aria-label={p.title}>
           <span class="hero-thumb-img absolute inset-y-0 right-0 w-[55%]" aria-hidden="true"><Img src={p.image} alt="" class="size-full" width={320} height={166} sizes="180px" /></span>
           <span class="relative flex h-full w-[62%] flex-col justify-between p-5">
             <span class="display text-[20px] leading-[1.1] tracking-[-0.3px]">{p.title}</span>
@@ -65,7 +65,7 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
               {p.priceFrom && <span class="chip chip-accent">{d.from(moneyL(lang, p.priceFrom))}</span>}
             </span>
           </span>
-        </button>
+        </a>
       ))}
     </div>
   </div>
@@ -78,6 +78,9 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
   @media (min-width: 768px) { .hero-thumb { width: calc((100% - 24px) / 3); } }
   .hero-thumb-img { clip-path: polygon(30% 0, 100% 0, 100% 100%, 50% 100%); }
   .hero-thumb.is-active { box-shadow: 0 0 0 2px var(--color-accent); }
+  /* Как у образца: карточка приподнимается при наведении. */
+  @media (hover: hover) { .hero-thumb:hover { translate: 0 -8px; box-shadow: 0 16px 32px #1c1e2626; } .hero-thumb.is-active:hover { box-shadow: 0 0 0 2px var(--color-accent), 0 16px 32px #1c1e2626; } }
+  @media (prefers-reduced-motion: reduce) { .hero-thumb:hover { translate: none; } }
   .hero-ring { color: var(--color-accent); }
   .hero-ring circle { stroke-dasharray: 100; stroke-dashoffset: 100; }
   .hero-ring.is-running circle { animation: hero-ring var(--hero-ms, 9000ms) linear forwards; }
@@ -122,7 +125,7 @@ const place = (p: Complex) => [p.district ? districtBySlug(p.city, p.district)?.
     ring?.addEventListener('animationend', () => go(cur + 1));
     hero.querySelector('[data-next]')?.addEventListener('click', () => go(cur + 1));
     hero.querySelector('[data-prev]')?.addEventListener('click', () => go(cur - 1));
-    thumbs.forEach((t) => t.addEventListener('click', () => go(Number(t.dataset.go))));
+    // Плитка — ссылка на страницу проекта (как у образца); слайды листаются стрелками и таймером.
     restart();
   });
 </script>

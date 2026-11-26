@@ -16,7 +16,8 @@ async function counts() {
   if (memo && Date.now() - memo.at < 5 * 60_000) return memo.v;
   const v = new Map<string, { country: string; n: number; d: Map<string, number> }>();
   for (const x of await getItems()) {
-    if (x.deal !== 'sale') continue;
+    // Цифры как в каталоге города без фильтров: без PRIVE (они только в разделе PRIVE) и без «Объектов Stay» (Anuar 26.11.2026).
+    if (x.deal !== 'sale' || x.isPrivate || x.own) continue;
     const c = v.get(x.city) ?? { country: x.country, n: 0, d: new Map() };
     c.n++;
     if (x.district) c.d.set(x.district, (c.d.get(x.district) ?? 0) + 1);

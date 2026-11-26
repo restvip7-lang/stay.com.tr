@@ -239,6 +239,10 @@ function slugify(code: string) {
   return code.replace(/_/g, '-').replace(/-+$/, '').toLowerCase();
 }
 
+/** Исправления названий из базы (Anuar 26.11.2026: правильное название — «Azura World Residence»). Адрес ЖК меняется вслед за названием; старый — 301 (COMPLEX_SLUG_ALIASES в catalog.ts). */
+const NAME_FIX: [RegExp, string][] = [[/Azura World Agency/g, 'Azura World Residence']];
+export const fixName = <T,>(s: T): T => (typeof s === 'string' ? (NAME_FIX.reduce((a, [r, t]) => a.replace(r, t), s as string) as T) : s);
+
 function toProject(x: RawListing): Project {
   const units: ProjectUnit[] = (x.apartments || []).map((a: any) => ({
     type: a.objectType,
@@ -254,7 +258,7 @@ function toProject(x: RawListing): Project {
     id: x.id,
     code: x.code,
     slug,
-    title: x.title,
+    title: fixName(x.title),
     city: cityRu(x.city),
     area: areaRu(x.area),
     priceFromLabel: x.priceFrom || null,
@@ -445,6 +449,11 @@ function toUnit(x: RawListing): Listing {
 }
 
 export async function rawUnits(): Promise<RawListing[]> {
+  const list = await rawUnitsSrc();
+  return list.map((x) => (/Azura World Agency/.test(x.title ?? '') || /Azura World Agency/.test((x as any).projectName ?? '') ? { ...x, title: fixName(x.title), projectName: fixName((x as any).projectName) } : x));
+}
+
+async function rawUnitsSrc(): Promise<RawListing[]> {
   return cached(
     'units',
     async () => {

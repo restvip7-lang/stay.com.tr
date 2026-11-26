@@ -20,7 +20,7 @@ import { isLang } from '../../i18n/config';
 import { t } from '../../i18n/ui';
 import { getHomeSections } from '../../lib/api';
 import { getHomeConfig } from '../../lib/homeConfig';
-import { getComplexes, itemsOf, catUrl, stats, noFilters } from '../../lib/catalog';
+import { getComplexes, itemsOf, catUrl, stats, noFilters, stayProjectsList, isOurComplex } from '../../lib/catalog';
 import { footerColumns, menuCities } from '../../lib/nav';
 import { allServices, serviceUrl } from '../../lib/services';
 import { REVIEWS } from '../../content/company';
@@ -34,18 +34,20 @@ if (!isLang(lang)) return Astro.rewrite('/404');
 const d = t(lang);
 const h = d.hp;
 
-const [home, complexes, sections, cols, cities] = await Promise.all([getHomeConfig(), getComplexes(), getHomeSections(), footerColumns(lang), menuCities(lang, 12)]);
+const [home, complexes, sections, cols, cities, list] = await Promise.all([getHomeConfig(), getComplexes(), getHomeSections(), footerColumns(lang), menuCities(lang, 12), stayProjectsList()]);
 const byCode = (c: string) => complexes.find((p) => p.code === c);
 // Обработанные фото для слайдера (от Anuar 30.10.2026) лежат в public/hero/<код проекта>.webp; фото в базе не трогаем.
 const HERO_PHOTOS = new Set(['exodus_premium_town', 'exodus_aqua_deluxe_konakli', 'exodus_twins_residence', 'exodus_dreams_residence']);
 const homeServices = (await allServices(lang)).filter((x) => x.group === 'main').slice(0, 6);
-const hero = (home.hero.map((x) => byCode(x.project)).filter(Boolean) as typeof complexes).map((p) => (p.code && HERO_PHOTOS.has(p.code) ? { ...p, image: `/hero/${p.code}.webp` } : p));
-const list = home.projects.map(byCode).filter(Boolean) as typeof complexes;
+const shownCodes = new Set(list.map((p) => p.code)); // сравниваем по коду: списки могут прийти разными загрузками
+// Слайдер — только наши проекты (★ в админке), блок «STAY Projects» — единый список наших (Anuar 26.11.2026).
+const hero = (home.hero.map((x) => byCode(x.project)).filter((p) => p && isOurComplex(p) && shownCodes.has(p.code)) as typeof complexes).map((p) => (p.code && HERO_PHOTOS.has(p.code) ? { ...p, image: `/hero/${p.code}.webp` } : p));
 const priveCfg = (home.prive?.projects ?? []).map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
 const priveList = [...priveCfg, ...complexes.filter((p) => p.isPrivate && !priveCfg.includes(p))];
 
 const turkeySale = { country: 'turkey', deal: 'sale' as const };
-const saleAll = await itemsOf(turkeySale);
+// PRIVE на главной не показываем — только в блоке PRIVE (Anuar 26.11.2026); объекты наших проектов можно.
+const saleAll = (await itemsOf(turkeySale)).filter((x) => !x.isPrivate || x.own);
 const newest = saleAll.filter((x) => x.image && x.label !== 'sold').toSorted((a, b) => Number(!!b.pinned) - Number(!!a.pinned)).slice(0, 8);
 // «Цены от» — по жилью дороже 10 000 €: парковки и ошибки ввода не попадают в текст.
 const s = stats(saleAll.filter((x) => (x.price ?? 0) >= 10_000 && x.type !== 'land' && x.type !== 'commercial'));
@@ -84,7 +86,7 @@ const alanyaSale = catUrl(lang, { country: 'turkey', city: 'alanya', deal: 'sale
     </section>
   )}
 
-  <div class="home-std"><ProjectsBlock title={home.projectsTitle} projects={list} visible={home.projectsVisible} moreHref={catUrl(lang, { country: 'turkey' }, { complexes: true })} moreText={h.allComplexes} /></div>
+  <div class="home-std"><ProjectsBlock title={home.projectsTitle} projects={list} visible={home.projectsVisible} moreHref={`/${lang}/stay-projects/`} moreText={h.allStayProjects} /></div>
   {priveList.length > 0 && <div class="home-prive theme-prive"><ProjectsBlock title={h.priveProjects} projects={priveList} visible={home.prive?.projectsVisible ?? 8} moreHref={`/${lang}/prive/`} prive /></div>}
 
   {alanya && alanya.districts.length > 0 && (

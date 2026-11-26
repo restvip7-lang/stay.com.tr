@@ -30,13 +30,16 @@ const langUrl = Object.fromEntries(PICKER_LANGS.map((l) => [l, `${complexUrl(l, 
 const real = await pickerReals(c.code, conf, lang).catch(() => []);
 const rt = PICKER_TEXT[pickerLang(lang)];
 const realText = { base: rt.base, fromBase: rt.fromBase('#'), card: rt.card, note: rt.note };
+// H1 сразу в HTML (раньше был пустым до запуска скрипта); скрипт потом меняет его по уровню (генплан/этаж/квартира).
+const esc = (v: string) => v.replace(/[&<>"]/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[ch]!);
+const html = markup.replace('<h1 id="title"></h1>', `<h1 id="title">${esc(tx.title(c.title))}</h1>`);
 const AP = { lang: pickerLang(lang), base: conf.base, name: c.title, langUrl, admin: false, real, realText };
 const alternates = Object.fromEntries(LANGS.map((l) => [l, `${complexUrl(l, c)}/picker/`]));
 ---
 <Base system="new" title={tx.title(c.title)} description={tx.description(c.title)} canonical={url} robots="noindex,follow" alternates={alternates}>
   <div class="container-n">
     <div class="pt-5"><Breadcrumbs items={crumbs} /></div>
-    <div class="ap" set:html={markup} />
+    <div class="ap" set:html={html} />
   </div>
   <script is:inline define:vars={{ AP }}>window.AP = AP;</script>
   <script is:inline>

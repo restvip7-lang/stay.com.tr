@@ -4,9 +4,10 @@
  * Данные — из API (api.ts), здесь только раскладка по структуре сайта.
  */
 import type { Lang } from '../i18n/config';
-import { rawListings, rawUnits, citizenshipIds, getProjects, fixImage, type Project, type RawListing } from './api';
+import { rawListings, rawUnits, citizenshipIds, getProjects, getComplex, fixImage, type Project, type RawListing } from './api';
 import { resolveGeo, countryBySlug, cityBySlug, districtBySlug, slugify, CITIES, COUNTRIES, NEIGHBOURS } from './geo';
 import { getMarks, type Label, type Marks } from './objectsConfig';
+import { getHomeConfig } from './homeConfig';
 import { featuresOf, featureDef, featureAllowed, FEATURES, TYPES, DEALS, type Deal, type FeatureSlug, type TypeSlug } from './segments';
 
 export interface Item {
@@ -29,6 +30,8 @@ export interface Item {
   titleRu: string;
   /** Слаг ЖК, если объект в комплексе. */
   complex: string | null;
+  /** Корпус (блок) квартиры проекта — из названия лота («…, Блок C, …»), латиницей: A, B, C… */
+  block?: string | null;
   features: FeatureSlug[];
   /** Квартира из проектов Stay (Битрикс) — описаний и переводов нет. */
   unit: boolean;
@@ -57,6 +60,12 @@ function bedrooms(r: string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** «…, Блок С, …» → «C»: кириллические буквы-двойники переводим в латиницу, чтобы «Блок А» и «Блок A» были одним корпусом. */
+const LOOK: Record<string, string> = { А: 'A', В: 'B', С: 'C', Е: 'E', Н: 'H', К: 'K', М: 'M', О: 'O', Р: 'P', Т: 'T', Х: 'X' };
+export function blockOf(title: string): string | null {
+  const m = title.match(/Блок\s*([A-Za-zА-Яа-я0-9]{1,4})/i);
+  return m ? m[1].toUpperCase().replace(/[А-Я]/g, (c) => LOOK[c] ?? c) : null;
+}
 const numOrNull = (v: unknown) => (v == null || v === '' ? null : Number.isFinite(Number(v)) ? Number(v) : null);
 
 function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fallback?: { city: string; district: string | null }): Item | null {
@@ -81,12 +90,14 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
     price: (() => { const p = numOrNull(x.price); return p && p < 100_000_000 ? p : null; })(),
     area: numOrNull(x.totalArea),
     sea: numOrNull(x.distanceToSea),
-    floor: x.floor != null && x.floor !== '' ? Math.round(Number(x.floor)) || null : null,
+    // Этаж 0 — цокольный (в базе квартир проектов так записан нижний этаж).
+    floor: x.floor != null && x.floor !== '' && Number.isFinite(Number(x.floor)) ? Math.round(Number(x.floor)) : null,
     ref: x.objectCode ?? null,
     isPrivate: !!x.isPrivate,
     image: fixImage(x.imageUrl),
     titleRu: String(x.title || '').trim(),
     complex: x.projectCode ? String(x.projectCode) : null,
+    block: unit ? blockOf(String(x.title || '')) : null,
     features: [],
     unit,
     citizenship,
@@ -98,11 +109,17 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
 let memo: { at: number; items: Item[]; units: Item[] } | null = null;
 
 /** Отметки админки поверх базы: скрытые убираем, ярлык и закрепление проставляем. */
-const marked = new WeakMap<Item[], { marks: Marks; all: Item[]; visible: Item[] }>();
+const marked = new WeakMap<Item[], { marks: Marks; priveKey: string; all: Item[]; visible: Item[] }>();
+/** PRIVE-ЖК из админки (null — как в базе). Ключ — для пересчёта кэшей при изменении списка. */
+async function priveCodes(): Promise<{ set: Set<string> | null; key: string }> {
+  const codes = (await getHomeConfig().catch(() => null))?.prive?.codes ?? null;
+  return { set: codes ? new Set(codes) : null, key: codes ? codes.join(',') : '' };
+}
+
 async function withMarks(list: Item[]) {
-  const marks = await getMarks();
+  const [marks, pc] = await Promise.all([getMarks(), priveCodes()]);
   const hit = marked.get(list);
-  if (hit && hit.marks === marks) return hit;
+  if (hit && hit.marks === marks && hit.priveKey === pc.key) return hit;
   const all = list.map((x) => {
     const m = marks[x.id];
     // PRIVE: квартиры проектов PRIVE (флаг базы) + любой объект с отметкой «PRIVE» в админке (решение Anuar 25.11.2026).
@@ -113,10 +130,12 @@ async function withMarks(list: Item[]) {
     if (res && x.deal === 'sale') features.push('residence-permit');
     // «Объекты Stay»: все квартиры наших проектов (STAY PROJECTS) + объекты с отметкой «Наш объект» в админке.
     const ourUnit = !!(x.unit && x.complex && OUR_SLUGS.has(slugify(x.complex)));
-    const base = { ...x, features, isPrivate: x.isPrivate || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
+    // Квартира ЖК: PRIVE по списку PRIVE-ЖК из админки (если задан), иначе по флагу базы.
+    const basePrive = x.unit && pc.set ? !!x.complex && pc.set.has(x.complex) : x.isPrivate;
+    const base = { ...x, features, isPrivate: basePrive || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
     return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: ourUnit || !!m.own } : base;
   });
-  const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
+  const v = { marks, priveKey: pc.key, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);
   return v;
 }
@@ -259,10 +278,11 @@ export interface Complex {
   project: Project;
 }
 
-let cxMemo: { at: number; list: Complex[] } | null = null;
+let cxMemo: { at: number; key: string; list: Complex[] } | null = null;
 
 export async function getComplexes(): Promise<Complex[]> {
-  if (cxMemo && Date.now() - cxMemo.at < 5 * 60_000) return cxMemo.list;
+  const pc = await priveCodes();
+  if (cxMemo && cxMemo.key === pc.key && Date.now() - cxMemo.at < 5 * 60_000) return cxMemo.list;
   const projects = await getProjects();
   const used = new Set<string>();
   const list: Complex[] = [];
@@ -284,7 +304,7 @@ export async function getComplexes(): Promise<Complex[]> {
       priceFrom: prices.length ? Math.min(...prices) : p.priceFrom,
       priceTo: prices.length > 1 ? Math.max(...prices) : null,
       image: p.image,
-      isPrivate: p.isPrivate,
+      isPrivate: pc.set ? pc.set.has(p.code) : p.isPrivate,
       action: p.action,
       lat: p.lat,
       lng: p.lng,
@@ -292,7 +312,7 @@ export async function getComplexes(): Promise<Complex[]> {
       project: p,
     });
   }
-  cxMemo = { at: Date.now(), list };
+  cxMemo = { at: Date.now(), key: pc.key, list };
   return list;
 }
 
@@ -332,6 +352,50 @@ export const isOurComplex = (c: Pick<Complex, 'title' | 'code'>) => OUR_SLUGS.ha
 /** Комплексы для списков «Новостройки / STAY PROJECTS»: только наши проекты. */
 export async function getOurComplexes(): Promise<Complex[]> {
   return (await getComplexes()).filter(isOurComplex);
+}
+/** Старые адреса ЖК после исправления названия → новый адрес (301). */
+/** Пагинация списков ЖК (Anuar 26.11.2026): на первой странице широкая карточка + 24 плитки, на остальных — 24 плитки. */
+export const COMPLEXES_FIRST = 25;
+export const COMPLEXES_PER = 24;
+export const complexPageCount = (n: number) => (n <= COMPLEXES_FIRST ? 1 : 1 + Math.ceil((n - COMPLEXES_FIRST) / COMPLEXES_PER));
+export const complexPageSlice = <T,>(all: T[], page: number) =>
+  page <= 1 ? all.slice(0, COMPLEXES_FIRST) : all.slice(COMPLEXES_FIRST + (page - 2) * COMPLEXES_PER, COMPLEXES_FIRST + (page - 1) * COMPLEXES_PER);
+
+export const COMPLEX_SLUG_ALIASES: Record<string, string> = { 'azura-world-agency': 'azura-world-residence' };
+/** ЖК для общих списков («Новостройки», цифры городов): PRIVE-ЖК только в разделе PRIVE, наши проекты — всегда (Anuar 26.11.2026). */
+export const isPublicComplex = (c: Pick<Complex, 'title' | 'code' | 'isPrivate'>) => !c.isPrivate || isOurComplex(c);
+
+/**
+ * Единый список «Проекты STAY» для шапки (бургер), подвала, блока и слайдера на главной (Anuar 26.11.2026):
+ * только наши проекты; порядок — из админки «Главная», новые наши — в конце (от дешёвых); скрытые в админке не показываем.
+ */
+export async function stayProjectsList(): Promise<Complex[]> {
+  const [ours, home] = await Promise.all([getOurComplexes(), getHomeConfig()]);
+  const hidden = new Set(home.projectsHidden ?? []);
+  const order = new Map((home.projects ?? []).map((c, i) => [c, i]));
+  return ours
+    .filter((c) => !hidden.has(c.code))
+    .sort((a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+}
+
+/** Наши проекты: название, слаг и срок сдачи из карточки ЖК («III кв. 2027 г.» → год 2027) — для карточек квартир и фильтра «Срок сдачи». */
+export interface OwnInfo { title: string; slug: string; ready: string | null; year: number | null }
+let ownMemo: { at: number; map: Map<string, OwnInfo> } | null = null;
+export async function ownInfo(): Promise<Map<string, OwnInfo>> {
+  if (ownMemo && Date.now() - ownMemo.at < 30 * 60_000) return ownMemo.map;
+  const ours = await getOurComplexes();
+  const pairs = await Promise.all(ours.map(async (c) => {
+    const d = await getComplex(c.project.slug).catch(() => null);
+    const v = d?.facts.find((x) => x.label === 'build-end')?.value?.trim() || null;
+    const y = Number(v?.match(/20\d\d/)?.[0]);
+    return [c.code, { title: c.title, slug: c.slug, ready: v, year: y || null }] as const;
+  }));
+  ownMemo = { at: Date.now(), map: new Map(pairs) };
+  return ownMemo.map;
+}
+/** Год сдачи по коду ЖК (фильтр «Срок сдачи»). */
+export async function readyYears(): Promise<Map<string, number | null>> {
+  return new Map([...(await ownInfo())].map(([k, v]) => [k, v.year]));
 }
 
 export function complexPath(c: Pick<Complex, 'country' | 'city' | 'district' | 'slug'>) {
@@ -436,7 +500,7 @@ export { CITIES };
 export type SortKey = 'new' | 'price-asc' | 'price-desc' | 'area-desc' | 'sea-asc';
 export const SORTS: SortKey[] = ['new', 'price-asc', 'price-desc', 'area-desc', 'sea-asc'];
 /** Параметры, которые считаются фильтром (страница с ними — noindex + canonical на чистый URL). */
-export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view'];
+export const FILTER_PARAMS = ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'sort', 'prive', 'citizenship', 'own', 'ref', 'f', 'view', 'project', 'block', 'ready_from', 'ready_to'];
 
 export interface Filters {
   priceFrom?: number;
@@ -455,6 +519,13 @@ export interface Filters {
   /** «Объекты Stay»: только наши объекты. */
   own?: boolean;
   ref?: string;
+  /** «Проект» (только STAY PROJECTS, как у образца): коды ЖК, ?project=…, можно несколько. */
+  projects: string[];
+  /** «Корпус» (при одном выбранном проекте): ?block=C. */
+  blocks: string[];
+  /** «Срок сдачи» диапазоном, как у образца («с 2027 г — по 2027 г»): год сдачи ЖК, ?ready_from=2026&ready_to=2027. */
+  readyFrom?: number;
+  readyTo?: number;
   /** Дополнительные фичи (?f=…, можно несколько — «Все фильтры»), объект должен подходить под все. */
   extras: FeatureSlug[];
 }
@@ -480,6 +551,10 @@ export function parseFilters(sp: URLSearchParams): Filters {
     citizenship: sp.get('citizenship') === '1',
     own: sp.get('own') === '1',
     ref: sp.get('ref')?.trim() || undefined,
+    projects: [...new Set(sp.getAll('project').flatMap((v) => v.split(',')).map((v) => v.trim()).filter(Boolean))],
+    blocks: [...new Set(sp.getAll('block').flatMap((v) => v.split(',')).map((v) => v.trim().toUpperCase()).filter(Boolean))],
+    readyFrom: n('ready_from'),
+    readyTo: n('ready_to'),
     extras: [...new Set(sp.getAll('f').flatMap((v) => v.split(',')).map((v) => featureDef(v)?.slug).filter((v): v is FeatureSlug => !!v))],
   };
 }
@@ -495,7 +570,7 @@ function roomsBucket(r: string | null): string | null {
 }
 
 /** Включён ли хоть один фильтр (сортировка не в счёт). */
-const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.areaFrom || f.areaTo || f.floorFrom || f.floorTo || f.prive || f.citizenship || f.own || f.ref || f.extras.length);
+const usesFilter = (f: Filters) => !!(f.priceFrom || f.priceTo || f.rooms.length || f.seaFrom || f.seaTo || f.areaFrom || f.areaTo || f.floorFrom || f.floorTo || f.prive || f.citizenship || f.own || f.ref || f.projects.length || f.blocks.length || f.readyFrom || f.readyTo || f.extras.length);
 
 /** Список категории с учётом GET-фильтров и сортировки. */
 export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
@@ -524,7 +599,14 @@ export async function filtered(cat: Cat, f: Filters): Promise<Item[]> {
   // На «Новостройках» (…/new/) наши проекты показываем всегда — это тоже новостройки.
   else if (cat.deal === 'sale' && !usesFilter(f) && cat.feature !== 'new') base = base.filter((x) => !x.own);
   const ref = f.ref?.toLowerCase();
+  const readyOf = f.readyFrom || f.readyTo ? await readyYears() : null;
   let out = base.filter((x) => {
+    if (f.projects.length && !f.projects.includes(x.complex ?? '')) return false;
+    if (f.blocks.length && !f.blocks.includes(x.block ?? '')) return false;
+    if (readyOf) {
+      const y = readyOf.get(x.complex ?? '') ?? null;
+      if (y == null || (f.readyFrom && y < f.readyFrom) || (f.readyTo && y > f.readyTo)) return false;
+    }
     if (f.extras.some((e) => !x.features.includes(e))) return false;
     if (ref && !(x.ref?.toLowerCase().includes(ref) || x.id === ref)) return false;
     if (f.priceFrom && (x.price ?? 0) < f.priceFrom) return false;
