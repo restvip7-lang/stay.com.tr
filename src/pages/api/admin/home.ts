@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { badOrigin, ipOf, userCan } from '../../../lib/adminAuth';
 import { audit } from '../../../lib/adminAudit';
-import { saveHomeConfig } from '../../../lib/homeConfig';
+import { getHomeConfig, saveHomeConfig } from '../../../lib/homeConfig';
 import { purge } from '../../../lib/purge';
 
 export const prerender = false;
@@ -11,7 +11,9 @@ export const POST: APIRoute = async ({ request, cookies, clientAddress }) => {
   if (!user) return new Response('Нет доступа', { status: 403 });
   if (badOrigin(request)) return new Response('Bad origin', { status: 403 });
   try {
-    const saved = await saveHomeConfig(await request.json());
+    // Раздел PRIVE правится отдельно (/api/admin/prive): его настройки берём из последней сохранённой версии, чтобы не затереть.
+    const cur = await getHomeConfig(true);
+    const saved = await saveHomeConfig({ ...(await request.json()), prive: cur.prive });
     // Настройки главной видны на всех языках: сбрасываем кэш страниц сайта.
     await audit(user, 'home.save', '', ipOf(request, clientAddress));
     await purge(['site']);

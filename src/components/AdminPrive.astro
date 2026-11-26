@@ -1,0 +1,112 @@
+---
+/**
+ * Админка → «PRIVE» (Anuar 26.11.2026): какие ЖК относятся к PRIVE, их порядок на странице PRIVE и в блоке на главной,
+ * слайдер первого экрана PRIVE (★). PRIVE-ЖК (кроме наших STAY PROJECTS) показываются только в разделе PRIVE,
+ * их квартиры — только в «Лотах PRIVE». Пока список не сохранён ни разу, PRIVE берётся из базы (флаг ЖК).
+ * Отдельные объекты помечаются PRIVE в разделе «Объекты».
+ */
+import { getProjects } from '../lib/api';
+import { getHomeConfig } from '../lib/homeConfig';
+import { isOurComplex } from '../lib/catalog';
+
+const [projects, home] = await Promise.all([getProjects(), getHomeConfig(true)]);
+const all = projects
+  .map((p) => ({ code: p.code, title: p.title, place: [p.city, p.area].filter(Boolean).join(', '), image: p.image, db: p.isPrivate, ours: isOurComplex(p) }))
+  .sort((a, b) => a.title.localeCompare(b.title));
+const codes = home.prive.codes ?? all.filter((p) => p.db).map((p) => p.code);
+const order = [...home.prive.projects.filter((c) => codes.includes(c)), ...codes.filter((c) => !home.prive.projects.includes(c))];
+const data = { all, order, hero: home.prive.hero.filter((c) => codes.includes(c)), visible: home.prive.projectsVisible, custom: !!home.prive.codes };
+---
+<section class="card mt-6 p-6" id="prive">
+  <div class="flex flex-wrap items-start justify-between gap-4">
+    <div>
+      <h2 class="text-xl font-medium">PRIVE: проекты</h2>
+      <p class="mt-1 max-w-3xl text-sm text-muted">Какие ЖК относятся к PRIVE и в каком порядке они идут на странице PRIVE и в блоке PRIVE на главной. PRIVE-ЖК видны только в разделе PRIVE (наши проекты — ещё и в STAY PROJECTS), их квартиры — только в «Лотах PRIVE». ★ — проект в слайдере первого экрана страницы PRIVE. Отдельный объект отмечается PRIVE в разделе «Объекты».</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span data-pv-status class="text-sm text-muted"></span>
+      <button data-pv-save class="btn btn-accent">Сохранить</button>
+    </div>
+  </div>
+  <div class="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+    <div>
+      <div class="flex items-center justify-between gap-4">
+        <h3 class="font-medium">PRIVE <span data-pv-n class="text-muted"></span></h3>
+        <label class="flex items-center gap-2 text-sm text-muted">Сразу видно <input data-pv-visible type="number" min="1" max="50" class="field h-10 w-20 px-3" /></label>
+      </div>
+      <ol data-pv-list class="mt-3 grid gap-2"></ol>
+    </div>
+    <div>
+      <h3 class="font-medium">Остальные ЖК</h3>
+      <input data-pv-search class="field mt-3" placeholder="Поиск по названию или району" />
+      <ul data-pv-all class="mt-3 grid max-h-[70vh] gap-2 overflow-auto pr-1"></ul>
+    </div>
+  </div>
+  <script type="application/json" id="prive-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />
+</section>
+
+<script>
+  const el = document.getElementById('prive-data');
+  if (el) {
+    const d = JSON.parse(el.textContent || '{}');
+    const byCode = new Map<string, any>(d.all.map((p: any) => [p.code, p]));
+    let list: string[] = d.order.filter((c: string) => byCode.has(c));
+    const hero = new Set<string>(d.hero);
+    const $ = (s: string) => document.querySelector(s) as HTMLElement;
+    const status = $('[data-pv-status]');
+    const visible = $('[data-pv-visible]') as HTMLInputElement;
+    visible.value = String(d.visible ?? 8);
+    let dirty = false;
+    const touch = () => { dirty = true; status.textContent = 'Есть несохранённые изменения'; };
+    const esc = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
+    const thumb = (p: any) => p.image ? `<img src="${esc(p.image)}" alt="" class="size-12 shrink-0 rounded-xl object-cover bg-lavender-2" loading="lazy">` : '<span class="size-12 shrink-0 rounded-xl bg-lavender-2"></span>';
+    const btn = 'grid size-9 place-items-center rounded-full border border-line hover:border-ink disabled:opacity-30';
+    const tag = (p: any) => p.ours ? ' <span class="rounded-full bg-[#f4f0fd] px-2 py-0.5 text-xs text-[#754be9]">STAY PROJECTS</span>' : '';
+
+    function render() {
+      $('[data-pv-n]').textContent = `· ${list.length}`;
+      $('[data-pv-list]').innerHTML = list.map((c, i) => {
+        const p = byCode.get(c);
+        return `<li class="flex items-center gap-3 rounded-2xl border border-[#bc906e40] bg-[#f6f1ec] p-2">
+          <span class="w-5 text-center text-sm text-muted">${i + 1}</span>${thumb(p)}
+          <span class="min-w-0 flex-1"><span class="block truncate font-medium">${esc(p.title)}${tag(p)}</span><span class="block truncate text-sm text-muted">${esc(p.place)}</span></span>
+          <button data-pv-hero="${esc(c)}" title="В слайдере страницы PRIVE" class="${btn} ${hero.has(c) ? 'bg-[#bc906e] text-white border-[#bc906e]' : ''}">★</button>
+          <button data-pv-up="${i}" title="Выше" class="${btn}" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button data-pv-down="${i}" title="Ниже" class="${btn}" ${i === list.length - 1 ? 'disabled' : ''}>↓</button>
+          <button data-pv-remove="${esc(c)}" title="Убрать из PRIVE" class="${btn}">✕</button></li>`;
+      }).join('') || '<li class="text-muted">PRIVE-проектов нет — добавьте справа.</li>';
+      const q = ($('[data-pv-search]') as HTMLInputElement).value.trim().toLowerCase();
+      $('[data-pv-all]').innerHTML = d.all
+        .filter((p: any) => !list.includes(p.code) && (!q || `${p.title} ${p.place}`.toLowerCase().includes(q)))
+        .map((p: any) => `<li class="flex items-center gap-3 rounded-2xl border border-line p-2">${thumb(p)}
+          <span class="min-w-0 flex-1"><span class="block truncate font-medium">${esc(p.title)}${tag(p)}</span><span class="block truncate text-sm text-muted">${esc(p.place)}</span></span>
+          <button data-pv-add="${esc(p.code)}" class="${btn}" title="Сделать PRIVE">+</button></li>`).join('');
+    }
+
+    $('[data-pv-list]').closest('section')!.addEventListener('click', (e) => {
+      const t = (e.target as HTMLElement).closest('button');
+      if (!t) return;
+      const b = t.dataset;
+      if (b.pvAdd) list.push(b.pvAdd);
+      else if (b.pvRemove) { list = list.filter((c) => c !== b.pvRemove); hero.delete(b.pvRemove); }
+      else if (b.pvHero) hero.has(b.pvHero) ? hero.delete(b.pvHero) : hero.add(b.pvHero);
+      else if (b.pvUp) { const i = +b.pvUp; [list[i - 1], list[i]] = [list[i], list[i - 1]]; }
+      else if (b.pvDown) { const i = +b.pvDown; [list[i + 1], list[i]] = [list[i], list[i + 1]]; }
+      else return;
+      touch();
+      render();
+    });
+    $('[data-pv-search]').addEventListener('input', render);
+    visible.addEventListener('input', touch);
+    $('[data-pv-save]').addEventListener('click', async () => {
+      status.textContent = 'Сохраняю…';
+      const body = { codes: list, projects: list, hero: list.filter((c) => hero.has(c)), projectsVisible: Number(visible.value) || 8 };
+      const res = await fetch('/api/admin/prive', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const r = await res.json().catch(() => ({ ok: false, error: res.statusText }));
+      dirty = !r.ok;
+      status.textContent = r.ok ? `Сохранено: ${r.saved.codes.length} PRIVE-ЖК. На сайте — в течение минуты.` : 'Ошибка: ' + (r.error || res.status);
+    });
+    window.addEventListener('beforeunload', (e) => { if (dirty) e.preventDefault(); });
+    render();
+  }
+</script>

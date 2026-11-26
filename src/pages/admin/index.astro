@@ -12,6 +12,7 @@ import { categoryCounts } from '../../lib/sitemap';
 import { catUrl, INDEX_MIN, isOurComplex } from '../../lib/catalog';
 import { getPartners, CATEGORIES, CATEGORY_LABEL } from '../../lib/sclub';
 import AdminPlans from '../../components/AdminPlans.astro';
+import AdminPrive from '../../components/AdminPrive.astro';
 
 export const prerender = false;
 
@@ -238,6 +239,7 @@ if (authed) {
             <div><label class="label">Текст</label><input data-online="text" class="field" /></div>
           </div>
         </section>
+        <AdminPrive />
         </>)}
 
         {can('objects') && (<>

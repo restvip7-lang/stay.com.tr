@@ -3,7 +3,9 @@
  * (пороги — как на самих страницах), у каждой — hreflang-альтернативы и lastmod.
  */
 import { LANGS, SITE, HREFLANG, type Lang } from '../i18n/config';
-import { getItems, getUnits, getComplexes, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
+import { getItems, getUnits, getComplexes, getOurComplexes, filtered, noFilters, catUrl, itemUrl, complexUrl, INDEX_MIN, type Cat } from './catalog';
+import { ownUrl } from './ownUrl';
+import { TYPES } from './segments';
 import { translatedIds } from './api';
 import { allServices, serviceUrl } from './services';
 import { BLOG_CATS, blogUrl, postsOf } from './blog';
@@ -11,7 +13,7 @@ import { getNewsL } from './api';
 import { TEAM, EDITORIAL } from '../content/company';
 import { allLangs, someLangs } from './page';
 
-export const KINDS = ['categories', 'objects', 'complexes', 'blog', 'static'] as const;
+export const KINDS = ['categories', 'stay-projects', 'objects', 'complexes', 'blog', 'static'] as const;
 export type Kind = (typeof KINDS)[number];
 
 interface Url { loc: string; lastmod: string; alts?: Partial<Record<Lang, string>> }
@@ -89,6 +91,7 @@ export async function urlsOf(kind: Kind, lang: Lang): Promise<Url[]> {
       return { loc, lastmod: d, alts: allLangs(loc) };
     });
   }
+  if (kind === 'stay-projects') return ownCatalogUrls(lang);
   if (kind === 'objects') {
     const items = await getItems();
     const ids = async (op: 'sale' | 'rental') => Object.fromEntries(await Promise.all(LANGS.map(async (l) => [l, await translatedIds(op, l).catch(() => new Set<string>())]))) as Record<Lang, Set<string>>;
@@ -137,4 +140,34 @@ export async function urlsOf(kind: Kind, lang: Lang): Promise<Url[]> {
     ...TEAM.map((m) => `/${lang}/team/${m.slug}/`), `/${lang}/team/${EDITORIAL.slug}/`,
   ];
   return paths.map((loc) => ({ loc, lastmod: d, alts: allLangs(loc) }));
+}
+
+/**
+ * Каталог STAY PROJECTS в поиске (Anuar 26.11.2026: по названию проекта человек должен попадать на нашу страницу):
+ * «тип», «тип + проект» и «тип + проект + комнатность» — если в выдаче не меньше INDEX_MIN лотов (как robots на самой странице).
+ */
+let ownMemo: { at: number; v: { type: string; slug?: string; rooms?: string }[] } | null = null;
+async function ownCatalogUrls(lang: Lang): Promise<Url[]> {
+  if (!ownMemo || Date.now() - ownMemo.at > 10 * 60_000) {
+    const v: { type: string; slug?: string; rooms?: string }[] = [];
+    const ours = await getOurComplexes();
+    const count = async (type: string, code?: string, rooms?: string) =>
+      (await filtered({ country: 'turkey', deal: 'sale', type: type === 'all' ? undefined : (type as Cat['type']) }, { ...noFilters(), own: true, projects: code ? [code] : [], rooms: rooms ? [rooms] : [] })).length;
+    for (const type of ['all', ...TYPES]) {
+      if ((await count(type)) < INDEX_MIN) continue;
+      v.push({ type });
+      for (const c of ours) {
+        if ((await count(type, c.code)) < INDEX_MIN) continue;
+        v.push({ type, slug: c.slug });
+        if (type === 'all') continue;
+        for (const r of ['studio', '1+1', '2+1', '3+1', '4+']) if ((await count(type, c.code, r)) >= INDEX_MIN) v.push({ type, slug: c.slug, rooms: r });
+      }
+    }
+    ownMemo = { at: Date.now(), v };
+  }
+  const d = today();
+  return ownMemo.v.map((x) => {
+    const loc = ownUrl(lang, x.type, { projectSlugs: x.slug ? [x.slug] : [], rooms: x.rooms ? [x.rooms] : [] });
+    return { loc, lastmod: d, alts: allLangs(loc) };
+  });
 }

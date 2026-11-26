@@ -5,7 +5,7 @@ import { getSeoConfig } from '../lib/seoConfig';
 
 /** /sitemap-{kind}-{lang}.xml */
 export const GET: APIRoute = async ({ params }) => {
-  const m = (params.name ?? '').match(/^([a-z]+)-([a-z]{2})$/);
+  const m = (params.name ?? '').match(/^([a-z-]+)-([a-z]{2})$/);
   if (!m || !(KINDS as readonly string[]).includes(m[1]) || !isLang(m[2])) return new Response('Not found', { status: 404 });
   const seo = await getSeoConfig().catch(() => ({ overrides: {}, redirects: [] }) as Awaited<ReturnType<typeof getSeoConfig>>);
   // Без страниц, закрытых в админке, и без адресов с редиректом/410.

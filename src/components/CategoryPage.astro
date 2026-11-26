@@ -32,6 +32,27 @@ import { guideFor, lawLinks } from '../lib/blog';
 import { SITE } from '../i18n/config';
 
 interface Props { cat: Cat; page: number; hub: boolean }
+const OWN_LOTS: Record<string, [string, string, string]> = { ru: ['лот', 'лота', 'лотов'], en: ['unit', 'units', 'units'], tr: ['daire', 'daire', 'daire'], de: ['Einheit', 'Einheiten', 'Einheiten'], sr: ['jedinica', 'jedinice', 'jedinica'] };
+type OwnT = { title: (h1: string, min: string, one: boolean) => string; desc: (h1: string, cnt: string, min: string, pj: string | null, place: string) => string; text: (h1: string, cnt: string, min: string, pj: string | null, place: string) => string };
+const OWN_META: Record<string, OwnT> = {
+  ru: {
+    title: (h, m, one) => `${h}${one ? ' от застройщика' : ' STAY PROJECTS'}${m ? ` — цены от ${m}` : ''} | Stay Property`,
+    desc: (h, c, m, pj, pl) => `${h}: ${c}${m ? ` от ${m}` : ''}${pj ? ` в проекте ${pj}${pl ? ` (${pl})` : ''}` : ' в проектах STAY PROJECTS'}. Планировки, цены, этажи и рассрочка от застройщика Stay Property.`,
+    text: (h, c, m, pj, pl) => `${h} — ${c}${m ? ` по ценам от ${m}` : ''}${pj ? ` в проекте ${pj}${pl ? ` (${pl})` : ''}` : ' в проектах STAY PROJECTS'}. Это собственные проекты Stay Property: цены и наличие — напрямую от застройщика, доступна беспроцентная рассрочка. Выберите планировку, корпус и этаж в фильтре или оставьте заявку — менеджер пришлёт подборку.`,
+  },
+  en: {
+    title: (h, m, one) => `${h}${one ? ' from the developer' : ' STAY PROJECTS'}${m ? ` — from ${m}` : ''} | Stay Property`,
+    desc: (h, c, m, pj, pl) => `${h}: ${c}${m ? ` from ${m}` : ''}${pj ? ` in ${pj}${pl ? ` (${pl})` : ''}` : ' in STAY PROJECTS developments'}. Layouts, prices, floors and developer instalments from Stay Property.`,
+    text: (h, c, m, pj, pl) => `${h}: ${c}${m ? ` from ${m}` : ''}${pj ? ` in ${pj}${pl ? ` (${pl})` : ''}` : ' in STAY PROJECTS developments'}. These are Stay Property’s own projects: prices and availability come straight from the developer, with interest-free instalments. Choose a layout, building and floor in the filter or send a request and our manager will prepare a selection.`,
+  },
+};
+const PRIVE_META: Record<string, (n: string) => string> = {
+  ru: (n) => `Лоты PRIVE — ${n} закрытых предложений | Stay Property`,
+  en: (n) => `PRIVE units — ${n} private offers | Stay Property`,
+  tr: (n) => `PRIVE — ${n} özel teklif | Stay Property`,
+  de: (n) => `PRIVE — ${n} exklusive Angebote | Stay Property`,
+  sr: (n) => `PRIVE — ${n} ekskluzivnih ponuda | Stay Property`,
+};
 const { cat, page, hub } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
@@ -131,8 +152,8 @@ const textLinks = [
   { href: `/${lang}/services/due-diligence/`, text: SERVICE_TITLES[lang]['due-diligence'].toLocaleLowerCase(lang) },
   ...(complexes.length ? [{ href: catUrl(lang, cat, { complexes: true }), text: d.nav.complexes.toLocaleLowerCase(lang) }] : []),
 ];
-const text = ov?.text ? sanitize(ov.text) : page === 1 && n > 0 ? catText({ lang, cat, s, byType: types, near: nearLinks.map((l) => l.text), links: textLinks }) : '';
-const faq = page === 1 ? catFaq(lang, cat, s) : [];
+let text = ov?.text ? sanitize(ov.text) : page === 1 && n > 0 ? catText({ lang, cat, s, byType: types, near: nearLinks.map((l) => l.text), links: textLinks }) : '';
+let faq = page === 1 ? catFaq(lang, cat, s) : [];
 
 const crumbs = catCrumbs(lang, cat);
 if (page > 1) crumbs.push({ label: d.page(page) });
@@ -169,6 +190,31 @@ if (ownCat) {
   crumbs.splice(0, crumbs.length, { label: d.home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` });
   if (pj) crumbs.push({ label: pj.title, href: complexUrl(lang, pj) });
   crumbs.push({ label: meta.h1 });
+}
+// Заголовок вкладки, описание и текст — по самим квартирам STAY PROJECTS, а не общий «1424 объекта в Турции».
+if (ownCat) {
+  const lo = list.map((x) => x.price).filter((v): v is number => !!v);
+  const minP = lo.length ? moneyL(lang, Math.min(...lo)) : '';
+  const cnt = `${numL(lang, list.length)} ${pluralL(lang, list.length, OWN_LOTS[lang] ?? OWN_LOTS.en)}`;
+  const place = pj ? [pj.district ? districtBySlug(pj.city, pj.district)?.name[lang] : null, cityBySlug(pj.city)?.name[lang]].filter(Boolean).join(', ') : '';
+  const T = OWN_META[lang] ?? OWN_META.en;
+  meta.title = T.title(meta.h1, minP, !!pj);
+  meta.description = T.desc(meta.h1, cnt, minP, pj?.title ?? null, place);
+  text = page === 1 && list.length ? `<p>${T.text(meta.h1, cnt, minP, pj?.title ?? null, place)}</p>` : '';
+  faq = [];
+  // В поиск: страницы «тип» и «тип + проект» (+ одна комнатность), без корпусов, этажей и прочих фильтров (Anuar 26.11.2026: «по названию проекта попадали на нашу страницу»).
+  const extra = [...sp.keys()].filter((k) => !['own', 'project', 'rooms'].includes(k));
+  const ownIndex = !!ownPath && !extra.length && f.projects.length <= 1 && f.rooms.length <= 1 && page === 1 && list.length >= INDEX_MIN;
+  robots = ownIndex ? 'index,follow' : 'noindex,follow';
+} else if (!hub && f.prive && !f.own) {
+  // Каталог лотов PRIVE: заголовок по числу лотов; общий SEO-текст страны не показываем.
+  const T = PRIVE_META[lang] ?? PRIVE_META.en;
+  meta.title = T(numL(lang, list.length));
+  const lo = list.map((x) => x.price).filter((v): v is number => !!v);
+  meta.h1 = ({ ru: 'Лоты PRIVE', en: 'PRIVE units', tr: 'PRIVE birimleri', de: 'PRIVE-Einheiten', sr: 'PRIVE jedinice' } as Record<string, string>)[lang] ?? 'PRIVE';
+  meta.lead = `${numL(lang, list.length)} ${pluralL(lang, list.length, OWN_LOTS[lang] ?? OWN_LOTS.en)}${lo.length ? `, ${d.from(moneyL(lang, Math.min(...lo)))}` : ''}`;
+  text = '';
+  faq = [];
 }
 const canonOut = ownPath ?? canonical;
 const altBase = ownPath ?? base;

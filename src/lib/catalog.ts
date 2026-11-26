@@ -109,11 +109,17 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
 let memo: { at: number; items: Item[]; units: Item[] } | null = null;
 
 /** Отметки админки поверх базы: скрытые убираем, ярлык и закрепление проставляем. */
-const marked = new WeakMap<Item[], { marks: Marks; all: Item[]; visible: Item[] }>();
+const marked = new WeakMap<Item[], { marks: Marks; priveKey: string; all: Item[]; visible: Item[] }>();
+/** PRIVE-ЖК из админки (null — как в базе). Ключ — для пересчёта кэшей при изменении списка. */
+async function priveCodes(): Promise<{ set: Set<string> | null; key: string }> {
+  const codes = (await getHomeConfig().catch(() => null))?.prive?.codes ?? null;
+  return { set: codes ? new Set(codes) : null, key: codes ? codes.join(',') : '' };
+}
+
 async function withMarks(list: Item[]) {
-  const marks = await getMarks();
+  const [marks, pc] = await Promise.all([getMarks(), priveCodes()]);
   const hit = marked.get(list);
-  if (hit && hit.marks === marks) return hit;
+  if (hit && hit.marks === marks && hit.priveKey === pc.key) return hit;
   const all = list.map((x) => {
     const m = marks[x.id];
     // PRIVE: квартиры проектов PRIVE (флаг базы) + любой объект с отметкой «PRIVE» в админке (решение Anuar 25.11.2026).
@@ -124,10 +130,12 @@ async function withMarks(list: Item[]) {
     if (res && x.deal === 'sale') features.push('residence-permit');
     // «Объекты Stay»: все квартиры наших проектов (STAY PROJECTS) + объекты с отметкой «Наш объект» в админке.
     const ourUnit = !!(x.unit && x.complex && OUR_SLUGS.has(slugify(x.complex)));
-    const base = { ...x, features, isPrivate: x.isPrivate || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
+    // Квартира ЖК: PRIVE по списку PRIVE-ЖК из админки (если задан), иначе по флагу базы.
+    const basePrive = x.unit && pc.set ? !!x.complex && pc.set.has(x.complex) : x.isPrivate;
+    const base = { ...x, features, isPrivate: basePrive || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
     return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: ourUnit || !!m.own } : base;
   });
-  const v = { marks, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
+  const v = { marks, priveKey: pc.key, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);
   return v;
 }
@@ -270,10 +278,11 @@ export interface Complex {
   project: Project;
 }
 
-let cxMemo: { at: number; list: Complex[] } | null = null;
+let cxMemo: { at: number; key: string; list: Complex[] } | null = null;
 
 export async function getComplexes(): Promise<Complex[]> {
-  if (cxMemo && Date.now() - cxMemo.at < 5 * 60_000) return cxMemo.list;
+  const pc = await priveCodes();
+  if (cxMemo && cxMemo.key === pc.key && Date.now() - cxMemo.at < 5 * 60_000) return cxMemo.list;
   const projects = await getProjects();
   const used = new Set<string>();
   const list: Complex[] = [];
@@ -295,7 +304,7 @@ export async function getComplexes(): Promise<Complex[]> {
       priceFrom: prices.length ? Math.min(...prices) : p.priceFrom,
       priceTo: prices.length > 1 ? Math.max(...prices) : null,
       image: p.image,
-      isPrivate: p.isPrivate,
+      isPrivate: pc.set ? pc.set.has(p.code) : p.isPrivate,
       action: p.action,
       lat: p.lat,
       lng: p.lng,
@@ -303,7 +312,7 @@ export async function getComplexes(): Promise<Complex[]> {
       project: p,
     });
   }
-  cxMemo = { at: Date.now(), list };
+  cxMemo = { at: Date.now(), key: pc.key, list };
   return list;
 }
 

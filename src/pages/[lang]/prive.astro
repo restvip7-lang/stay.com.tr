@@ -22,9 +22,10 @@ const d = t(lang);
 const [home, complexes, sections] = await Promise.all([getHomeConfig(), getComplexes(), getHomeSections()]);
 const byCode = (c: string) => complexes.find((p) => p.code === c);
 const cfg = home.prive;
-const hero = cfg.hero.map(byCode).filter(Boolean) as typeof complexes;
+const hero0 = cfg.hero.map(byCode).filter((p) => p?.isPrivate) as typeof complexes; // слайдер — только PRIVE-ЖК
 const ordered = cfg.projects.map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
 const list = [...ordered, ...complexes.filter((p) => p.isPrivate && !ordered.includes(p))];
+const hero = hero0.length ? hero0 : list.filter((p) => p.image).slice(0, 6);
 const turkeySale = { country: 'turkey', deal: 'sale' as const };
 // Фильтр страницы: стоимость, комнаты, площадь (из адреса), всегда только PRIVE-лоты.
 const sp = new URLSearchParams();

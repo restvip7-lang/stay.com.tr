@@ -13,7 +13,7 @@ import ProjectCard from './ProjectCard.astro';
 import LeadForm from './LeadForm.astro';
 import { t } from '../i18n/ui';
 import { getComplex } from '../lib/api';
-import { getComplexes, getUnits, getItems, complexUrl, catUrl, itemUrl, matchComplex, isOurComplex, type Complex } from '../lib/catalog';
+import { getComplexes, getUnits, getItems, complexUrl, catUrl, itemUrl, matchComplex, isOurComplex, isPublicComplex, type Complex } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { geoOf, complexMeta } from '../lib/seo';
 import { catCrumbs, SERVICE_TITLES } from '../lib/nav';
@@ -62,8 +62,11 @@ const FACT_LABEL: Record<string, string> = { price: tc.priceRange, 'build-end': 
 const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
 const alternates = { ru: complexUrl('ru', c) };
 
-const nearby = (await getComplexes()).filter((x) => x.slug !== c.slug && matchComplex(x, { country: c.country, city: c.city, district: c.district ?? undefined }));
-const others = (nearby.length >= 3 ? nearby : [...nearby, ...(await getComplexes()).filter((x) => x.slug !== c.slug && x.city === c.city && !nearby.includes(x))]).slice(0, 3);
+// «Другие ЖК рядом»: PRIVE-ЖК только в разделе PRIVE (Anuar 26.11.2026) — у обычного ЖК их не показываем.
+const cPrive = !isPublicComplex(c);
+const okOther = (x: Complex) => x.slug !== c.slug && (cPrive || isPublicComplex(x));
+const nearby = (await getComplexes()).filter((x) => okOther(x) && matchComplex(x, { country: c.country, city: c.city, district: c.district ?? undefined }));
+const others = (nearby.length >= 3 ? nearby : [...nearby, ...(await getComplexes()).filter((x) => okOther(x) && x.city === c.city && !nearby.includes(x))]).slice(0, 3);
 const geoCat = { country: c.country, city: c.city, district: c.district ?? undefined };
 const guide = guideFor(lang, geoCat);
 const links = [
@@ -74,7 +77,10 @@ const links = [
   { href: `/${lang}/services/due-diligence/`, text: SERVICE_TITLES[lang]['due-diligence'] },
 ];
 // Наши проекты (решение Anuar 25.11): короткие крошки «Главная · STAY PROJECTS · Проект», как у образца.
-const crumbs = isOurComplex(c) ? [{ label: t(lang).home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, { label: c.title }] : catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
+// PRIVE-ЖК (не наши) — «Главная · PRIVE · ЖК»: в «Новостройках» их нет (Anuar 26.11.2026).
+const crumbs = isOurComplex(c) ? [{ label: t(lang).home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` }, { label: c.title }]
+  : !isPublicComplex(c) ? [{ label: t(lang).home, href: `/${lang}/` }, { label: 'PRIVE', href: `/${lang}/prive/` }, { label: c.title }]
+  : catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
 const vld = p?.video ? videoLd(p.video, c.title, description, new Date().toISOString()) : null;
 const ld = [
   complexLd({ url: self, name: c.title, description, images: [hero, ...gallery].filter(Boolean) as string[], city: city.name.en, region: district?.name.en ?? city.name.en, country: c.country === 'turkey' ? 'TR' : c.country === 'uae' ? 'AE' : 'CY', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, units: objects.length || null, amenities: p?.amenities ?? [], low, high, offers: objects.length || units.length }),

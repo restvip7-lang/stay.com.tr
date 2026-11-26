@@ -7,7 +7,7 @@
 import defaults from '../content/data/home.json';
 import { readJson, storeReady, writeJson } from './store';
 
-export type HomeConfig = Omit<typeof defaults, '_comment'> & { projectsHidden?: string[] };
+export type HomeConfig = Omit<typeof defaults, '_comment' | 'prive'> & { projectsHidden?: string[]; prive: (typeof defaults)['prive'] & { codes: string[] | null } };
 
 const KEY = 'config/home.json';
 let memo: { at: number; value: HomeConfig } | null = null;
@@ -28,12 +28,15 @@ function normalize(x: any): HomeConfig {
     hero: Array.isArray(pv.hero) ? pv.hero.filter((c: unknown) => typeof c === 'string') : d.prive.hero,
     projects: Array.isArray(pv.projects) ? pv.projects.filter((c: unknown) => typeof c === 'string') : d.prive.projects,
     projectsVisible: Math.max(1, Math.min(50, Number(pv.projectsVisible) || d.prive.projectsVisible)),
+    // Какие ЖК — PRIVE (админка, Anuar 26.11.2026). null — как в базе (флаг isPrivate).
+    codes: Array.isArray(pv.codes) ? [...new Set(pv.codes.filter((c: unknown) => typeof c === 'string'))] as string[] : null,
   };
   return out;
 }
 
-export async function getHomeConfig(): Promise<HomeConfig> {
-  if (memo && Date.now() - memo.at < 30_000) return memo.value;
+/** fresh — без памяти процесса (для сохранения из админки: склеиваем с последней сохранённой версией). */
+export async function getHomeConfig(fresh = false): Promise<HomeConfig> {
+  if (!fresh && memo && Date.now() - memo.at < 30_000) return memo.value;
   let value = normalize(null);
   const saved = await readJson(KEY);
   if (saved) value = normalize(saved);
