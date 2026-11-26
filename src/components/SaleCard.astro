@@ -29,6 +29,8 @@ const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth 
 const alt = `${title}${district ? ` — ${district.name[lang]}` : ''}${area ? `, ${area}` : ''} — ${d.photo} 1`;
 const perM2 = x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };
+// ID объекта на карточке (Anuar 26.11.2026): клиент пишет менеджеру «ID 4397», в админке он ищется так же. Выделяется кликом для копирования.
+const idText = `ID ${x.ref ?? x.id}`;
 const H = headingLevel;
 const sold = x.label === 'sold';
 // Фиолетовая карточка «Stay» — для наших объектов; у PRIVE-лотов остаётся золотое оформление PRIVE.
@@ -84,6 +86,7 @@ const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|resid
     <p class="truncate"><span class="font-medium text-ink-n">{project.title}</span>{pLine && ` · ${pLine}`}</p>
     {readyText && <p>{PC?.ready}: {readyText}</p>}
     <p class="truncate">{place}{x.sea ? ` · ${d.toSea(numL(lang, x.sea))}` : ''}</p>
+    <p class="sc-id relative z-[2] w-fit select-all">{idText}</p>
   </div>
   <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" aria-label={d.addFav} class="sc-fav absolute bottom-4 right-4 z-10 grid size-12 place-items-center rounded-[14px] bg-white shadow-[var(--shadow-btn)] transition-colors hover:bg-page-n lg:bottom-5 lg:right-5">
     <Icon name="heart" class="size-5" />
@@ -119,8 +122,13 @@ const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|resid
       {chips.slice(0, 2).map((f) => <li><span class="badge">{FEATURE_LABEL[lang][f]}</span></li>)}
     </ul>
     <div class="mt-auto pt-4"><div class="border-t border-line pt-3">
-      <p class:list={['text-[22px] font-medium leading-[27px] tracking-[0.6px] text-ink-n', sold && 'text-muted line-through']}>{price}</p>
-      {perM2 && <p class="mt-0.5 text-[14px] leading-5 tracking-[0.2px] text-ink-n/50">{perM2}</p>}
+      <div class="flex items-start justify-between gap-3">
+        <div class="min-w-0">
+          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[0.6px] text-ink-n', sold && 'text-muted line-through']}>{price}</p>
+          {perM2 && <p class="mt-0.5 text-[14px] leading-5 tracking-[0.2px] text-ink-n/50">{perM2}</p>}
+        </div>
+        <span class="sc-id relative z-[2] shrink-0 select-all pt-[5px] text-[14px] leading-5 tracking-[0.2px] text-ink-n/50">{idText}</span>
+      </div>
     </div></div>
   </div>
   <button type="button" data-fav={x.id} data-fav-item={JSON.stringify(fav)} aria-pressed="false" aria-label={d.addFav} class="sc-fav absolute right-4 top-4 z-10 grid size-14 place-items-center rounded-[16px] bg-white shadow-[var(--shadow-btn)] transition-colors hover:bg-page-n lg:right-5 lg:top-5 lg:size-[50px] lg:rounded-[12px] lg:invisible lg:group-hover:visible lg:aria-pressed:visible">
