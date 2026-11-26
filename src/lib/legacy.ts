@@ -40,7 +40,13 @@ export async function legacyRedirect(path: string, sp: URLSearchParams): Promise
     for (const k of ['price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'sort', 'prive', 'citizenship', 'ref', 'q']) sp.getAll(k).forEach((v) => keep.append(k, v));
     return SIMPLE[p] + (keep.toString() ? `?${keep}` : '');
   }
-  let m = p.match(/^\/(sale|rental)\/(u?\d+)$/);
+  // Прежние адреса разделов уже с языком: «Новостройки» без страны и аренда под именем rental.
+  let m = p.match(/^\/(ru|en|tr|de|sr)\/sale\/complexes(\/page-\d+)?$/);
+  const qs = sp.toString() ? `?${sp}` : '';
+  if (m) return `/${m[1]}/turkey/sale/complexes/${m[2] ? m[2].slice(1) + '/' : ''}${qs}`;
+  m = p.match(/^\/(ru|en|tr|de|sr)\/((?:[\w-]+\/)*)rental(\/page-\d+)?$/);
+  if (m) return `/${m[1]}/${m[2]}rent/${m[3] ? m[3].slice(1) + '/' : ''}${qs}`;
+  m = p.match(/^\/(sale|rental)\/(u?\d+)$/);
   if (m) {
     const x = await findItem(m[2]);
     return x ? itemUrl('ru', x) : SIMPLE['/' + m[1]];
