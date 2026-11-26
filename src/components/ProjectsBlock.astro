@@ -10,6 +10,13 @@ const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const H = headingLevel;
 const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, u: complexUrl(lang, p), lat: p.lat, lng: p.lng, a: [p.district ? districtBySlug(p.city, p.district)?.name[lang] : null, cityBySlug(p.city)?.name[lang]].filter(Boolean).join(', '), pr: p.priceFrom }));
+// Сетка в 2 колонки без «дыр» (Anuar 26.11.2026): первая карточка широкая (кроме PRIVE/STAY PROJECTS);
+// сразу показываем чётное число обычных карточек, а если в полном списке остаётся одна — последняя тоже широкая.
+const wideFirst = !prive && !own;
+const lead0 = wideFirst ? 1 : 0;
+const shownN = Math.min(projects.length, visible + ((Math.min(visible, projects.length) - lead0) % 2 === 1 && visible < projects.length ? 1 : 0));
+const lastWide = projects.length > lead0 && (projects.length - lead0) % 2 === 1;
+const isWide = (i: number) => (i === 0 && wideFirst) || (lastWide && i === projects.length - 1);
 ---
 <section class:list={['container-x', tight ? 'mt-8 md:mt-10' : 'mt-20 md:mt-28']} data-projects>
   <div class:list={['mb-8 flex flex-wrap items-end gap-4', title ? 'justify-between' : 'justify-end']}>
@@ -22,12 +29,12 @@ const points = projects.filter((p) => p.lat && p.lng).map((p) => ({ t: p.title, 
   <div data-view="grid">
     <div class="grid gap-4 md:grid-cols-2">
       {projects.map((p, i) => (
-        <div class:list={[i === 0 && !prive && !own && 'md:col-span-2', i >= visible && 'hidden']} data-more-item={i >= visible ? '' : undefined}>
-          <ProjectCard p={p} big={i === 0 && !prive && !own} prive={prive} own={own} />
+        <div class:list={[isWide(i) && 'md:col-span-2', i >= shownN && 'hidden']} data-more-item={i >= shownN ? '' : undefined}>
+          <ProjectCard p={p} big={isWide(i)} prive={prive} own={own} />
         </div>
       ))}
     </div>
-    {projects.length > visible && (
+    {projects.length > shownN && (
       <div class="mt-10 flex justify-center">
         <button type="button" data-show-more class="btn btn-ghost"><Icon name="plus" class="size-4" />{d.showMore}</button>
       </div>
