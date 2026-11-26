@@ -4,7 +4,8 @@
 #
 #   bash release.sh /home/stay/releases/<id>.tgz
 #
-# Архив: dist/, deploy/, package.json, package-lock.json (собирает .github/workflows/deploy-vps.yml).
+# Архив: dist/, deploy/, scripts/, package.json, package-lock.json (собирает .github/workflows/deploy-vps.yml).
+# scripts/ — то, что запускает cron (portfolio-sync.mjs, очистка кеша картинок); если в архиве их нет, остаются прежние.
 # Шаги: распаковать → если поменялись зависимости, поставить их (только для работы, без сборочных) →
 # подменить dist (старый остаётся в dist.prev) → перезапустить pm2 → проверить /ru/ →
 # при сбое вернуть прежнюю версию → прогреть кэш главных страниц → оставить 3 последних архива.
@@ -39,6 +40,12 @@ main() {
   mv dist dist.prev
   mv "$REL/dist" dist
   rm -rf deploy.prev && mv deploy deploy.prev && mv "$REL/deploy" deploy
+  local SCRIPTS=0
+  if [ -d "$REL/scripts" ]; then
+    SCRIPTS=1
+    rm -rf scripts.prev; [ -d scripts ] && mv scripts scripts.prev
+    mv "$REL/scripts" scripts
+  fi
 
   pm2 startOrReload deploy/ecosystem.config.cjs --update-env
   if ! healthy "$URL"; then
@@ -46,6 +53,7 @@ main() {
     pm2 logs stay-site --lines 40 --nostream >&2 || true
     rm -rf dist && mv dist.prev dist
     rm -rf deploy && mv deploy.prev deploy
+    if [ "$SCRIPTS" = 1 ]; then rm -rf scripts; [ -d scripts.prev ] && mv scripts.prev scripts; fi
     if [ "$DEPS" = 1 ]; then
       rm -rf node_modules; [ -d node_modules.prev ] && mv node_modules.prev node_modules
       mv package.json.prev package.json; mv package-lock.json.prev package-lock.json
