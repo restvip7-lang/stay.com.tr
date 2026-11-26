@@ -28,7 +28,7 @@ const data = { all, order, hero: home.prive.hero.filter((c) => codes.includes(c)
       <button data-pv-save class="btn btn-accent">Сохранить</button>
     </div>
   </div>
-  <div class="mt-6 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+  <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr]">
     <div>
       <div class="flex items-center justify-between gap-4">
         <h3 class="font-medium">PRIVE <span data-pv-n class="text-muted"></span></h3>
@@ -46,6 +46,7 @@ const data = { all, order, hero: home.prive.hero.filter((c) => codes.includes(c)
 </section>
 
 <script>
+  import { sortable, moveItem, sortHandle } from '../lib/adminSortable';
   const el = document.getElementById('prive-data');
   if (el) {
     const d = JSON.parse(el.textContent || '{}');
@@ -67,12 +68,12 @@ const data = { all, order, hero: home.prive.hero.filter((c) => codes.includes(c)
       $('[data-pv-n]').textContent = `· ${list.length}`;
       $('[data-pv-list]').innerHTML = list.map((c, i) => {
         const p = byCode.get(c);
-        return `<li class="flex items-center gap-3 rounded-2xl border border-[#bc906e40] bg-[#f6f1ec] p-2">
-          <span class="w-5 text-center text-sm text-muted">${i + 1}</span>${thumb(p)}
+        return `<li data-sort class="flex items-center gap-3 rounded-2xl border border-[#bc906e40] bg-[#f6f1ec] p-2">
+          ${sortHandle}<span class="w-5 text-center text-sm text-muted">${i + 1}</span>${thumb(p)}
           <span class="min-w-0 flex-1"><span class="block truncate font-medium">${esc(p.title)}${tag(p)}</span><span class="block truncate text-sm text-muted">${esc(p.place)}</span></span>
           <button data-pv-hero="${esc(c)}" title="В слайдере страницы PRIVE" class="${btn} ${hero.has(c) ? 'bg-[#bc906e] text-white border-[#bc906e]' : ''}">★</button>
-          <button data-pv-up="${i}" title="Выше" class="${btn}" ${i === 0 ? 'disabled' : ''}>↑</button>
-          <button data-pv-down="${i}" title="Ниже" class="${btn}" ${i === list.length - 1 ? 'disabled' : ''}>↓</button>
+          <button data-pv-up="${i}" title="Выше" class="${btn} max-sm:hidden" ${i === 0 ? 'disabled' : ''}>↑</button>
+          <button data-pv-down="${i}" title="Ниже" class="${btn} max-sm:hidden" ${i === list.length - 1 ? 'disabled' : ''}>↓</button>
           <button data-pv-remove="${esc(c)}" title="Убрать из PRIVE" class="${btn}">✕</button></li>`;
       }).join('') || '<li class="text-muted">PRIVE-проектов нет — добавьте справа.</li>';
       const q = ($('[data-pv-search]') as HTMLInputElement).value.trim().toLowerCase();
@@ -96,6 +97,7 @@ const data = { all, order, hero: home.prive.hero.filter((c) => codes.includes(c)
       touch();
       render();
     });
+    sortable($('[data-pv-list]'), (from, to) => { moveItem(list, from, to); touch(); render(); });
     $('[data-pv-search]').addEventListener('input', render);
     visible.addEventListener('input', touch);
     $('[data-pv-save]').addEventListener('click', async () => {
