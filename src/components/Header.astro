@@ -13,18 +13,14 @@ import { site } from '../lib/site';
 import { LANGS, LANG_NAME, type Lang } from '../i18n/config';
 import { t } from '../i18n/ui';
 import { menuCities } from '../lib/nav';
-import { catUrl, complexUrl, getComplexes } from '../lib/catalog';
-import { getHomeConfig } from '../lib/homeConfig';
+import { catUrl, complexUrl, stayProjectsList } from '../lib/catalog';
 
 interface Props { overlay?: boolean; alternates?: Partial<Record<Lang, string>> | null }
 const { overlay = false, alternates } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
-const [cities, complexes, homeCfg] = await Promise.all([menuCities(lang).catch(() => []), getComplexes().catch(() => []), getHomeConfig().catch(() => null)]);
-// Проекты в меню — те же, что на главной (порядок из админки), иначе первые по списку.
-const byCode = new Map(complexes.map((c) => [c.code, c]));
-const picked = (homeCfg?.projects ?? []).map((c) => byCode.get(c)).filter(Boolean) as typeof complexes;
-const menuProjects = (picked.length ? picked : complexes.filter((c) => !c.isPrivate)).slice(0, 12);
+const [cities, menuProjects] = await Promise.all([menuCities(lang).catch(() => []), stayProjectsList().catch(() => [])]);
+// В бургере — «STAY PROJECTS»: тот же список наших проектов, что в подвале и на главной (Anuar 26.11.2026).
 const path = Astro.url.pathname;
 const home = `/${lang}/`;
 const brands = [
@@ -45,21 +41,26 @@ const nav = [
   { label: d.nav.about, href: `/${lang}/about/` },
   { label: d.nav.contacts, href: `/${lang}/contacts/` },
 ];
-// Раздел страницы по адресу (любой город/район): /stay-projects/ → STAY PROJECTS; новостройки и ЖК → «Новостройки»
-// (и STAY PROPERTY — там все объекты), продажа → STAY PROPERTY, аренда → «Аренда» (Anuar 25.11.2026: активный пункт подсвечен, как при наведении).
+// Подсветка шапки (Anuar 26.11.2026) — «где лежит, то и горит»:
+// страницы наших проектов и их квартир (страница задаёт Astro.locals.navSection = 'own') и /stay-projects/ → STAY PROJECTS;
+// PRIVE-ЖК и их квартиры ('prive') → PRIVE; прочие ЖК → STAY PROPERTY + «Новостройки»;
+// любая страница продажи (все страны, страна, город, район, объект) → STAY PROPERTY + «Продажа»; аренда → «Аренда».
+// В каталоге с одной галочкой «Объекты Stay» горит STAY PROJECTS, с одной «PRIVE» — PRIVE.
 const seg = path.split('/');
+const qs = Astro.url.searchParams;
+const section: 'own' | 'prive' | undefined = Astro.locals.navSection
+  ?? (qs.get('own') === '1' && qs.get('prive') !== '1' ? 'own' : qs.get('prive') === '1' && qs.get('own') !== '1' ? 'prive' : undefined);
 const isComplexes = seg.includes('complexes') && seg.includes('sale');
 const isSale = !isComplexes && seg.includes('sale');
 const isRent = seg.includes('rent');
-// Каталог (общий фильтр) бренд в шапке не подсвечивает, в том числе при переходе со страниц STAY PROJECTS и PRIVE;
-// STAY PROPERTY подсвечен только на своей странице (Anuar 25.11.2026).
-const currentBrand = isComplexes ? brands[1].href : isSale ? (path === brands[1].href ? brands[1].href : undefined) : bestMatch(brands);
-const currentNav = isComplexes ? nav[1].href : isRent ? nav[0].href : bestMatch(nav);
+const saleHref = catUrl(lang, { country: '', deal: 'sale' }); // «Продажа» = общий каталог всех стран, как STAY PROPERTY (Anuar 26.11.2026)
+const currentBrand = section === 'own' ? brands[0].href : section === 'prive' ? brands[2].href : isComplexes || isSale ? brands[1].href : bestMatch(brands);
+const currentNav = section ? undefined : isComplexes ? nav[1].href : isSale ? saleHref : isRent ? nav[0].href : bestMatch(nav);
+
 // Переключатель языка: ссылка на эту же страницу на другом языке; если перевода нет — на главную языка.
 // Нет перевода страницы (alternates только для переведённых, это для SEO) — ведём на ту же страницу с другим префиксом, а не на главную.
 const here = Astro.url.pathname;
 const langHref = (l: Lang) => alternates?.[l] ?? (/^\/(ru|en|tr|de|sr)\//.test(here) ? here.replace(/^\/(ru|en|tr|de|sr)\//, `/${l}/`) + Astro.url.search : `/${l}/`);
-const saleHref = catUrl(lang, { country: 'turkey', deal: 'sale' });
 const realty = [{ label: d.nav.sale, href: saleHref }, ...nav.slice(0, 2), { label: 'PRIVE', href: `/${lang}/prive/` }, { label: d.favorites, href: `/${lang}/favorites/` }];
 const company = [...nav.slice(2), { label: d.nav.reviews, href: `/${lang}/reviews/` }, { label: 'INVESTMENT', href: 'https://stayinvestment.com/' }, { label: 'S-Club', href: `/${lang}/s-club/` }];
 const groups = [
@@ -108,7 +109,7 @@ const groups = [
     <!-- Главное меню — с 1280px. Ниже всё уходит в бургер. Над ним тонкая линия от логотипа до бургера, как у образца. -->
     <nav class="main-nav hidden h-11 items-start gap-6 pt-[13px] text-[14px] leading-[16.8px] xl:flex" aria-label={d.nav.main}>
       <div class="group relative">
-        <a href={saleHref} class="nav-item inline-flex items-center gap-1" aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-3.5" /></a>
+        <a href={saleHref} class:list={['nav-item inline-flex items-center gap-1', saleHref === currentNav && 'is-current']} aria-haspopup="true">{d.nav.sale}<Icon name="chevronDown" class="size-3.5" /></a>
         <div class="hover-pop invisible absolute left-0 top-full z-10 pt-3 opacity-0 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
           <div class="grid w-[min(860px,90vw)] grid-cols-3 gap-6 rounded-[15px] bg-white p-5 text-ink shadow-[var(--shadow-btn)]">
             {cities.map((c) => (
@@ -142,7 +143,7 @@ const groups = [
       <!-- Проекты Stay: миниатюры 44×44 со скруглением 8, название широким шрифтом 10/400 -->
       {menuProjects.length > 0 && (
         <section class="order-1 min-w-0 lg:order-none lg:rounded-[15px] lg:bg-page lg:p-5">
-          <p class="text-[14px] leading-[18px] tracking-[0.1px] lg:text-[16px] lg:leading-5">{d.nav.complexes}</p>
+          <a href={`/${lang}/stay-projects/`} class="text-[14px] leading-[18px] tracking-[0.1px] transition-colors hover:text-accent lg:text-[16px] lg:leading-5">STAY PROJECTS</a>
           <!-- На телефоне — по 3 карточки в ширину экрана, остальные листаются (карусель со снапом). -->
           <ul class="scroll-x mt-4 flex snap-x snap-mandatory gap-3 lg:grid lg:snap-none lg:grid-cols-4 lg:gap-x-5 lg:gap-y-3">
             {menuProjects.map((c) => (

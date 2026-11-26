@@ -88,8 +88,10 @@ const chipLinks = (await Promise.all(x.features.filter((f) => !/price-to/.test(f
 })));
 
 // Похожие: та же сделка, город и тип, цена ±20%; сначала тот же район.
+// PRIVE только в разделе PRIVE (Anuar 26.11.2026): у обычного объекта — без PRIVE (кроме наших проектов), у PRIVE-объекта — только PRIVE.
 const pool = x.unit ? await getUnits() : await getItems();
 const similar = pool
+  .filter((y) => (x.isPrivate ? y.isPrivate : !y.isPrivate || y.own))
   .filter((y) => y.id !== x.id && y.label !== 'sold' && y.deal === x.deal && y.city === x.city && y.type === x.type && (!x.price || (y.price && Math.abs(y.price - x.price) <= x.price * 0.2)))
   .sort((a, b) => Number(b.district === x.district) - Number(a.district === x.district) || Math.abs((a.price ?? 0) - (x.price ?? 0)) - Math.abs((b.price ?? 0) - (x.price ?? 0)))
   .slice(0, 6);

@@ -7,7 +7,7 @@
 import defaults from '../content/data/home.json';
 import { readJson, storeReady, writeJson } from './store';
 
-export type HomeConfig = Omit<typeof defaults, '_comment'>;
+export type HomeConfig = Omit<typeof defaults, '_comment'> & { projectsHidden?: string[] };
 
 const KEY = 'config/home.json';
 let memo: { at: number; value: HomeConfig } | null = null;
@@ -19,6 +19,8 @@ function normalize(x: any): HomeConfig {
   const out = { ...d, ...(x || {}) };
   delete out._comment;
   out.projects = Array.isArray(out.projects) ? out.projects.filter((c: unknown) => typeof c === 'string') : d.projects;
+  // Наши проекты, скрытые из «Проектов STAY» (шапка, подвал, главная); остальные наши показываются все.
+  out.projectsHidden = Array.isArray(out.projectsHidden) ? out.projectsHidden.filter((c: unknown) => typeof c === 'string') : [];
   out.hero = Array.isArray(out.hero) ? out.hero.filter((h: any) => h && typeof h.project === 'string') : d.hero;
   out.projectsVisible = Math.max(1, Math.min(50, Number(out.projectsVisible) || d.projectsVisible));
   const pv = out.prive && typeof out.prive === 'object' ? out.prive : {};

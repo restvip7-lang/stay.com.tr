@@ -7,16 +7,14 @@ import Logo from './Logo.astro';
 import Icon from './Icon.astro';
 import Img from './Img.astro';
 import { site } from '../lib/site';
-import { getHomeConfig } from '../lib/homeConfig';
-import { getComplexes, complexUrl } from '../lib/catalog';
+import { stayProjectsList, complexUrl } from '../lib/catalog';
 import { footerColumns } from '../lib/nav';
 import { t } from '../i18n/ui';
 
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
-const home = await getHomeConfig();
-const all = await getComplexes().catch(() => []);
-const projects = home.projects.map((c) => all.find((p) => p.code === c)).filter(Boolean) as Awaited<ReturnType<typeof getComplexes>>;
+// «Проекты STAY» — тот же список наших проектов, что в бургере и на главной (Anuar 26.11.2026).
+const projects = await stayProjectsList().catch(() => []);
 const cols = await footerColumns(lang).catch(() => null);
 const year = new Date().getFullYear();
 ---

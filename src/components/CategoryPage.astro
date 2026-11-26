@@ -19,7 +19,7 @@ import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
 import {
   catUrl, itemUrl, itemsOf, filtered, parseFilters, hasFilters, noFilters, stats, INDEX_MIN, PER_PAGE, SORTS,
-  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, ownInfo, type Cat, type Item,
+  featureCounts, typeCounts, childGeo, neighbours, countOf, getComplexes, matchComplex, ownInfo, complexUrl, type Cat, type Item,
 } from '../lib/catalog';
 import { cityBySlug, districtBySlug, countryBySlug } from '../lib/geo';
 import { catMeta, catText, catFaq, geoOf, geoIn, geoName, complexesMeta } from '../lib/seo';
@@ -162,6 +162,16 @@ if (ownCat) {
 }
 // Карточки квартир STAY PROJECTS — как у образца: проект, блок, этаж, срок сдачи.
 const ownCards = ownCat ? await ownInfo() : null;
+// Каталог STAY PROJECTS (Anuar 26.11.2026): крошки «Главная · STAY PROJECTS · Проект · Квартиры 1+1» и свой адрес
+// (короткий /stay-projects/…, а не общий каталог Турции) — в canonical и языковых версиях.
+const ownPath = ownCat && Astro.originPathname.startsWith(`/${lang}/stay-projects/`) ? Astro.originPathname : null;
+if (ownCat) {
+  crumbs.splice(0, crumbs.length, { label: d.home, href: `/${lang}/` }, { label: 'STAY PROJECTS', href: `/${lang}/stay-projects/` });
+  if (pj) crumbs.push({ label: pj.title, href: complexUrl(lang, pj) });
+  crumbs.push({ label: meta.h1 });
+}
+const canonOut = ownPath ?? canonical;
+const altBase = ownPath ?? base;
 const lead = hub
   ? meta.lead
   : n
@@ -177,7 +187,7 @@ const chooserTotal = world && !hub ? (await filtered({ ...listCat, type: chooser
 const landings = world && !hub ? (await footerColumns(lang)).landings : [];
 const dealTiles = hub ? (await Promise.all((['sale', 'rent'] as Deal[]).map(async (dl) => ({ dl, k: (await itemsOf({ country: cat.country, city: cat.city, district: cat.district, deal: dl })).length })))).filter((x) => x.k > 0) : [];
 ---
-<Base title={meta.title} description={meta.description} canonical={canonical} robots={robots} alternates={allLangs(base)} jsonLd={ld} system="new">
+<Base title={meta.title} description={meta.description} canonical={canonOut} robots={robots} alternates={allLangs(altBase)} jsonLd={ld} system="new">
   <!-- Шапка страницы и фильтры — белая панель с нижними углами 52 (каталог mr-group). -->
   <section class="panel-b pb-4 pt-6 lg:pb-10 lg:pt-8"><div class="container-n">
     <Breadcrumbs items={crumbs} />

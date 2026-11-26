@@ -7,6 +7,7 @@ import type { Lang } from '../i18n/config';
 import { rawListings, rawUnits, citizenshipIds, getProjects, getComplex, fixImage, type Project, type RawListing } from './api';
 import { resolveGeo, countryBySlug, cityBySlug, districtBySlug, slugify, CITIES, COUNTRIES, NEIGHBOURS } from './geo';
 import { getMarks, type Label, type Marks } from './objectsConfig';
+import { getHomeConfig } from './homeConfig';
 import { featuresOf, featureDef, featureAllowed, FEATURES, TYPES, DEALS, type Deal, type FeatureSlug, type TypeSlug } from './segments';
 
 export interface Item {
@@ -342,6 +343,23 @@ export const isOurComplex = (c: Pick<Complex, 'title' | 'code'>) => OUR_SLUGS.ha
 /** Комплексы для списков «Новостройки / STAY PROJECTS»: только наши проекты. */
 export async function getOurComplexes(): Promise<Complex[]> {
   return (await getComplexes()).filter(isOurComplex);
+}
+/** Старые адреса ЖК после исправления названия → новый адрес (301). */
+export const COMPLEX_SLUG_ALIASES: Record<string, string> = { 'azura-world-agency': 'azura-world-residence' };
+/** ЖК для общих списков («Новостройки», цифры городов): PRIVE-ЖК только в разделе PRIVE, наши проекты — всегда (Anuar 26.11.2026). */
+export const isPublicComplex = (c: Pick<Complex, 'title' | 'code' | 'isPrivate'>) => !c.isPrivate || isOurComplex(c);
+
+/**
+ * Единый список «Проекты STAY» для шапки (бургер), подвала, блока и слайдера на главной (Anuar 26.11.2026):
+ * только наши проекты; порядок — из админки «Главная», новые наши — в конце (от дешёвых); скрытые в админке не показываем.
+ */
+export async function stayProjectsList(): Promise<Complex[]> {
+  const [ours, home] = await Promise.all([getOurComplexes(), getHomeConfig()]);
+  const hidden = new Set(home.projectsHidden ?? []);
+  const order = new Map((home.projects ?? []).map((c, i) => [c, i]));
+  return ours
+    .filter((c) => !hidden.has(c.code))
+    .sort((a, b) => (order.get(a.code) ?? 999) - (order.get(b.code) ?? 999) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
 }
 
 /** Наши проекты: название, слаг и срок сдачи из карточки ЖК («III кв. 2027 г.» → год 2027) — для карточек квартир и фильтра «Срок сдачи». */

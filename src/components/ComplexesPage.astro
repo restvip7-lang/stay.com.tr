@@ -10,7 +10,9 @@ import Faq from './Faq.astro';
 import CatalogFilter from './CatalogFilter.astro';
 import { t } from '../i18n/ui';
 import { SITE } from '../i18n/config';
-import { getComplexes, isOurComplex, matchComplex, catUrl, complexUrl, filtered, noFilters, rangesOf, INDEX_MIN, type Cat } from '../lib/catalog';
+import Icon from './Icon.astro';
+import Img from './Img.astro';
+import { getComplexes, isOurComplex, isPublicComplex, matchComplex, catUrl, complexUrl, filtered, noFilters, rangesOf, INDEX_MIN, type Cat } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { complexesMeta, geoOf, geoIn } from '../lib/seo';
 import { complexFaq } from '../lib/complexText';
@@ -23,7 +25,21 @@ const { cat, page } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
 const g = geoOf(cat);
-const all = (await getComplexes()).filter((x) => matchComplex(x, cat)).sort((a, b) => Number(b.isPrivate) - Number(a.isPrivate) || Number(isOurComplex(b)) - Number(isOurComplex(a)) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+// PRIVE-ЖК в «Новостройках» не показываем — они только в разделе PRIVE; наши проекты (даже PRIVE) показываем (Anuar 26.11.2026).
+// Вместо них наверху золотая плашка «Проекты PRIVE — N ЖК» со ссылкой в раздел PRIVE.
+const isPublic = isPublicComplex;
+const geoAll = (await getComplexes()).filter((x) => matchComplex(x, cat));
+const priveHere = geoAll.filter((x) => !isPublic(x));
+const all = geoAll.filter(isPublic).sort((a, b) => Number(isOurComplex(b)) - Number(isOurComplex(a)) || (a.priceFrom ?? Infinity) - (b.priceFrom ?? Infinity));
+const PRIVE_TXT: Record<string, { title: (n: number) => string; text: string; go: string }> = {
+  ru: { title: (n) => `Проекты PRIVE — ${n} ЖК`, text: 'Закрытые предложения премиум-класса с особыми условиями. Смотрите их в разделе PRIVE.', go: 'Перейти в PRIVE' },
+  en: { title: (n) => `PRIVE projects — ${n}`, text: 'Exclusive premium offers on special terms. See them in the PRIVE section.', go: 'Go to PRIVE' },
+  tr: { title: (n) => `PRIVE projeleri — ${n}`, text: 'Özel koşullu, kapalı premium teklifler. PRIVE bölümünde inceleyin.', go: 'PRIVE’ye git' },
+  de: { title: (n) => `PRIVE-Projekte — ${n}`, text: 'Exklusive Premium-Angebote zu besonderen Konditionen. Sie finden sie im Bereich PRIVE.', go: 'Zu PRIVE' },
+  sr: { title: (n) => `PRIVE projekti — ${n}`, text: 'Ekskluzivne premium ponude pod posebnim uslovima. Pogledajte ih u odeljku PRIVE.', go: 'Idi na PRIVE' },
+};
+const pt = PRIVE_TXT[lang] ?? PRIVE_TXT.en;
+const priveThumbs = priveHere.filter((x) => x.image).slice(0, 3);
 const PER = 24;
 const pages = Math.max(1, Math.ceil(all.length / PER));
 const shown = all.slice((page - 1) * PER, page * PER);
@@ -37,7 +53,7 @@ const canonical = page > 1 ? `${base}page-${page}/` : base;
 const cityCounts = new Map<string, number>();
 const districtCounts = new Map<string, number>();
 for (const x of await getComplexes()) {
-  if (x.country !== cat.country) continue;
+  if (x.country !== cat.country || !isPublic(x)) continue;
   cityCounts.set(x.city, (cityCounts.get(x.city) ?? 0) + 1);
   if (cat.city && x.city === cat.city && x.district) districtCounts.set(x.district, (districtCounts.get(x.district) ?? 0) + 1);
 }
@@ -71,6 +87,23 @@ const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang
     {cityLinks.length > 1 && <LinkCloud title={d.catalog.cities(geoIn(lang, geoOf({ country: cat.country })))} links={cityLinks} />}
     {districtLinks.length > 1 && <LinkCloud title={d.catalog.districts(cityBySlug(cat.city!)!.name[lang], cityBySlug(cat.city!)!.gen)} links={districtLinks} />}
   </section>
+  {page === 1 && priveHere.length > 0 && (
+    <section class="container-x mt-10 md:mt-12">
+      <a href={`/${lang}/prive/`} class="prive-plate group flex flex-col gap-5 rounded-[var(--radius-big)] p-6 text-white transition-[translate,box-shadow] duration-300 md:flex-row md:items-center md:gap-8 md:p-8">
+        {priveThumbs.length > 0 && (
+          <span class="flex shrink-0 -space-x-4" aria-hidden="true">
+            {priveThumbs.map((x) => <span class="block size-16 overflow-hidden rounded-full ring-2 ring-[#e9d4bf] md:size-20"><Img src={x.image} alt="" class="size-full" width={160} height={160} sizes="80px" /></span>)}
+          </span>
+        )}
+        <span class="min-w-0 flex-1">
+          <span class="block font-display text-[12px] uppercase tracking-[2px] text-[#f3e2cf]">PRIVE</span>
+          <span class="display mt-1 block text-[24px] leading-tight md:text-[30px]">{pt.title(priveHere.length)}</span>
+          <span class="mt-2 block max-w-2xl text-[15px] text-white/85">{pt.text}</span>
+        </span>
+        <span class="inline-flex h-12 shrink-0 items-center gap-2 self-start rounded-full bg-white px-6 text-[15px] font-medium text-[#8a6446] transition-colors group-hover:bg-[#fbf4ec] md:self-center">{pt.go}<Icon name="arrowRight" class="size-4" /></span>
+      </a>
+    </section>
+  )}
   {newAll.length > 0 && (
     <section class="container-x mt-12 md:mt-16">
       <CatalogFilter cat={{ ...newCat, type: 'apartments' }} f={noFilters()} total={newTypes.apartments ?? 0} mode="prive" lots="new" typeCounts={newTypes} ranges={rangesOf(newAll)} />
@@ -90,3 +123,8 @@ const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang
   <Faq items={faq} />
   <LeadSection context={`complexes-${base}`} title={d.catalog.ctaTitle} subtitle={d.catalog.ctaText} />
 </Base>
+
+<style>
+  .prive-plate { background: linear-gradient(115deg, #a78062 0%, #bc906e 45%, #d4ad86 100%); box-shadow: 0 10px 30px #8a644633; }
+  @media (hover: hover) { .prive-plate:hover { translate: 0 -4px; box-shadow: 0 18px 40px #8a644647; } }
+</style>
