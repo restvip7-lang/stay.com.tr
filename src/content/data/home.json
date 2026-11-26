@@ -72,16 +72,23 @@
       "azura_world_agency"
     ],
     "projects": [
-      "exodus_premium_town",
-      "exodus_aqua_deluxe_konakli",
-      "exodus_twins_residence",
-      "riva_port_villas_side",
-      "azura_world_agency",
-      "novyy_kompleks",
-      "serenity_grand_kaptan_",
       "cebeci_vista_residence",
-      "23_square_residence"
+      "azura_world_agency",
+      "exodus_aqua_deluxe_konakli",
+      "exodus_premium_town",
+      "serenity_grand_kaptan_",
+      "novyy_kompleks",
+      "exodus_twins_residence"
     ],
-    "projectsVisible": 8
+    "projectsVisible": 8,
+    "codes": [
+      "cebeci_vista_residence",
+      "azura_world_agency",
+      "exodus_aqua_deluxe_konakli",
+      "exodus_premium_town",
+      "serenity_grand_kaptan_",
+      "novyy_kompleks",
+      "exodus_twins_residence"
+    ]
   }
 }
