@@ -88,8 +88,10 @@ const chipLinks = (await Promise.all(x.features.filter((f) => !/price-to/.test(f
 })));
 
 // Похожие: та же сделка, город и тип, цена ±20%; сначала тот же район.
+// PRIVE только в разделе PRIVE (Anuar 26.11.2026): у обычного объекта — без PRIVE (кроме наших проектов), у PRIVE-объекта — только PRIVE.
 const pool = x.unit ? await getUnits() : await getItems();
 const similar = pool
+  .filter((y) => (x.isPrivate ? y.isPrivate : !y.isPrivate || y.own))
   .filter((y) => y.id !== x.id && y.label !== 'sold' && y.deal === x.deal && y.city === x.city && y.type === x.type && (!x.price || (y.price && Math.abs(y.price - x.price) <= x.price * 0.2)))
   .sort((a, b) => Number(b.district === x.district) - Number(a.district === x.district) || Math.abs((a.price ?? 0) - (x.price ?? 0)) - Math.abs((b.price ?? 0) - (x.price ?? 0)))
   .slice(0, 6);
@@ -258,7 +260,8 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
   .about-text[data-clamped] { max-height: 176px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
 </style>
 <script>
-  import { T, pageLocale } from '../scripts/client';
+  import { T } from '../scripts/client';
+  import { initCurrency } from '../scripts/currency';
   import { mountMap } from '../scripts/map';
   document.querySelectorAll<HTMLButtonElement>('[data-share]').forEach((b) => b.addEventListener('click', async () => {
     const data = { title: document.title, url: location.href };
@@ -267,44 +270,7 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       else { await navigator.clipboard.writeText(location.href); b.title = T().linkCopied; }
     } catch { /* отмена */ }
   }));
-  // Валюта: цена в HTML — в евро. Курсы ЕЦБ подгружаем сразу, поэтому по клику цена
-  // и цена за м² пересчитываются мгновенно; выбор запоминается для других объектов.
-  const box = document.querySelector<HTMLElement>('[data-currency]');
-  const priceEl = document.querySelector<HTMLElement>('[data-price-eur]');
-  const m2El = document.querySelector<HTMLElement>('[data-m2-eur]');
-  const eur = Number(priceEl?.dataset.priceEur || 0);
-  if (box && priceEl && eur) {
-    const orig = { price: priceEl.textContent ?? '', m2: m2El?.textContent ?? '' };
-    const suffix = priceEl.dataset.priceSuffix ?? '';
-    const m2eur = Number(m2El?.dataset.m2Eur || 0);
-    let saved = 'EUR';
-    try { saved = localStorage.getItem('stay-cur') || 'EUR'; } catch { /* без хранилища */ }
-    const ratesP: Promise<Record<string, number>> = fetch('/api/rates').then((r) => r.json()).then((j) => j.rates ?? {}).catch(() => ({}));
-    let rates: Record<string, number> | null = null;
-    let want = saved;
-    ratesP.then((r) => { rates = r; });
-    const fmt = (n: number, cur: string) => Math.round(n).toLocaleString(pageLocale(), { style: 'currency', currency: cur, currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0 });
-    const apply = (cur: string, r: Record<string, number> | null) => {
-      const k = cur === 'EUR' ? 1 : r?.[cur];
-      if (!k) return false;
-      box.querySelectorAll<HTMLElement>('[data-cur]').forEach((x) => { const on = x.dataset.cur === cur; x.setAttribute('aria-pressed', String(on)); x.classList.toggle('is-on', on); });
-      if (cur === 'EUR') { priceEl.textContent = orig.price; if (m2El) m2El.textContent = orig.m2; return true; }
-      priceEl.textContent = fmt(eur * k, cur) + suffix;
-      if (m2El && m2eur) m2El.textContent = fmt(m2eur * k, cur);
-      return true;
-    };
-    box.addEventListener('click', async (e) => {
-      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-cur]');
-      if (!b) return;
-      const cur = (want = b.dataset.cur!);
-      const r = rates ?? (cur === 'EUR' ? null : await ratesP);
-      if (cur !== want) return; // пока грузились курсы, выбрали другую валюту
-      if (apply(cur, r)) {
-        try { localStorage.setItem('stay-cur', cur); } catch { /* без хранилища */ }
-      }
-    });
-    if (saved !== 'EUR') ratesP.then((r) => { if (want === saved) apply(saved, r); });
-  }
+  initCurrency();
   document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
     v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }));

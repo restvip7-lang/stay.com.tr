@@ -4,7 +4,8 @@ import { syncFavorites } from './client';
 
 const ROOM_FEATURE: Record<string, string> = { '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
 const PRICE_TO = ['100000', '150000', '200000'];
-const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'f', 'sort'];
+const OWN_ROOM_SLUG: Record<string, string> = { studio: 'studio', '1+1': '1-bedroom', '2+1': '2-bedrooms', '3+1': '3-bedrooms', '4+': '4-bedrooms' };
+const PARAMS = ['ref', 'price_from', 'price_to', 'rooms', 'sea_from', 'sea_to', 'area_from', 'area_to', 'floor_from', 'floor_to', 'prive', 'citizenship', 'own', 'project', 'block', 'ready_from', 'ready_to', 'f', 'sort'];
 
 /** Форма слова для числа, как pluralL на сервере. */
 function pluralW(lang: string, n: number, f: [string, string, string]) {
@@ -37,6 +38,26 @@ export function buildUrl(form: HTMLFormElement): string {
     if (v) sp.append(k, v);
   }
   if (deal !== 'sale') { sp.delete('prive'); sp.delete('citizenship'); sp.delete('own'); }
+  // «Проект» и «Срок сдачи» — только для STAY PROJECTS (галочка «Объекты Stay»).
+  if (!sp.has('own')) sp.delete('project');
+  // «Корпус» — только при одном выбранном проекте.
+  if (sp.getAll('project').length !== 1) { sp.delete('block'); if (sp.has('own')) { sp.delete('floor_from'); sp.delete('floor_to'); } }
+  // «Срок сдачи» — только когда выбраны все проекты (как у образца).
+  if (!sp.has('own') || sp.has('project')) { sp.delete('ready_from'); sp.delete('ready_to'); }
+
+  // STAY PROJECTS («Объекты Stay» без PRIVE): короткий адрес, как у образца — /{lang}/stay-projects/{тип}/{проекты}/{комнатность}/.
+  if (deal === 'sale' && sp.has('own') && !sp.has('prive')) {
+    const slugs = sp.getAll('project').map((c) => form.querySelector<HTMLInputElement>(`input[name=project][value="${CSS.escape(c)}"]`)?.dataset.slug).filter(Boolean);
+    const ROOMS = ['studio', '1+1', '2+1', '3+1', '4+'];
+    const rs = sp.getAll('rooms').filter((r) => ROOMS.includes(r)).sort((a, b) => ROOMS.indexOf(a) - ROOMS.indexOf(b)).map((r) => OWN_ROOM_SLUG[r]);
+    const blocks = sp.getAll('block').map((b) => `block-${b.toLowerCase()}`);
+    const fa = Number(sp.get('floor_from')) || 0, fb = Number(sp.get('floor_to')) || 0;
+    const floor = fa || fb ? ['floor', fa ? `from-${fa}` : '', fb ? `to-${fb}` : ''].filter(Boolean).join('-') : '';
+    for (const k of ['own', 'project', 'rooms', 'block', 'floor_from', 'floor_to']) sp.delete(k);
+    const p2 = '/' + [lang, 'stay-projects', type || 'all', slugs.join('-or-'), blocks.join('-or-'), rs.join('-or-'), floor].filter(Boolean).join('/') + '/';
+    const q2 = sp.toString();
+    return p2 + (q2 ? `?${q2}` : '');
+  }
 
   // Фича в адресе: сохранённая из текущего адреса, иначе — из сочетания полей (белый список).
   let feature = val('feature');
@@ -62,6 +83,7 @@ export function buildUrl(form: HTMLFormElement): string {
 
 function initRanges(form: HTMLFormElement, fmt: (n: number) => string) {
   form.querySelectorAll<HTMLElement>('[data-range]').forEach((r) => {
+    const show = r.hasAttribute('data-year') ? (n: number) => String(n) : fmt;
     const lo = r.querySelector<HTMLInputElement>('[data-lo]')!;
     const hi = r.querySelector<HTMLInputElement>('[data-hi]')!;
     const slo = r.querySelector<HTMLInputElement>('[data-slo]')!;
@@ -70,11 +92,11 @@ function initRanges(form: HTMLFormElement, fmt: (n: number) => string) {
     const toNum = (s: string) => Number(s.replace(/\D/g, ''));
     slo.addEventListener('input', () => {
       if (+slo.value > +shi.value) slo.value = shi.value;
-      lo.value = +slo.value <= min ? '' : fmt(+slo.value);
+      lo.value = +slo.value <= min ? '' : show(+slo.value);
     });
     shi.addEventListener('input', () => {
       if (+shi.value < +slo.value) shi.value = slo.value;
-      hi.value = +shi.value >= max ? '' : fmt(+shi.value);
+      hi.value = +shi.value >= max ? '' : show(+shi.value);
     });
     [slo, shi].forEach((s) => s.addEventListener('change', () => form.dispatchEvent(new Event('change'))));
     lo.addEventListener('input', () => { slo.value = String(toNum(lo.value) || min); });
@@ -84,9 +106,10 @@ function initRanges(form: HTMLFormElement, fmt: (n: number) => string) {
     let fresh = false;
     i.addEventListener('focus', () => { i.select(); fresh = true; });
     i.addEventListener('mouseup', (e) => { if (fresh) { e.preventDefault(); fresh = false; } });
+    const year = !!i.closest('[data-year]');
     i.addEventListener('input', () => {
-      const n = i.value.replace(/\D/g, '').slice(0, 9);
-      i.value = n ? fmt(Number(n)) : '';
+      const n = i.value.replace(/\D/g, '').slice(0, year ? 4 : 9);
+      i.value = n ? (year ? n : fmt(Number(n))) : '';
     });
   });
 }
@@ -195,12 +218,21 @@ export function initFilters() {
     // если только параметры — подменяем выдачу и адрес (кнопка «Назад» работает).
     let seq = 0;
     let go: number | undefined;
+    const isOwn = (u: URL) => u.searchParams.has('own') || /^\/[a-z]{2}\/stay-projects\/./.test(u.pathname);
+    // Набор полей зависит от проектов: ни одного — «Срок сдачи», один — «Корпус» и «Этаж», несколько — без них.
+    const projKey = () => { const p = new FormData(form).getAll('project').map(String); return p.length === 1 ? p[0] : p.length ? '*' : ''; };
+    const ownAtLoad = isOwn(new URL(location.href)), projAtLoad = projKey();
     const apply = () => {
       clearTimeout(go);
       go = window.setTimeout(async () => {
         const url = buildUrl(form);
         const next = new URL(url, location.origin);
-        if (next.pathname !== location.pathname) { location.href = url; return; }
+        // Галочка «Объекты Stay» меняет набор полей (фильтр STAY PROJECTS) — страницу перезагружаем целиком.
+        // Внутри каталога STAY PROJECTS адрес меняется (проекты, комнатность — в пути), выдачу всё равно подменяем на месте;
+        // перезагрузка — при входе/выходе из него и когда меняется «выбран ли проект» (поле «Срок сдачи»).
+        const ownNow = isOwn(next), projNow = projKey();
+        const samePath = next.pathname === location.pathname || (ownNow && isOwn(new URL(location.href)));
+        if (!samePath || ownNow !== ownAtLoad || projNow !== projAtLoad) { location.href = url; return; }
         const my = ++seq;
         const box = document.querySelector<HTMLElement>('[data-swap="results"]');
         box?.classList.add('opacity-50');
@@ -220,7 +252,7 @@ export function initFilters() {
     const fcount = () => {
       const fd = new FormData(form);
       const has = (...k: string[]) => k.some((x) => fd.getAll(x).some((v) => String(v).trim()));
-      const n = [has('city'), has('district'), has('rooms'), has('prive'), has('own'), has('citizenship'), has('price_from', 'price_to'), has('area_from', 'area_to'), has('sea_from', 'sea_to'), has('floor_from', 'floor_to'), has('ref'), has('feature')].filter(Boolean).length
+      const n = [has('city'), has('district'), has('rooms'), has('prive'), has('own'), has('citizenship'), has('price_from', 'price_to'), has('area_from', 'area_to'), has('sea_from', 'sea_to'), has('floor_from', 'floor_to'), has('ref'), has('feature'), has('own') && has('project'), has('own') && has('ready_from', 'ready_to')].filter(Boolean).length
         + new Set(fd.getAll('f').map(String).filter((x) => x !== String(fd.get('feature') ?? ''))).size;
       form.querySelectorAll<HTMLElement>('[data-fcount]').forEach((el) => { el.textContent = String(n); el.hidden = !n; });
       form.querySelectorAll<HTMLElement>('[data-freset]').forEach((el) => (el.hidden = !n));
@@ -267,6 +299,70 @@ export function initFilters() {
       addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
     });
 
+    // STAY PROJECTS: выпадающие поля «Комнатность», «Стоимость», «Площадь», «Срок сдачи» (как у образца).
+    form.querySelectorAll<HTMLElement>('[data-drop]').forEach((box) => {
+      const btn = box.querySelector<HTMLButtonElement>('[data-drop-btn]')!;
+      const open = (on: boolean) => {
+        if (on) form.querySelectorAll<HTMLElement>('[data-drop][data-open]').forEach((x) => x !== box && x.removeAttribute('data-open'));
+        box.toggleAttribute('data-open', on); btn.setAttribute('aria-expanded', String(on));
+      };
+      btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));
+      document.addEventListener('click', (e) => { if (!box.contains(e.target as Node)) open(false); });
+      addEventListener('keydown', (e) => { if (e.key === 'Escape') open(false); });
+    });
+    // «Срок сдачи»: быстрые кнопки «Сдан» / «До конца года» и крестик очистки.
+    form.querySelectorAll<HTMLElement>('[data-ready-box]').forEach((box) => {
+      const lo = box.querySelector<HTMLInputElement>('[name=ready_from]')!;
+      const hi = box.querySelector<HTMLInputElement>('[name=ready_to]')!;
+      const T = JSON.parse(box.dataset.t || '{}');
+      const btn = box.closest('[data-drop]')?.querySelector<HTMLElement>('[data-drop-btn]');
+      // Подпись поля и отметка быстрой кнопки — сразу, без перезагрузки.
+      const label = () => {
+        const a = lo.value, b = hi.value;
+        const quick = !a && b === String(T.Y - 1) ? 'done' : !a && b === String(T.Y) ? 'year' : '';
+        const v = quick ? T[quick] : a && a === b ? `${a}${T.y}` : [a && `${T.from} ${a}${T.y}`, b && `${T.to} ${b}${T.y}`].filter(Boolean).join(' ');
+        box.querySelectorAll<HTMLElement>('[data-ready-quick]').forEach((q, i) => q.classList.toggle('chip-on', quick === (i ? 'year' : 'done')));
+        if (!btn) return;
+        btn.replaceChildren();
+        // Стили поля — со scope Astro: переносим атрибут data-astro-cid-* на новые элементы.
+        const cid = [...btn.attributes].find((x) => x.name.startsWith('data-astro-cid'))?.name;
+        const mk = (tag: string) => { const el = document.createElement(tag); if (cid) el.setAttribute(cid, ''); return el; };
+        const strong = mk('strong');
+        if (v) { const em = mk('em'); em.textContent = T.label; btn.append(em); strong.textContent = v; }
+        else { strong.className = 'ptype-ph'; strong.textContent = T.label; }
+        btn.append(strong);
+      };
+      form.addEventListener('change', label);
+      const set = (a: string, b: string) => { lo.value = a; hi.value = b; form.dispatchEvent(new Event('change')); };
+      box.querySelectorAll<HTMLElement>('[data-ready-quick]').forEach((b) => b.addEventListener('click', () => set(b.dataset.from ?? '', b.dataset.to ?? '')));
+      box.querySelector('[data-ready-clear]')?.addEventListener('click', () => set('', ''));
+    });
+    // «Проект»: «Все проекты» снимает галочки; список сужается по «Срок сдачи».
+    form.querySelectorAll<HTMLElement>('[data-proj-list]').forEach((list) => {
+      const all = list.querySelector<HTMLElement>('[data-proj-all]');
+      all?.addEventListener('click', () => {
+        list.querySelectorAll<HTMLInputElement>('input[name=project]').forEach((i) => (i.checked = false));
+        form.dispatchEvent(new Event('change'));
+      });
+      const sync = () => {
+        const fd = new FormData(form);
+        const a = Number(fd.get('ready_from')) || 0, b = Number(fd.get('ready_to')) || 0;
+        list.querySelectorAll<HTMLElement>('[data-year]').forEach((row) => {
+          const y = Number(row.dataset.year) || 0;
+          row.hidden = !!(a || b) && (!y || (!!a && y < a) || (!!b && y > b));
+        });
+        all?.setAttribute('aria-pressed', String(!list.querySelector('input[name=project]:checked')));
+      };
+      form.addEventListener('change', sync);
+      form.addEventListener('input', sync);
+    });
+    // Поля-двойники «от / до» (в ряду и в окне «Все фильтры») — одно значение.
+    form.addEventListener('input', (e) => {
+      const i = e.target as HTMLInputElement;
+      if (!i.name || !i.matches('[data-lo],[data-hi]')) return;
+      form.querySelectorAll<HTMLInputElement>(`input[name="${i.name}"]`).forEach((x) => { if (x !== i) x.value = i.value; });
+    });
+
     // Каталог: «Тип недвижимости» — список с галочками PRIVE / «Объекты Stay» и типами (как у образца).
     form.querySelectorAll<HTMLElement>('[data-ptype]').forEach((box) => {
       const btn = box.querySelector<HTMLButtonElement>('[data-ptype-btn]')!;
@@ -277,7 +373,7 @@ export function initFilters() {
       const sync = () => {
         const type = box.querySelector<HTMLInputElement>('[data-ptype-type]:checked')?.dataset.ptypeType || any;
         const cls = [...box.querySelectorAll<HTMLInputElement>('[data-ptype-class]:checked')].map((i) => i.dataset.ptypeClass);
-        val.textContent = cls.length ? `${type}: ${cls.join(', ')}` : type;
+        val.textContent = cls.length && !box.hasAttribute('data-plain') ? `${type}: ${cls.join(', ')}` : type;
         all?.setAttribute('aria-pressed', String(!cls.length));
       };
       btn.addEventListener('click', () => open(!box.hasAttribute('data-open')));

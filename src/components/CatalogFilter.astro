@@ -6,9 +6,12 @@
  * catalog — режим посадочной: выдача обновляется на месте; home — форма на главной ведёт в каталог.
  */
 import Icon from './Icon.astro';
+import Img from './Img.astro';
+import { ownUrl } from '../lib/ownUrl';
+import { cityBySlug, districtBySlug } from '../lib/geo';
 import { t } from '../i18n/ui';
 import { INTL } from '../i18n/config';
-import { geoOptions, allowedFeatureMap, itemsOf, rangesOf, filtered, noFilters, type Cat, type Filters, type Ranges } from '../lib/catalog';
+import { geoOptions, allowedFeatureMap, itemsOf, rangesOf, filtered, noFilters, getOurComplexes, readyYears, type Cat, type Filters, type Ranges } from '../lib/catalog';
 import { DEAL_WORDS, FEATURE_LABEL, FEATURES, TYPES, TYPE_WORDS, type Deal, type FeatureSlug, type TypeSlug } from '../lib/segments';
 import { moneyL } from '../lib/format';
 const allowedDeals = Object.fromEntries(FEATURES.map((x) => [x.slug, x.deals as string[]])) as Record<string, string[]>;
@@ -108,10 +111,48 @@ const classOpts = catalog && sale ? await Promise.all((['prive', 'own'] as const
 const typeName = cat.type ? TYPE_WORDS[lang][cat.type].pl : PT.anyType;
 const classNames = classOpts.filter((c) => c.on).map((c) => c.l);
 /** Сколько фильтров включено (город и район считаются, как «Проект» у образца; страна, сделка и тип — нет) — число на кнопке «Фильтры», как у образца. */
-const activeCount = [cat.city, cat.district, f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
-const resetHref = `/${lang}/${[cat.country, cat.deal].filter(Boolean).join('/')}/`;
+const activeCount = [cat.city, cat.district, f.rooms.length || pathRooms, f.prive, f.own, f.citizenship || pf === 'citizenship', f.priceFrom || priceTo, f.areaFrom || f.areaTo, f.seaFrom || f.seaTo, f.floorFrom || f.floorTo, f.ref, f.projects.length, f.blocks.length, f.readyFrom || f.readyTo, hiddenFeature].filter(Boolean).length + f.extras.filter((e) => e !== cat.feature).length;
+// STAY PROJECTS: «Сбросить фильтры» — все наши квартиры (как /flats/ у образца), а не общий каталог.
+const resetHref = catalog && sale && f.own && !f.prive ? ownUrl(lang, cat.type ?? 'apartments') : `/${lang}/${[cat.country, cat.deal].filter(Boolean).join('/')}/`;
 const FR: Record<string, string> = { ru: 'Сбросить фильтры', en: 'Reset filters', tr: 'Filtreleri sıfırla', de: 'Filter zurücksetzen', sr: 'Poništi filtere' };
-const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : typeName;
+/**
+ * «Проект» и «Срок сдачи» — как у образца (mr-group.ru/flats/: Тип, Комнатность, Стоимость, Площадь, Проект, Срок сдачи),
+ * только для STAY PROJECTS (Anuar 25.11.2026): поля видны, когда в «Тип недвижимости» стоит галочка «Объекты Stay».
+ */
+const PJ = ({
+  ru: { quick: 'Быстрый фильтр', done: 'Сдан', year: 'До конца года', project: 'Проект', allProjects: 'Все проекты', ready: 'Срок сдачи', from: 'с', to: 'по', y: ' г' },
+  en: { quick: 'Quick filter', done: 'Completed', year: 'By year end', project: 'Project', allProjects: 'All projects', ready: 'Completion', from: 'from', to: 'to', y: '' },
+  tr: { quick: 'Hızlı filtre', done: 'Teslim edildi', year: 'Yıl sonuna kadar', project: 'Proje', allProjects: 'Tüm projeler', ready: 'Teslim tarihi', from: 'başl.', to: 'bitiş', y: '' },
+  de: { quick: 'Schnellfilter', done: 'Fertiggestellt', year: 'Bis Jahresende', project: 'Projekt', allProjects: 'Alle Projekte', ready: 'Fertigstellung', from: 'von', to: 'bis', y: '' },
+  sr: { quick: 'Brzi filter', done: 'Završen', year: 'Do kraja godine', project: 'Projekat', allProjects: 'Svi projekti', ready: 'Rok završetka', from: 'od', to: 'do', y: '' },
+} as Record<string, Record<string, string>>)[lang] ?? {};
+const ownMode = catalog && sale && !!f.own;
+const ownFields = ownMode;
+const ourProjects = ownFields ? [...(await getOurComplexes())].sort((a, b) => a.title.localeCompare(b.title)) : [];
+const readyOpts = ownFields ? [...new Set([...(await readyYears()).values()].filter((v): v is number => !!v))].sort((a, b) => a - b) : [];
+const ownRg = ownMode ? rangesOf(await filtered({ ...geoCat, type: cat.type }, { ...noFilters(), own: true })) : null;
+// Список «Проект» сужается по «Срок сдачи» (как у образца: «До конца года» — только проекты, которые сдаются до конца года).
+const years = ownMode ? await readyYears() : new Map<string, number | null>();
+const inRange = (y: number | null) => (!f.readyFrom && !f.readyTo) || (y != null && (!f.readyFrom || y >= f.readyFrom) && (!f.readyTo || y <= f.readyTo));
+// Один выбранный проект — поля «Корпус» и «Этаж» (как у образца: building-mir_3/floor-from-16-to-16).
+const oneProject = ownMode && f.projects.length === 1;
+const projItems = oneProject ? await filtered({ ...geoCat, type: cat.type }, { ...noFilters(), own: true, projects: f.projects }) : [];
+const blockOpts = [...projItems.reduce((m, x) => (x.block ? m.set(x.block, (m.get(x.block) ?? 0) + 1) : m), new Map<string, number>())].sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true }));
+const floorsList = projItems.map((x) => x.floor).filter((v): v is number => !!v);
+const floorRange: [number, number] = floorsList.length ? [Math.min(...floorsList), Math.max(...floorsList)] : [1, 1];
+const BL = ({ ru: { block: 'Корпус', blockW: 'Блок', floor: 'Этаж' }, en: { block: 'Building', blockW: 'Block', floor: 'Floor' }, tr: { block: 'Blok', blockW: 'Blok', floor: 'Kat' }, de: { block: 'Gebäude', blockW: 'Block', floor: 'Etage' }, sr: { block: 'Zgrada', blockW: 'Blok', floor: 'Sprat' } } as Record<string, Record<string, string>>)[lang] ?? { block: 'Корпус', blockW: 'Блок', floor: 'Этаж' };
+const blockLabel = f.blocks.map((b) => `${BL.blockW} ${b}`).join(', ');
+const floorLabel = f.floorFrom || f.floorTo ? (f.floorFrom && f.floorFrom === f.floorTo ? String(f.floorFrom) : [f.floorFrom && `${tf.fromW} ${f.floorFrom}`, f.floorTo && `${tf.toW} ${f.floorTo}`].filter(Boolean).join(' ')) : '';
+const projLabel = ourProjects.filter((c) => f.projects.includes(c.code)).map((c) => c.title).join(', ');
+const placeOf = (c: { city: string; district: string | null }) => [c.district && districtBySlug(c.city, c.district)?.name[lang], cityBySlug(c.city)?.name[lang]].filter(Boolean).join(', ');
+const roomsLabel = rooms.filter((r) => selRooms.has(r.v) || pathRooms === r.v).map((r) => r.l).join(', ');
+const Y = new Date().getFullYear();
+const rMin = Math.min(readyOpts[0] ?? Y, Y - 1);
+const rMax = Math.max(readyOpts.at(-1) ?? Y, Y);
+// Быстрый фильтр, как у образца: «Сдан» = по прошлый год, «До конца года» = по текущий год.
+const quickOn = !f.readyFrom && f.readyTo === Y - 1 ? 'done' : !f.readyFrom && f.readyTo === Y ? 'year' : null;
+const readyLabel = quickOn ? (quickOn === 'done' ? PJ.done : PJ.year) : f.readyFrom || f.readyTo ? (f.readyFrom && f.readyFrom === f.readyTo ? `${f.readyFrom}${PJ.y}` : [f.readyFrom && `${PJ.from} ${f.readyFrom}${PJ.y}`, f.readyTo && `${PJ.to} ${f.readyTo}${PJ.y}`].filter(Boolean).join(' ')) : '';
+const ptSummary = classNames.length && !(catalog && sale && f.own) ? `${typeName}: ${classNames.join(', ')}` : typeName;
 ---
 <form method="get" action={`/${lang}/`} data-filter data-mode={mode} data-lang={lang} data-loc={loc} data-lots={prive ? lots : undefined} data-allowed={JSON.stringify(allowed)} data-t={JSON.stringify(strings)} class:list={['filter', catalog ? 'filter-n' : 'filter-home']}>
   {prive ? (
@@ -184,12 +225,16 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
            При прокрутке ряд закрепляется вверху, а «Фильтры» сжимаются в квадратную кнопку слева от полей. -->
       <div class="frow scroll-x -mx-5 flex gap-2 px-5 lg:mx-0 lg:overflow-visible lg:px-0">
         <button type="button" data-adv-open class="fbtn-sq btn-n btn-n-white relative shrink-0" aria-label={tf.all}><Icon name="filter" class="size-5" /><span class="fbadge" data-fcount hidden={!activeCount}>{activeCount}</span></button>
+        {!ownMode && (
+        <>
         <label class="fsel" for="f-deal">
           <span>{tf.deal}</span>
           <select id="f-deal" name="deal">{(['sale', 'rent'] as Deal[]).map((x) => <option value={x} selected={cat.deal === x}>{DEAL_WORDS[lang][x].name}</option>)}</select>
           <Icon name="chevronDown" class="fsel-i" />
         </label>
-        <div class="fsel ptype" data-ptype>
+        </>
+        )}
+        <div class="fsel ptype" data-ptype data-plain={catalog && sale && f.own ? '' : undefined}>
           <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" aria-controls="f-ptype" data-ptype-btn>
             <em>{PT.label}</em><strong data-ptype-v>{ptSummary}</strong>
           </button>
@@ -226,6 +271,141 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
             ))}
           </div>
         </div>
+        {ownMode && (
+          <>
+            <!-- STAY PROJECTS (как фильтр квартир в проектах у образца): Комнатность, Стоимость, Площадь, Проект, Срок сдачи. -->
+            <input type="hidden" name="deal" value="sale" />
+            <input type="hidden" name="country" value={cat.country} />
+            {cat.city && <input type="hidden" name="city" value={cat.city} />}
+            {cat.district && <input type="hidden" name="district" value={cat.district} />}
+            <div class="fsel ptype" data-drop>
+              <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                {roomsLabel ? <><em>{tf.rooms}</em><strong>{roomsLabel}</strong></> : <strong class="ptype-ph">{tf.rooms}</strong>}
+              </button>
+              <Icon name="chevronDown" class="fsel-i ptype-i" />
+              <div class="ptype-list">
+                {rooms.map((r) => (
+                  <label class="ptype-row">
+                    <span class="ptype-t">{r.l}</span>
+                    <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
+                    <span class="ptype-mark" aria-hidden="true"></span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {[
+              { k: 'price', label: tf.price, lo: 'price_from', hi: 'price_to', r: ownRg!.price, v: [f.priceFrom, priceTo], unit: '' },
+              { k: 'area', label: `${A.area}, ${d.m2}`, lo: 'area_from', hi: 'area_to', r: ownRg!.area, v: [f.areaFrom, f.areaTo], unit: ` ${d.m2}` },
+            ].map((x) => (
+              <div class="fsel ptype" data-drop>
+                <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                  {x.v[0] || x.v[1]
+                    ? <><em>{x.label}</em><strong>{[x.v[0] && `${tf.fromW} ${x.k === 'price' ? moneyL(lang, x.v[0]) : numL(lang, x.v[0]) + x.unit}`, x.v[1] && `${tf.toW} ${x.k === 'price' ? moneyL(lang, x.v[1]) : numL(lang, x.v[1]) + x.unit}`].filter(Boolean).join(' ')}</strong></>
+                    : <strong class="ptype-ph">{x.label}</strong>}
+                </button>
+                <Icon name="chevronDown" class="fsel-i ptype-i" />
+                <div class="ptype-list drop-range">
+                  <fieldset class="range min-w-0 px-4 pb-2 pt-1" data-range data-min={x.r[0]} data-max={x.r[1]} data-step="1">
+                    <div class="grid grid-cols-2 gap-2">
+                      <label class="field fld"><span>{tf.fromW}</span><input name={x.lo} inputmode="numeric" placeholder={numL(lang, x.r[0])} value={x.v[0] ? numL(lang, x.v[0]) : ''} data-lo data-mirror aria-label={`${x.label} ${tf.fromW}`} /></label>
+                      <label class="field fld"><span>{tf.toW}</span><input name={x.hi} inputmode="numeric" placeholder={numL(lang, x.r[1])} value={x.v[1] ? numL(lang, x.v[1]) : ''} data-hi data-mirror aria-label={`${x.label} ${tf.toW}`} /></label>
+                    </div>
+                    <div class="dual mt-4" aria-hidden="true">
+                      <input type="range" min={x.r[0]} max={x.r[1]} step="1" value={x.v[0] ?? x.r[0]} data-slo tabindex="-1" />
+                      <input type="range" min={x.r[0]} max={x.r[1]} step="1" value={x.v[1] ?? x.r[1]} data-shi tabindex="-1" />
+                    </div>
+                  </fieldset>
+                </div>
+              </div>
+            ))}
+            <!-- «Проект» — список наших проектов с фото и местом, галочки (можно несколько), как у образца. -->
+            <div class="fsel ptype" data-drop>
+              <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                {projLabel ? <><em>{PJ.project}</em><strong>{projLabel}</strong></> : <strong class="ptype-ph">{PJ.project}</strong>}
+              </button>
+              <Icon name="chevronDown" class="fsel-i ptype-i" />
+              <div class="ptype-list proj-list" data-proj-list>
+                <button type="button" class="ptype-row proj-all" data-proj-all aria-pressed={f.projects.length ? 'false' : 'true'}>
+                  <span class="ptype-t">{PJ.allProjects}</span><span class="ptype-mark ptype-round" aria-hidden="true"></span>
+                </button>
+                {ourProjects.map((c) => (
+                  <label class="ptype-row proj-row" data-year={years.get(c.code) ?? ''} hidden={!inRange(years.get(c.code) ?? null)}>
+                    <span class="block size-10 shrink-0 overflow-hidden rounded-[8px] bg-page"><Img src={c.image} alt="" class="size-full" width={80} height={80} sizes="40px" /></span>
+                    <span class="ptype-t"><span class="block truncate">{c.title}</span><span class="block truncate text-[13px] text-muted">{placeOf(c)}</span></span>
+                    <input type="checkbox" name="project" value={c.code} data-slug={c.slug} checked={f.projects.includes(c.code)} class="peer sr-only" />
+                    <span class="ptype-mark" aria-hidden="true"></span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {oneProject && blockOpts.length > 0 && (
+              <div class="fsel ptype" data-drop>
+                <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                  {blockLabel ? <><em>{BL.block}</em><strong>{blockLabel}</strong></> : <strong class="ptype-ph">{BL.block}</strong>}
+                </button>
+                <Icon name="chevronDown" class="fsel-i ptype-i" />
+                <div class="ptype-list">
+                  {blockOpts.map(([b, n]) => (
+                    <label class="ptype-row">
+                      <span class="ptype-t">{BL.blockW} {b}</span>
+                      <span class="ptype-from">{numL(lang, n)}</span>
+                      <input type="checkbox" name="block" value={b} checked={f.blocks.includes(b)} class="peer sr-only" />
+                      <span class="ptype-mark" aria-hidden="true"></span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            {oneProject && floorsList.length > 0 && (
+              <div class="fsel ptype" data-drop>
+                <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                  {floorLabel ? <><em>{BL.floor}</em><strong>{floorLabel}</strong></> : <strong class="ptype-ph">{BL.floor}</strong>}
+                </button>
+                <Icon name="chevronDown" class="fsel-i ptype-i" />
+                <div class="ptype-list drop-range">
+                  <fieldset class="range min-w-0 px-4 pb-2 pt-1" data-range data-year data-min={floorRange[0]} data-max={floorRange[1]} data-step="1">
+                    <div class="grid grid-cols-2 gap-2">
+                      <label class="field fld"><span>{tf.fromW}</span><input name="floor_from" inputmode="numeric" maxlength="3" placeholder={`${floorRange[0]}`} value={f.floorFrom ?? ''} data-lo data-mirror aria-label={`${BL.floor} ${tf.fromW}`} /></label>
+                      <label class="field fld"><span>{tf.toW}</span><input name="floor_to" inputmode="numeric" maxlength="3" placeholder={`${floorRange[1]}`} value={f.floorTo ?? ''} data-hi data-mirror aria-label={`${BL.floor} ${tf.toW}`} /></label>
+                    </div>
+                    <div class="dual mt-4" aria-hidden="true">
+                      <input type="range" min={floorRange[0]} max={floorRange[1]} step="1" value={f.floorFrom ?? floorRange[0]} data-slo tabindex="-1" />
+                      <input type="range" min={floorRange[0]} max={floorRange[1]} step="1" value={f.floorTo ?? floorRange[1]} data-shi tabindex="-1" />
+                    </div>
+                  </fieldset>
+                </div>
+              </div>
+            )}
+            <!-- «Срок сдачи» — диапазон «с … г / по … г», как у образца. -->
+            {/* Как у образца: «Срок сдачи» — только когда выбраны все проекты; у одного проекта срок один, он в карточке ЖК. */}
+            {f.projects.length === 0 && <div class="fsel ptype" data-drop>
+              <button type="button" class="ptype-btn" aria-haspopup="true" aria-expanded="false" data-drop-btn>
+                {readyLabel ? <><em>{PJ.ready}</em><strong>{readyLabel}</strong></> : <strong class="ptype-ph">{PJ.ready}</strong>}
+              </button>
+              <Icon name="chevronDown" class="fsel-i ptype-i" />
+              <div class="ptype-list drop-range" data-ready-box data-t={JSON.stringify({ label: PJ.ready, done: PJ.done, year: PJ.year, from: PJ.from, to: PJ.to, y: PJ.y, Y })}>
+                <fieldset class="range min-w-0 px-4 pb-3 pt-1" data-range data-year data-min={rMin} data-max={rMax} data-step="1">
+                  <div class="grid grid-cols-2 gap-2">
+                    <label class="field fld"><span>{PJ.from}</span><input name="ready_from" inputmode="numeric" maxlength="4" placeholder={`${rMin}`} value={f.readyFrom ?? ''} data-lo aria-label={`${PJ.ready} ${PJ.from}`} /><span class="!text-ink">{PJ.y.trim()}</span></label>
+                    <label class="field fld"><span>{PJ.to}</span><input name="ready_to" inputmode="numeric" maxlength="4" placeholder={`${rMax}`} value={f.readyTo ?? ''} data-hi aria-label={`${PJ.ready} ${PJ.to}`} /><span class="!text-ink">{PJ.y.trim()}</span>
+                      <button type="button" class="ml-1 grid size-6 shrink-0 place-items-center text-muted hover:text-ink" data-ready-clear aria-label={d.close}><Icon name="close" class="size-3.5" /></button></label>
+                  </div>
+                  <div class="dual mt-4" aria-hidden="true">
+                    <input type="range" min={rMin} max={rMax} step="1" value={f.readyFrom ?? rMin} data-slo tabindex="-1" />
+                    <input type="range" min={rMin} max={rMax} step="1" value={f.readyTo ?? rMax} data-shi tabindex="-1" />
+                  </div>
+                  <p class="mt-5 text-[13px] text-muted">{PJ.quick}</p>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <button type="button" class:list={['chip-n !h-8 !px-3 !text-[13px]', quickOn === 'done' && 'chip-on']} data-ready-quick data-from="" data-to={String(Y - 1)}>{PJ.done}</button>
+                    <button type="button" class:list={['chip-n !h-8 !px-3 !text-[13px]', quickOn === 'year' && 'chip-on']} data-ready-quick data-from="" data-to={String(Y)}>{PJ.year}</button>
+                  </div>
+                </fieldset>
+              </div>
+            </div>}
+          </>
+        )}
+        {!ownMode && (
+        <>
         <label class="fsel" for="f-country">
           <span>{tf.country}</span>
           <select id="f-country" name="country" data-country><option value="" selected={!cat.country}>{tf.allCountries ?? allW}</option>{opts.countries.map((c) => <option value={c.slug} selected={cat.country === c.slug}>{c.name[lang]}</option>)}</select>
@@ -251,12 +431,14 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
           <span>{tf.id}</span>
           <input id="f-ref" name="ref" placeholder={tf.idPh} maxlength="20" autocomplete="off" value={f.ref ?? ''} />
         </label>
+        </>
+        )}
       </div>
       <!-- Второй ряд: «Фильтры» со счётчиком, чипы (комнатность, гражданство, фичи из адреса), справа «Сбросить фильтры». -->
       <div data-chips-row class="scroll-x relative -mx-5 mt-4 flex items-center gap-2 px-5 lg:mx-0 lg:flex-wrap lg:px-0">
         <button type="button" data-adv-open class="fbtn btn-n btn-n-white relative shrink-0"><Icon name="filter" class="size-5" />{tf.all}<span class="fbadge" data-fcount hidden={!activeCount}>{activeCount}</span></button>
         <span class="fsep mx-2 hidden h-8 w-px shrink-0 bg-line lg:block" aria-hidden="true"></span>
-        {rooms.map((r) => (
+        {!ownMode && rooms.map((r) => (
           <label class="shrink-0 cursor-pointer">
             <input type="checkbox" name="rooms" value={r.v} checked={selRooms.has(r.v) || pathRooms === r.v} data-sync class="peer sr-only" />
             <span class="chip-n peer-checked:!bg-ink-n peer-checked:text-white peer-focus-visible:outline-2 peer-focus-visible:outline-accent">{r.l}</span>
@@ -519,6 +701,18 @@ const ptSummary = classNames.length ? `${typeName}: ${classNames.join(', ')}` : 
   /* Поле-выпадашка новой системы: 50, скругление 12, подпись 11 сверху, значение 14/500 */
   .fsel { position: relative; display: block; flex: none; width: 160px; height: 56px; border-radius: 16px; background: #ffffff99; border: .67px solid #d0d1d7b3; transition: border-color .2s; cursor: pointer; }
   @media (min-width: 1024px) { .fsel { width: auto; height: 50px; border-radius: 12px; } }
+  .fsel[hidden] { display: none; }
+  .drop-range { padding-top: 14px; }
+  .chip-on { background: #fff !important; box-shadow: inset 0 0 0 1.5px var(--color-ink); }
+  .proj-row { min-height: 60px; padding: 8px 18px; }
+  .proj-row[hidden] { display: none; }
+  .proj-all { margin: 0 8px 4px; width: calc(100% - 16px); border-radius: 12px; background: #f3f4f6; min-height: 52px; }
+  @media (min-width: 1024px) { .proj-list { width: 380px; } }
+  /* Пустое поле — подпись по центру, как у образца («Стоимость, млн ₽»). */
+  .ptype-btn:has(> .ptype-ph:only-child) { padding-top: 0; display: flex; align-items: center; }
+  .ptype-btn .ptype-ph { font-weight: 400; }
+  @media (min-width: 1024px) { .drop-range { width: 480px; } }
+  .frow > .ptype:last-of-type .drop-range { right: 0; left: auto; }
   .fsel:hover, .fsel:focus-within { border-color: var(--color-ink); }
   .fsel > span { position: absolute; left: 12px; top: 6px; font-size: 11px; line-height: 15px; letter-spacing: .2px; color: var(--color-muted); pointer-events: none; }
   .fsel > select, .fsel > input { appearance: none; width: 100%; height: 100%; padding: 18px 32px 0 12px; background: transparent; border: 0; outline: none; font-size: 16px; font-weight: 500; letter-spacing: .1px; color: var(--color-ink); text-overflow: ellipsis; cursor: pointer; }

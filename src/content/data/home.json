@@ -67,13 +67,9 @@
   },
   "prive": {
     "hero": [
-      "exodus_resort_comfort_city",
       "exodus_premium_town",
-      "exodus_riverside_residence",
       "exodus_aqua_deluxe_konakli",
-      "exodus_panorama_residence_istanbul",
-      "blue_sunlight_2_residence",
-      "exodus_dreams_residence"
+      "azura_world_agency"
     ],
     "projects": [
       "exodus_premium_town",
