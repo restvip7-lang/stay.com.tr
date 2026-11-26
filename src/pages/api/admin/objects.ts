@@ -30,10 +30,10 @@ const norm = (s: string) => s.toLowerCase().replace(/ё/g, 'е');
 /** Поиск объектов для раздела «Объекты»: по id, коду, названию, району. Пустой запрос — объекты с отметками. */
 export const GET: APIRoute = async ({ url, cookies }) => {
   if (!(await userCan(cookies, 'objects'))) return new Response('Нет доступа', { status: 403 });
-  // «id4397», «ID 4397» и ссылка на страницу объекта (…/sale/id4397) ищутся как номер 4397 (Anuar 26.11.2026).
+  // «id4397», «ID 4397», «ID VL252» (как на карточке) и ссылка на страницу объекта (…/sale/id4397) ищутся как номер 4397 (Anuar 26.11.2026).
   const raw = norm((url.searchParams.get('q') || '').trim());
   const idFromUrl = raw.match(/\/id(\d+)\/?(?:[?#].*)?$/);
-  const q = idFromUrl ? idFromUrl[1] : raw.replace(/(^|\s)id\s*(\d+)(?=\s|$)/g, '$1$2').trim();
+  const q = idFromUrl ? idFromUrl[1] : raw.replace(/(^|\s)id\s*[:#№]?\s*(?=[a-zа-я]*\d)/g, '$1').trim();
   const [all, marks] = await Promise.all([getAllForAdmin(), getMarks()]);
   let list: Item[];
   if (!q) list = all.filter((x) => marks[x.id]);
