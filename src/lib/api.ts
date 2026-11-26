@@ -34,7 +34,7 @@ export async function getJson<T>(path: string, tries = 3, timeout = 5_000): Prom
       const r = await fetch(BASE + path, { signal: AbortSignal.timeout(timeout) });
       if (r.status === 404) throw Object.assign(new Error('not found'), { notFound: true });
       if (!r.ok) throw new Error(`API ${r.status} ${path}`);
-      const j = (await r.json()) as { success?: boolean; data: T };
+      const j = JSON.parse(ownText(await r.text())) as { success?: boolean; data: T };
       return j.data;
     } catch (e) {
       if ((e as { notFound?: boolean }).notFound) throw e;
@@ -64,7 +64,7 @@ function saveCopy(key: string, value: unknown) {
 }
 function readCopy<T>(key: string): T | undefined {
   try {
-    return JSON.parse(fs.readFileSync(copyFile(key), 'utf8')) as T;
+    return JSON.parse(ownText(fs.readFileSync(copyFile(key), 'utf8'))) as T;
   } catch {
     return undefined;
   }
@@ -217,16 +217,32 @@ export function fixImage(u?: string | null): string | null {
 }
 
 /**
- * Картинки старого сайта (https://stay.com.tr/upload/..., /local/...), которые ещё отдаёт API dev:
+ * Картинки старого сайта (https://stay.com.tr/upload/..., /local/..., в т. ч. без домена — так они стоят в текстах ЖК и новостей):
  * если файл уже перенесён к нам (scripts/import-media.mjs → public/media, список в media-manifest.json),
  * отдаём свою копию /media/..., иначе оставляем старый адрес.
  */
-const OLD_SITE = /^https?:\/\/(?:www\.)?stay\.com\.tr\/(upload|local)\/([^?#]+)/i;
+const OLD_SITE = /^(?:(?:https?:)?\/\/(?:www\.)?stay\.com\.tr)?\/(upload|local)\/([^?#]+)/i;
+const mediaOf = (kind: string, p: string) => {
+  let rel = p;
+  try { rel = decodeURI(p); } catch { /* оставим как есть */ }
+  rel = (kind.toLowerCase() === 'local' ? 'local/' : '') + rel;
+  return MEDIA.has(rel) ? `/media/${rel}` : null;
+};
 export function ownImage(u: string): string {
   const m = OLD_SITE.exec(u);
-  if (!m) return u;
-  const rel = (m[1].toLowerCase() === 'local' ? 'local/' : '') + decodeURI(m[2]);
-  return MEDIA.has(rel) ? `/media/${rel}` : u;
+  return (m && mediaOf(m[1], m[2])) || u;
+}
+
+/** То же для целого ответа API (JSON-текст с HTML внутри): все старые адреса перенесённых картинок → /media/... */
+const OLD_SITE_ABS = /(?:https?:)?(?:\\?\/){2}(?:www\.)?stay\.com\.tr(?:\\?\/)(upload|local)(?:\\?\/)([^"'\s)<>?#]+?\.(?:jpe?g|png|webp|gif|svg))/gi;
+const OLD_SITE_REL = /(?<![\w.\/\\-])(?:\\?\/)(upload|local)(?:\\?\/)([^"'\s)<>?#]+?\.(?:jpe?g|png|webp|gif|svg))/gi;
+export function ownText(t: string): string {
+  if (!t.includes('upload') && !t.includes('local')) return t;
+  const fix = (all: string, kind: string, p: string) => {
+    const own = mediaOf(kind, p.replace(/\\\//g, '/'));
+    return own ? encodeURI(own) : all;
+  };
+  return t.replace(OLD_SITE_ABS, fix).replace(OLD_SITE_REL, fix);
 }
 
 function parseEuro(label?: string | null): number | null {

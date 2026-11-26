@@ -10,7 +10,7 @@ import tailwindcss from '@tailwindcss/vite';
 const target = process.env.STAY_TARGET || (process.env.VERCEL ? 'vercel' : 'node');
 
 /** Сайты, с которых разрешено сжимать картинки (и на Vercel, и на своём сервере — src/pages/img.ts). */
-export const IMAGE_DOMAINS = ['portfolio.stayrepo.com', 'cdn-ru.bitrix24.ru', 'stay.com.tr', 'dev.stayproperty.com', 'eu2.contabostorage.com', 'stay-property.fra1.cdn.digitaloceanspaces.com', 'i.ytimg.com'];
+export const IMAGE_DOMAINS = ['portfolio.stayrepo.com', 'adminer.stayproperty.com', 'cdn-ru.bitrix24.ru', 'stay.com.tr', 'dev.stayproperty.com', 'eu2.contabostorage.com', 'stay-property.fra1.cdn.digitaloceanspaces.com', 'i.ytimg.com'];
 
 // Свой сервер: домены, которым сайт доверяет в заголовке Host (иначе формы админки получают 403 от проверки Origin,
 // а адреса страниц строятся от localhost). Список через запятую в STAY_DOMAINS при сборке.

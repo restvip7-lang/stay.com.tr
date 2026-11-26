@@ -10,6 +10,8 @@
  * (или /_vercel/image на Vercel). Пути: /upload/X → public/media/X, /local/X → public/media/local/X.
  *
  * Запуск: node scripts/import-media.mjs   (STAY_API_BASE — другой адрес API)
+ *         node scripts/import-media.mjs --from=<папка>   — взять файлы не с сайта, а из папки с подпапками upload/ и local/
+ *         (так перенесены картинки, которые остались только в папке старого сайта на сервере, 26.11.2026).
  * Повторный запуск безопасен: уже скачанные файлы не трогает.
  */
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
@@ -28,6 +30,7 @@ const API_PATHS = [
 ];
 const RE = /https?:\/\/(?:www\.)?stay\.com\.tr\/(upload|local)\/([^"'\s)\\?#]+?\.(?:jpe?g|png|webp|gif|svg))/gi;
 const MAX_W = 1920;
+const FROM = process.argv.find((a) => a.startsWith('--from='))?.slice(7);
 
 /** upload/X → X, local/X → local/X (путь внутри public/media). */
 const relOf = (kind, p) => (kind.toLowerCase() === 'local' ? 'local/' : '') + decodeURI(p);
@@ -46,7 +49,14 @@ for await (const f of walk(SRC)) files.push(f);
 const found = new Map(); // путь в public/media -> исходный URL
 for (const f of files) for (const m of (await readFile(f, 'utf8')).matchAll(RE)) found.set(relOf(m[1], m[2]), m[0]);
 const inSrc = found.size;
-for (const p of API_PATHS) {
+if (FROM) {
+  // Файлы из папки: FROM/upload/X → X, FROM/local/X → local/X.
+  async function* all(d) { for (const e of await readdir(d, { withFileTypes: true }).catch(() => [])) { const p = path.join(d, e.name); if (e.isDirectory()) yield* all(p); else yield p; } }
+  for (const kind of ['upload', 'local']) for await (const f of all(path.join(FROM, kind))) {
+    if (/\.(jpe?g|png|webp|gif|svg)$/i.test(f)) found.set(relOf(kind, path.relative(path.join(FROM, kind), f).split(path.sep).join('/')), 'file:' + f);
+  }
+}
+for (const p of FROM ? [] : API_PATHS) {
   const r = await fetch(API + p, { signal: AbortSignal.timeout(60000) }).catch(() => null);
   if (!r?.ok) { console.warn(`API не ответил: ${p}`); continue; }
   for (const m of (await r.text()).matchAll(RE)) found.set(relOf(m[1], m[2]), m[0].replace(/^http:/, 'https:'));
@@ -58,9 +68,13 @@ const done = new Set();
 for (const [rel, url] of found) {
   const dest = path.join(OUT, rel);
   if (await stat(dest).then(() => true, () => false)) { done.add(rel); ok++; continue; }
-  const r = await fetch(url, { signal: AbortSignal.timeout(30000) }).catch(() => null);
-  if (!r || !r.ok) { console.warn(`не скачалось: ${url} (${r?.status ?? 'сеть'})`); fail++; continue; }
-  const input = Buffer.from(await r.arrayBuffer());
+  let input;
+  if (url.startsWith('file:')) input = await readFile(url.slice(5));
+  else {
+    const r = await fetch(url, { signal: AbortSignal.timeout(30000) }).catch(() => null);
+    if (!r || !r.ok) { console.warn(`не скачалось: ${url} (${r?.status ?? 'сеть'})`); fail++; continue; }
+    input = Buffer.from(await r.arrayBuffer());
+  }
   let best = input;
   if (/\.(jpe?g|png)$/i.test(rel)) {
     const img = sharp(input, { failOn: 'none' }).rotate().resize({ width: MAX_W, withoutEnlargement: true });

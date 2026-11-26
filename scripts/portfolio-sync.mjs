@@ -21,9 +21,13 @@
  *
  * Защита: если объектов пришло меньше половины от прошлого снимка — снимок не заменяем (сбой API).
  * После обновления дёргает /api/revalidate на этом же сервере (если задан REVALIDATE_SECRET или CRON_SECRET).
+ * Затем заранее готовит лёгкие копии главных фото для плиток (640 и 960 px, через /img этого сервера), чтобы
+ * каталог открывался быстро и у первого посетителя (STAY_WARM_IMAGES=0 — не готовить).
+ * После ночной полной загрузки (--full) чистит копии картинок, которые не открывали 60 дней (scripts/img-cache-clean.mjs).
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { cleanImgCache } from './img-cache-clean.mjs';
 
 const args = new Set(process.argv.slice(2));
 const FULL = args.has('--full');
@@ -324,7 +328,38 @@ async function main() {
   if (secret && fetched) {
     await fetch(`http://127.0.0.1:${process.env.PORT || 4321}/api/revalidate`, { headers: { Authorization: `Bearer ${secret}` }, signal: AbortSignal.timeout(60_000) }).catch(() => {});
   }
-  console.log(JSON.stringify({ status: 'ok', ...summary }));
+  const warm = await warmTiles(cards).catch((e) => ({ error: e.message }));
+  const clean = FULL ? await cleanImgCache({ days: 60 }).catch((e) => ({ error: e.message })) : undefined;
+  console.log(JSON.stringify({ status: 'ok', ...summary, warm, clean }));
+}
+
+/**
+ * Лёгкие копии главного фото каждой карточки (те же адреса, что строит плитка: src/components/Img.astro, q=75).
+ * Уже приготовленные помним в portfolio/warmed.json и повторяем раз в 30 дней (это быстрый HIT, он же продлевает жизнь копии).
+ * За один запуск — не больше 300 объектов, по 2 одновременно, чтобы не нагружать сервер.
+ */
+async function warmTiles(cards) {
+  if (['0', 'false', 'no'].includes(String(process.env.STAY_WARM_IMAGES || '').toLowerCase())) return { skipped: 'off' };
+  const file = path.join(OUT, 'warmed.json');
+  const prev = await readJson(file, {});
+  const now = Date.now();
+  const srcs = [...new Set(cards.map((c) => c.imageUrl).filter((u) => typeof u === 'string' && u.startsWith('https://')).map((u) => u.replace(/([^:])\/\/+/g, '$1/')))];
+  const next = {};
+  for (const s of srcs) if (prev[s] && now - prev[s] < 30 * 86_400_000) next[s] = prev[s];
+  const todo = srcs.filter((s) => !next[s]).slice(0, 300);
+  const site = `http://127.0.0.1:${process.env.PORT || 4321}`;
+  let ok = 0, fail = 0;
+  await pool(todo, 2, async (src) => {
+    let good = true;
+    for (const w of [640, 960]) {
+      const r = await fetch(`${site}/img?url=${encodeURIComponent(src)}&w=${w}&q=75`, { headers: { Accept: 'image/avif,image/webp,*/*' }, signal: AbortSignal.timeout(60_000) }).catch(() => null);
+      if (r) await r.arrayBuffer().catch(() => {});
+      if (!r?.ok) good = false;
+    }
+    if (good) { next[src] = now; ok++; } else fail++;
+  });
+  await writeJson(file, next);
+  return { ready: Object.keys(next).length, of: srcs.length, warmedNow: ok, failed: fail };
 }
 
 main().catch((e) => { console.error(JSON.stringify({ status: 'failed', error: e.message })); process.exit(1); });
