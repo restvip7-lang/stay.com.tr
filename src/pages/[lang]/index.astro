@@ -39,8 +39,9 @@ const byCode = (c: string) => complexes.find((p) => p.code === c);
 // Обработанные фото для слайдера (от Anuar 30.10.2026) лежат в public/hero/<код проекта>.webp; фото в базе не трогаем.
 const HERO_PHOTOS = new Set(['exodus_premium_town', 'exodus_aqua_deluxe_konakli', 'exodus_twins_residence', 'exodus_dreams_residence']);
 const homeServices = (await allServices(lang)).filter((x) => x.group === 'main').slice(0, 6);
+const shownCodes = new Set(list.map((p) => p.code)); // сравниваем по коду: списки могут прийти разными загрузками
 // Слайдер — только наши проекты (★ в админке), блок «STAY Projects» — единый список наших (Anuar 26.11.2026).
-const hero = (home.hero.map((x) => byCode(x.project)).filter((p) => p && isOurComplex(p) && list.includes(p)) as typeof complexes).map((p) => (p.code && HERO_PHOTOS.has(p.code) ? { ...p, image: `/hero/${p.code}.webp` } : p));
+const hero = (home.hero.map((x) => byCode(x.project)).filter((p) => p && isOurComplex(p) && shownCodes.has(p.code)) as typeof complexes).map((p) => (p.code && HERO_PHOTOS.has(p.code) ? { ...p, image: `/hero/${p.code}.webp` } : p));
 const priveCfg = (home.prive?.projects ?? []).map(byCode).filter((p) => p?.isPrivate) as typeof complexes;
 const priveList = [...priveCfg, ...complexes.filter((p) => p.isPrivate && !priveCfg.includes(p))];
 
