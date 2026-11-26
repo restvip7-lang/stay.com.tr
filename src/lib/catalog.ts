@@ -354,6 +354,13 @@ export async function getOurComplexes(): Promise<Complex[]> {
   return (await getComplexes()).filter(isOurComplex);
 }
 /** Старые адреса ЖК после исправления названия → новый адрес (301). */
+/** Пагинация списков ЖК (Anuar 26.11.2026): на первой странице широкая карточка + 24 плитки, на остальных — 24 плитки. */
+export const COMPLEXES_FIRST = 25;
+export const COMPLEXES_PER = 24;
+export const complexPageCount = (n: number) => (n <= COMPLEXES_FIRST ? 1 : 1 + Math.ceil((n - COMPLEXES_FIRST) / COMPLEXES_PER));
+export const complexPageSlice = <T,>(all: T[], page: number) =>
+  page <= 1 ? all.slice(0, COMPLEXES_FIRST) : all.slice(COMPLEXES_FIRST + (page - 2) * COMPLEXES_PER, COMPLEXES_FIRST + (page - 1) * COMPLEXES_PER);
+
 export const COMPLEX_SLUG_ALIASES: Record<string, string> = { 'azura-world-agency': 'azura-world-residence' };
 /** ЖК для общих списков («Новостройки», цифры городов): PRIVE-ЖК только в разделе PRIVE, наши проекты — всегда (Anuar 26.11.2026). */
 export const isPublicComplex = (c: Pick<Complex, 'title' | 'code' | 'isPrivate'>) => !c.isPrivate || isOurComplex(c);

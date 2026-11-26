@@ -12,7 +12,7 @@ import { t } from '../i18n/ui';
 import { SITE } from '../i18n/config';
 import Icon from './Icon.astro';
 import Img from './Img.astro';
-import { getComplexes, isOurComplex, isPublicComplex, matchComplex, catUrl, complexUrl, filtered, noFilters, rangesOf, INDEX_MIN, type Cat } from '../lib/catalog';
+import { getComplexes, isOurComplex, isPublicComplex, matchComplex, catUrl, complexUrl, filtered, noFilters, rangesOf, INDEX_MIN, complexPageCount, complexPageSlice, type Cat } from '../lib/catalog';
 import { cityBySlug, districtBySlug } from '../lib/geo';
 import { complexesMeta, geoOf, geoIn } from '../lib/seo';
 import { complexFaq } from '../lib/complexText';
@@ -40,9 +40,8 @@ const PRIVE_TXT: Record<string, { title: (n: number) => string; text: string; go
 };
 const pt = PRIVE_TXT[lang] ?? PRIVE_TXT.en;
 const priveThumbs = priveHere.filter((x) => x.image).slice(0, 3);
-const PER = 24;
-const pages = Math.max(1, Math.ceil(all.length / PER));
-const shown = all.slice((page - 1) * PER, page * PER);
+const pages = complexPageCount(all.length);
+const shown = complexPageSlice(all, page);
 const prices = all.map((x) => x.priceFrom).filter((p): p is number => !!p);
 const meta = complexesMeta(lang, g, all.length, prices.length ? Math.min(...prices) : null, page);
 const base = catUrl(lang, cat, { complexes: true });
@@ -110,7 +109,7 @@ const faq = page === 1 ? complexFaq(lang, d.nav.complexes.toLocaleLowerCase(lang
     </section>
   )}
   {shown.length > 0
-    ? <ProjectsBlock projects={shown} visible={PER} tight />
+    ? <ProjectsBlock projects={shown} visible={shown.length} wide={page === 1 ? (pages > 1 ? true : undefined) : false} tight />
     : <section class="container-x mt-12"><div class="card p-10 text-center"><p class="display text-2xl">{d.catalog.empty}</p><a href={catUrl(lang, { country: cat.country, city: cat.city }, { complexes: true })} class="btn btn-ghost mt-6">{d.complex.all}</a></div></section>}
   <div class="container-x"><Pagination page={page} pages={pages} base={base} /></div>
   <section class="container-x">
