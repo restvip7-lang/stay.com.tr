@@ -215,6 +215,8 @@ async function readObject(listItem) {
     buildName: null,
     isPrivate: false,
     discount: null,
+    // Поле «Актуальность» (relevance = sold): объект продан — сайт пишет «Продано» вместо цены.
+    ...(String(meta.relevance ?? '').trim().toLowerCase() === 'sold' ? { sold: true } : {}),
     imageUrl: gallery[0] || (typeof meta._thumbnail === 'string' ? meta._thumbnail : null),
     detailUrl: `/${operation}/${id}?source=portfolio&language=ru`,
     langs: LANGS.filter((l) => tr[l]?.title),
