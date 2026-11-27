@@ -62,8 +62,8 @@ const descText = strip(own?.html || '', 300);
 const meta = itemMeta(lang, sold ? { ...x, price: null } : x, g, descText || `${tw.one}${x.rooms ? ' ' + x.rooms : ''} ${place}.${sold ? '' : ' ' + moneyL(lang, x.price)}`);
 const altBase = `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}${district ? ` — ${district.name[lang]}` : ''}${x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}`;
 
-// Проданный объект (Anuar 27.11.2026): вместо цены — «Продано», без цены за м² и переключателя валют.
-const price = sold ? d.sold : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
+// Проданный объект (Anuar 27.11.2026): вместо цены — «Объект продан», без цены за м² и переключателя валют.
+const price = sold ? d.soldPrice : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
 const perM2 = (own ?? fallback)?.pricePerSquare ?? (x.price && x.area && x.deal === 'sale' ? Math.round(x.price / x.area) : null);
 const isNew = x.features.includes('new');
 const complex = x.complex ? (await getComplexes()).find((c) => c.code === x.complex) ?? null : null;

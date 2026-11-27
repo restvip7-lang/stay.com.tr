@@ -21,7 +21,7 @@ export const GET: APIRoute = async ({ params, url }) => {
   return ogJpeg({
     title: `${TYPE_WORDS[lang][x.type].one}${x.rooms ? ` ${x.rooms}` : ''}${x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}`,
     subtitle: place,
-    price: 'label' in x && x.label === 'sold' ? d.sold : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest,
+    price: 'label' in x && x.label === 'sold' ? d.soldPrice : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest,
     chips: [x.deal === 'rent' ? d.rent : d.sale, `ID ${("ref" in x && x.ref) || x.id}`],
     image: x.image,
   });

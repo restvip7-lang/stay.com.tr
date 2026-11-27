@@ -25,9 +25,9 @@ const district = x.district ? districtBySlug(x.city, x.district) : null;
 const place = [district?.name[lang], city.name[lang]].filter(Boolean).join(', ');
 const title = `${TYPE_WORDS[lang][x.type].one}${x.rooms ? ` ${x.rooms}` : ''}`;
 const area = x.area ? `${numL(lang, x.area)} ${d.m2}` : '';
-// Проданный объект (Anuar 27.11.2026): вместо цены — «Продано».
+// Проданный объект (Anuar 27.11.2026): вместо цены — «Объект продан».
 const sold = x.label === 'sold';
-const price = sold ? d.sold : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
+const price = sold ? d.soldPrice : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
 const alt = `${title}${district ? ` — ${district.name[lang]}` : ''}${area ? `, ${area}` : ''} — ${d.photo} 1`;
 const perM2 = !sold && x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };

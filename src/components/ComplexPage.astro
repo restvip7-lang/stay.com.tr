@@ -236,7 +236,7 @@ const month = new Date().getMonth();
                         <span class="block text-[15px] leading-[20px]">{TYPE_WORDS[lang][x.type].one} {x.rooms}{x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}</span>
                         {x.floor != null && <span class="block text-[13px] text-soft">{d.item.floor}: {x.floor}</span>}
                       </span>
-                      <span class="shrink-0 text-[15px] font-medium">{x.label === 'sold' ? d.sold : x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
+                      <span class="shrink-0 text-[15px] font-medium">{x.label === 'sold' ? d.soldPrice : x.price ? moneyL(lang, x.price) : d.priceOnRequest}</span>
                     </a>
                   </li>
                 ))}
