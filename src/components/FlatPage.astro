@@ -68,11 +68,12 @@ const title = `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}${area ? `, ${area} ${m2}
 const floorText = x.floor == null ? null : x.floor === 0 ? L.ground : topFloor && topFloor >= x.floor ? L.floorOf(x.floor, topFloor) : String(x.floor);
 const about = flatText(lang, { rooms: x.rooms, area, block: x.block ?? null, project: complex.title, place, floor: x.floor, top: topFloor, sea: x.sea, ready, type: tw.one });
 const intro = lang === 'ru' && pd?.introHtml ? sanitize(pd.introHtml) : '';
-const meta = itemMeta(lang, x, g, about);
+const meta = itemMeta(lang, sold ? { ...x, price: null } : x, g, about);
 const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
 
-const price = x.price ? moneyL(lang, x.price) : d.priceOnRequest;
-const perM2 = x.price && x.area ? Math.round(x.price / x.area) : null;
+// Проданный объект (Anuar 27.11.2026): вместо цены — «Продано», без цены за м² и переключателя валют.
+const price = sold ? d.sold : x.price ? moneyL(lang, x.price) : d.priceOnRequest;
+const perM2 = !sold && x.price && x.area ? Math.round(x.price / x.area) : null;
 // Чипы как у образца («Без отделки», «Панорамное остекление»): без комнатности и «Новостройки» — это и так видно.
 const chips = x.features.filter((f) => !/price-to/.test(f) && f !== 'new').map((f) => FEATURE_LABEL[lang][f]).filter((c) => c && c !== x.rooms).slice(0, 3);
 const params: [string, string | null, string?][] = [
@@ -186,9 +187,9 @@ const stepsId = 'flat-steps';
       <div class="space-y-3 lg:sticky lg:top-24">
         <div class="card-n p-5">
           {x.label && x.label !== 'sold' && <p class="mb-3"><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></p>}
-          <p class:list={['text-[26px] font-medium leading-[32px] text-ink-n', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''} data-price-suffix="">{price}</p>
-          {perM2 && <p class="mt-1 text-[14px] leading-[20px] text-soft">{L.or} <span data-m2-eur={perM2}>{moneyL(lang, perM2)}</span> {L.perM2}</p>}
-          {x.price && (
+          <p class:list={['text-[26px] font-medium leading-[32px] text-ink-n', sold && 'text-muted']} data-price-eur={sold ? undefined : x.price ?? ''} data-price-suffix="">{price}</p>
+          {perM2 && !sold && <p class="mt-1 text-[14px] leading-[20px] text-soft">{L.or} <span data-m2-eur={perM2}>{moneyL(lang, perM2)}</span> {L.perM2}</p>}
+          {x.price && !sold && (
             <div class="mt-3 flex flex-wrap items-center gap-1.5 text-sm" data-currency>
               <span class="sr-only">{ti.currency}</span>
               {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['cur-chip', c === 'EUR' && 'is-on']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}

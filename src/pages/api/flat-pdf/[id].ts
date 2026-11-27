@@ -4,6 +4,7 @@
  */
 import type { APIRoute } from 'astro';
 import { isLang } from '../../../i18n/config';
+import { t } from '../../../i18n/ui';
 import { findItem, getComplexes, getUnits, isOurComplex, itemUrl, ownInfo } from '../../../lib/catalog';
 import { getComplex } from '../../../lib/api';
 import { cityBySlug, districtBySlug } from '../../../lib/geo';
@@ -47,7 +48,9 @@ export const GET: APIRoute = async ({ params, url, request, clientAddress }) => 
   const no = flatNo(x.titleRu);
   const same = units.filter((y) => y.complex === x.complex && (y.block ?? '') === (x.block ?? ''));
   const top = plans?.floors?.[x.block ?? ''] ?? (Math.max(0, ...same.map((y) => y.floor ?? 0)) || null);
-  const perM2 = x.price && x.area ? Math.round(x.price / x.area) : null;
+  // Проданная квартира: вместо цены «Продано», цену за м² не показываем.
+  const sold = x.label === 'sold';
+  const perM2 = !sold && x.price && x.area ? Math.round(x.price / x.area) : null;
   const fp = floorPlanFor(plans, x.block, x.floor);
   const mark = no ? plans?.view?.marks.find((m) => m.no === no && (!m.block || m.block === (x.block ?? ''))) ?? null : null;
   const rows: [string, string | null][] = [
@@ -65,7 +68,7 @@ export const GET: APIRoute = async ({ params, url, request, clientAddress }) => 
     lang, project: complex.title, title, place, url: new URL(itemUrl(lang, x), url.origin).href,
     cover: pd?.heroImages[0] ?? complex.image, plan: x.image,
     params: rows.filter((p): p is [string, string] => !!p[1]),
-    price: x.price ? moneyL(lang, x.price) : '—', perM2: perM2 ? `${L.or} ${moneyL(lang, perM2)} ${L.perM2}` : null,
+    price: sold ? t(lang).sold : x.price ? moneyL(lang, x.price) : '—', perM2: perM2 ? `${L.or} ${moneyL(lang, perM2)} ${L.perM2}` : null,
     floorPlan: fp ? { image: fp.image, shape: (no && fp.flats.find((f) => f.id === no)?.points) || null } : null,
     genplan: plans?.genplan?.image ? { image: plans.genplan.image, shape: (x.block && plans.genplan.blocks.find((b) => b.id === x.block)?.points) || null } : null,
     view: plans?.view && mark ? { image: plans.view.image, mark } : null,

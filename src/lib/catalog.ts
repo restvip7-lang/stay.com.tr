@@ -94,6 +94,8 @@ function toItem(x: RawListing, deal: Deal, unit = false, citizenship = false, fa
     floor: x.floor != null && x.floor !== '' && Number.isFinite(Number(x.floor)) ? Math.round(Number(x.floor)) : null,
     ref: x.objectCode ?? null,
     isPrivate: !!x.isPrivate,
+    // Продан по базе (relevance = sold) — ярлык «Продано»; ручной ярлык админки ставится поверх.
+    label: x.sold ? 'sold' : null,
     image: fixImage(x.imageUrl),
     titleRu: String(x.title || '').trim(),
     complex: x.projectCode ? String(x.projectCode) : null,
@@ -133,7 +135,7 @@ async function withMarks(list: Item[]) {
     // Квартира ЖК: PRIVE по списку PRIVE-ЖК из админки (если задан), иначе по флагу базы.
     const basePrive = x.unit && pc.set ? !!x.complex && pc.set.has(x.complex) : x.isPrivate;
     const base = { ...x, features, isPrivate: basePrive || !!m?.prive, citMark: cit, resMark: res, own: ourUnit };
-    return m ? { ...base, label: m.label ?? null, pinned: !!m.pinned, own: ourUnit || !!m.own } : base;
+    return m ? { ...base, label: m.label ?? base.label ?? null, pinned: !!m.pinned, own: ourUnit || !!m.own } : base;
   });
   const v = { marks, priveKey: pc.key, all, visible: all.filter((x) => !marks[x.id]?.hidden) };
   marked.set(list, v);

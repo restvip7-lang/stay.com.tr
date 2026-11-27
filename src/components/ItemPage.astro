@@ -58,10 +58,12 @@ const images = fallback?.images?.length ? fallback.images : x.image ? [x.image] 
 const descHtml = own?.html ? sanitize(own.html) : '';
 const fallbackHtml = !own && fallback?.html ? sanitize(fallback.html) : '';
 const descText = strip(own?.html || '', 300);
-const meta = itemMeta(lang, x, g, descText || `${tw.one}${x.rooms ? ' ' + x.rooms : ''} ${place}. ${moneyL(lang, x.price)}`);
+// У проданного цены нет и в заголовке страницы («купить за …» не пишем).
+const meta = itemMeta(lang, sold ? { ...x, price: null } : x, g, descText || `${tw.one}${x.rooms ? ' ' + x.rooms : ''} ${place}.${sold ? '' : ' ' + moneyL(lang, x.price)}`);
 const altBase = `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}${district ? ` — ${district.name[lang]}` : ''}${x.area ? `, ${numL(lang, x.area)} ${d.m2}` : ''}`;
 
-const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
+// Проданный объект (Anuar 27.11.2026): вместо цены — «Продано», без цены за м² и переключателя валют.
+const price = sold ? d.sold : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
 const perM2 = (own ?? fallback)?.pricePerSquare ?? (x.price && x.area && x.deal === 'sale' ? Math.round(x.price / x.area) : null);
 const isNew = x.features.includes('new');
 const complex = x.complex ? (await getComplexes()).find((c) => c.code === x.complex) ?? null : null;
@@ -148,9 +150,9 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       <div class="space-y-5 lg:col-start-2 lg:row-span-2 lg:row-start-1">
         <div class="card-n p-5">
           {x.label && x.label !== 'sold' && <p class="mb-3"><span class="badge badge-solid" style={LABEL_STYLE[x.label]}>{LABEL_TEXT[lang][x.label]}</span></p>}
-          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[.6px] text-ink-n', sold && 'text-muted line-through']} data-price-eur={x.price ?? ''} data-price-suffix={x.deal === 'rent' ? d.perMonth : ''}>{price}</p>
-          {perM2 && <p class="mt-1 text-[14px] leading-[20px] text-soft"><span data-m2-eur={perM2}>{moneyL(lang, perM2)}</span> {ti.perM2}</p>}
-          {x.price && (
+          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[.6px] text-ink-n', sold && 'text-muted']} data-price-eur={sold ? undefined : x.price ?? ''} data-price-suffix={x.deal === 'rent' ? d.perMonth : ''}>{price}</p>
+          {perM2 && !sold && <p class="mt-1 text-[14px] leading-[20px] text-soft"><span data-m2-eur={perM2}>{moneyL(lang, perM2)}</span> {ti.perM2}</p>}
+          {x.price && !sold && (
             <div class="mt-3 flex flex-wrap items-center gap-1.5 text-sm" data-currency>
               <span class="sr-only">{ti.currency}</span>
               {['EUR', 'USD', 'GBP', 'TRY'].map((c) => <button type="button" data-cur={c} class:list={['cur-chip', c === 'EUR' && 'is-on']} aria-pressed={c === 'EUR' ? 'true' : 'false'}>{c}</button>)}

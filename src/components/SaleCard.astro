@@ -25,14 +25,15 @@ const district = x.district ? districtBySlug(x.city, x.district) : null;
 const place = [district?.name[lang], city.name[lang]].filter(Boolean).join(', ');
 const title = `${TYPE_WORDS[lang][x.type].one}${x.rooms ? ` ${x.rooms}` : ''}`;
 const area = x.area ? `${numL(lang, x.area)} ${d.m2}` : '';
-const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
+// Проданный объект (Anuar 27.11.2026): вместо цены — «Продано».
+const sold = x.label === 'sold';
+const price = sold ? d.sold : x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth : '') : d.priceOnRequest;
 const alt = `${title}${district ? ` — ${district.name[lang]}` : ''}${area ? `, ${area}` : ''} — ${d.photo} 1`;
-const perM2 = x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
+const perM2 = !sold && x.price && x.area && x.deal === 'sale' ? `${moneyL(lang, Math.round(x.price / x.area))} ${d.item.perM2}` : '';
 const fav = { id: x.id, url, title, image: x.image, price, meta: place };
 // ID объекта на карточке (Anuar 26.11.2026): клиент пишет менеджеру «ID 4397», в админке он ищется так же. Выделяется кликом для копирования.
 const idText = `ID ${x.ref ?? x.id}`;
 const H = headingLevel;
-const sold = x.label === 'sold';
 // Фиолетовая карточка «Stay» — для наших объектов; у PRIVE-лотов остаётся золотое оформление PRIVE.
 const own = !!x.own && !x.isPrivate;
 // Бейджи на фото справа сверху: «Гражданство» и «ВНЖ» — только по ручным отметкам в админке (решение Anuar 25.11.2026: по цене не подходит).
@@ -56,7 +57,7 @@ const PC = ({
 const numM = project ? x.titleRu.match(/№\s*([0-9A-Za-z-]+)/) : null;
 const pLine = project && PC ? [x.block && `${PC.block} ${x.block}${numM ? `, №${numM[1]}` : ''}`, x.floor ? PC.floor(x.floor) : ''].filter(Boolean).join(' · ') : '';
 const readyText = project ? (lang === 'ru' ? project.ready : project.year ? String(project.year) : null) : null;
-const perM2Short = x.price && x.area && PC ? `${PC.or} ${moneyL(lang, Math.round(x.price / x.area))}/${d.m2}` : '';
+const perM2Short = !sold && x.price && x.area && PC ? `${PC.or} ${moneyL(lang, Math.round(x.price / x.area))}/${d.m2}` : '';
 const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|residence-permit/.test(f)).slice(0, 2);
 ---
 <!-- project: карточка квартиры STAY PROJECTS по образцу (mr-group.ru/flats/): заголовок, крупная цена и «или N €/м²», планировка на белом,
@@ -66,7 +67,7 @@ const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|resid
   <H class="text-[18px] font-medium leading-[24px] tracking-[0.2px] text-ink-n">
     <a href={url} class="sc-link after:absolute after:inset-0 after:z-[1] after:rounded-[inherit] after:content-['']">{title}{area ? `, ${area}` : ''}</a>
   </H>
-  <p class:list={['mt-1 text-[24px] font-medium leading-[30px] tracking-[0.4px] text-ink-n', sold && 'text-muted line-through']}>{price}</p>
+  <p class:list={['mt-1 text-[24px] font-medium leading-[30px] tracking-[0.4px] text-ink-n', sold && 'text-muted']}>{price}</p>
   {perM2Short && <p class="mt-0.5 text-[13px] leading-[18px] text-soft">{perM2Short}</p>}
   <div class="relative mt-3 aspect-[4/3] overflow-hidden bg-white">
     <Img src={x.image} alt={alt} class={`size-full !object-contain${sold ? ' opacity-60 grayscale' : ''}`} width={640} height={480} />
@@ -124,7 +125,7 @@ const pChips = x.features.filter((f) => !/bedroom|price-to|new|citizenship|resid
     <div class="mt-auto pt-4"><div class="border-t border-line pt-3">
       <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[0.6px] text-ink-n', sold && 'text-muted line-through']}>{price}</p>
+          <p class:list={['text-[22px] font-medium leading-[27px] tracking-[0.6px] text-ink-n', sold && 'text-muted']}>{price}</p>
           {perM2 && <p class="mt-0.5 text-[14px] leading-5 tracking-[0.2px] text-ink-n/50">{perM2}</p>}
         </div>
         <span class="sc-id relative z-[2] shrink-0 select-all pt-[5px] text-[14px] leading-5 tracking-[0.2px] text-ink-n/50">{idText}</span>
