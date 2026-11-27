@@ -104,6 +104,19 @@ if (authed) {
     <meta name="robots" content="noindex, nofollow" />
     <title>Админка — Stay Property</title>
     <link rel="icon" href="/favicon.svg" />
+    <style is:global>
+      /* Перетаскивание строк в очередях (src/lib/adminSortable.ts). В слое base, чтобы классы Tailwind на строках (фон PRIVE и т.п.) были главнее. */
+      @layer base {
+        li[data-sort] { user-select: none; -webkit-user-select: none; cursor: grab; transition: box-shadow .15s, background-color .15s; }
+        :where(li[data-sort]) { background-color: #fff; }
+        li[data-sort] button, li[data-sort] input { cursor: pointer; }
+        li[data-sort] button[data-pick] { cursor: grab; }
+        .sort-handle { display: grid; place-items: center; width: 1.5rem; height: 2.25rem; flex-shrink: 0; border-radius: .5rem; color: #9a9aa5; font-size: 1.1rem; line-height: 1; touch-action: none; cursor: grab; }
+        .sort-handle:hover { color: #14141a; background: rgba(0,0,0,.04); }
+        li[data-sort].is-dragging { position: relative; z-index: 20; cursor: grabbing; box-shadow: 0 12px 32px rgba(20,20,26,.18); opacity: .97; }
+        @media (prefers-reduced-motion: reduce) { li[data-sort] { transition: none; } }
+      }
+    </style>
   </head>
   <body class="min-h-screen">
     <header class="border-b border-line bg-white">
@@ -211,7 +224,7 @@ if (authed) {
         </div>
         {!data.storage && <p class="mt-4 rounded-2xl bg-peach px-4 py-3 text-sm">Хранилище не подключено: изменения сохранить нельзя (так бывает при локальном запуске).</p>}
 
-        <section class="mt-8 grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <section class="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-[1.2fr_1fr]">
           <div class="card p-6">
             <div class="flex items-center justify-between gap-4">
               <h2 class="text-xl font-medium">На главной</h2>
@@ -270,7 +283,7 @@ if (authed) {
             </div>
           </div>
           <p data-sc-testnote class="mt-4 hidden rounded-2xl bg-peach px-4 py-3 text-sm">Сейчас на сайте тестовые партнёры. Замените их на действующих или снимите отметку «Тест» у тех, кто подтверждён.</p>
-          <div class="mt-5 grid gap-6 lg:grid-cols-[1fr_1.3fr]">
+          <div class="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.3fr]">
             <ol data-sc-list class="grid max-h-[80vh] content-start gap-2 overflow-auto pr-1"></ol>
             <form data-sc-form class="grid content-start gap-3" autocomplete="off">
               <p data-sc-empty class="text-muted">Выберите партнёра слева или добавьте нового.</p>
@@ -467,6 +480,7 @@ if (authed) {
     </script>
     <script>
       // S-Club: список партнёров + форма правки; сохраняется весь список целиком.
+      import { sortable, moveItem, sortHandle } from '../../lib/adminSortable';
       const scEl = document.getElementById('admin-data');
       const scData = scEl ? JSON.parse(scEl.textContent || '{}').sclub : null;
       if (scData) {
@@ -483,12 +497,12 @@ if (authed) {
         q<HTMLSelectElement>('[data-f="category"]').innerHTML = scData.categories.map((c: any) => `<option value="${c.id}">${esc(c.label)}</option>`).join('');
 
         function renderList() {
-          q('[data-sc-list]').innerHTML = list.map((p, i) => `<li class="flex items-center gap-2 rounded-2xl border p-2 ${i === cur ? 'border-accent bg-lavender-2' : 'border-line'} ${p.hidden ? 'opacity-50' : ''}">
-            ${p.image ? `<img src="${esc(p.image)}" alt="" class="size-11 shrink-0 rounded-xl object-cover bg-lavender-2" loading="lazy">` : '<span class="size-11 shrink-0 rounded-xl bg-lavender-2"></span>'}
+          q('[data-sc-list]').innerHTML = list.map((p, i) => `<li data-sort class="flex items-center gap-2 rounded-2xl border p-2 ${i === cur ? 'border-accent bg-lavender-2' : 'border-line'} ${p.hidden ? 'opacity-50' : ''}">
+            ${sortHandle}${p.image ? `<img src="${esc(p.image)}" alt="" class="size-11 shrink-0 rounded-xl object-cover bg-lavender-2" loading="lazy">` : '<span class="size-11 shrink-0 rounded-xl bg-lavender-2"></span>'}
             <button type="button" data-pick="${i}" class="min-w-0 flex-1 text-left"><span class="block truncate font-medium">${esc(p.name || 'Без названия')}</span>
               <span class="block truncate text-xs text-muted">${esc(catLabel.get(p.category) || '')}${p.badge?.ru ? ' · ' + esc(p.badge.ru) : ''}${p.featured ? ' · в ленте' : ''}${p.test ? ' · тест' : ''}${p.hidden ? ' · скрыт' : ''}</span></button>
-            <button type="button" data-up="${i}" class="${btn}" ${i === 0 ? 'disabled' : ''} title="Выше">↑</button>
-            <button type="button" data-down="${i}" class="${btn}" ${i === list.length - 1 ? 'disabled' : ''} title="Ниже">↓</button></li>`).join('') || '<li class="text-muted">Партнёров пока нет.</li>';
+            <button type="button" data-up="${i}" class="${btn} max-sm:hidden" ${i === 0 ? 'disabled' : ''} title="Выше">↑</button>
+            <button type="button" data-down="${i}" class="${btn} max-sm:hidden" ${i === list.length - 1 ? 'disabled' : ''} title="Ниже">↓</button></li>`).join('') || '<li class="text-muted">Партнёров пока нет.</li>';
           q('[data-sc-testnote]').classList.toggle('hidden', !list.some((p) => p.test && !p.hidden));
         }
         function renderForm() {
@@ -515,6 +529,12 @@ if (authed) {
           if (t.dataset.up) swap(Number(t.dataset.up), Number(t.dataset.up) - 1);
           if (t.dataset.down) swap(Number(t.dataset.down), Number(t.dataset.down) + 1);
           render();
+        });
+        sortable(q('[data-sc-list]'), (from, to) => {
+          const picked = list[cur];
+          moveItem(list, from, to);
+          cur = picked ? list.indexOf(picked) : -1;
+          touch(); render();
         });
         q('[data-sc-form]').addEventListener('input', (e) => {
           const f = e.target as HTMLInputElement;
@@ -557,6 +577,7 @@ if (authed) {
     </script>
     {authed && <script type="application/json" id="admin-data" set:html={JSON.stringify(data).replace(/</g, '\\u003c')} />}
     <script>
+      import { sortable, moveItem, sortHandle } from '../../lib/adminSortable';
       const el = document.getElementById('admin-data');
       const parsed = el ? JSON.parse(el.textContent || '{}') : {};
       if (el && parsed.home) {
@@ -578,12 +599,12 @@ if (authed) {
         function render() {
           $('[data-selected]').innerHTML = selected.map((c, i) => {
             const p: any = byCode.get(c);
-            return `<li class="flex items-center gap-3 rounded-2xl border border-line p-2">
-              <span class="w-5 text-center text-sm text-muted">${i + 1}</span>${thumb(p)}
+            return `<li data-sort class="flex items-center gap-3 rounded-2xl border border-line p-2">
+              ${sortHandle}<span class="w-5 text-center text-sm text-muted">${i + 1}</span>${thumb(p)}
               <span class="min-w-0 flex-1"><span class="block truncate font-medium">${esc(p.title)}</span><span class="block truncate text-sm text-muted">${esc(p.place)}</span></span>
               <button data-hero="${c}" title="В слайдере" class="${btn} ${hero.has(c) ? 'bg-accent text-white border-accent' : ''}">★</button>
-              <button data-up="${i}" title="Выше" class="${btn}" ${i === 0 ? 'disabled' : ''}>↑</button>
-              <button data-down="${i}" title="Ниже" class="${btn}" ${i === selected.length - 1 ? 'disabled' : ''}>↓</button>
+              <button data-up="${i}" title="Выше" class="${btn} max-sm:hidden" ${i === 0 ? 'disabled' : ''}>↑</button>
+              <button data-down="${i}" title="Ниже" class="${btn} max-sm:hidden" ${i === selected.length - 1 ? 'disabled' : ''}>↓</button>
               <button data-remove="${c}" title="Скрыть" class="${btn}">✕</button></li>`;
           }).join('') || '<li class="text-muted">Все проекты скрыты — верните их справа.</li>';
           const q = ($('[data-search]') as HTMLInputElement).value.trim().toLowerCase();
@@ -607,6 +628,7 @@ if (authed) {
           touch();
           render();
         });
+        sortable($('[data-selected]'), (from, to) => { moveItem(selected, from, to); touch(); render(); });
         $('[data-search]').addEventListener('input', render);
 
         const title = $('[data-title]') as HTMLInputElement;
