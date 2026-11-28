@@ -229,6 +229,10 @@ const progress = progressReal.length ? progressReal
   : demo ? [0, 1, 2].map((k) => { const dt = new Date(today.getFullYear(), today.getMonth() - k, 1); return { month: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, photos: gallery.slice(k * 2, k * 2 + 3), text: k ? '' : N.demoProgress }; }).filter((x) => x.photos.length) : [];
 const monthLabel = (m: string) => { const [y, mm] = m.split('-').map(Number); return `${tb.months[mm - 1]} ${y}`; };
 const liveUrl = pp.liveUrl ?? null;
+// Плитки под слайдами: на превью без данных показываем все три как пример.
+const liveHref = liveUrl ?? (demo ? '#lead' : null);
+const presHref = pres?.file ?? (demo ? '#docs' : null);
+const tileCount = [liveHref, presHref, docs.length].filter(Boolean).length;
 // Новости проекта: три последние; на превью без данных — пример.
 const newsReal = (pp.news ?? []).slice(0, 3).map((x) => ({ date: dateL(lang, x.date), title: tx(x.title, lang), text: tx(x.text, lang), image: x.image || null }));
 const news = newsReal.length ? newsReal : demo ? tb.newsList.map((title, i) => ({ date: dateL(lang, isoIn(-7 * (i + 1))), title, text: N.demoNews, image: gallery[i + 2] ?? null })) : [];
@@ -390,11 +394,11 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
           </div>
         )}
       </div>
-      {full && (liveUrl || pres || docs.length > 0) && (<>
+      {full && tileCount > 0 && (<>
       <h2 class="sr-only">{tb.status}</h2>
       {/* Плитки как у образца (ЖК МИРА): Live-камеры, Презентация, Материалы (фиолетовая). Плитка без данных не показывается. */}
-      <ul class:list={['mt-3 grid gap-3', [liveUrl, pres, docs.length].filter(Boolean).length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2']}>
-        {liveUrl && <li class="tile-sq relative overflow-hidden bg-white">
+      <ul class:list={['mt-3 grid gap-3', tileCount === 3 ? 'md:grid-cols-3' : tileCount === 2 ? 'md:grid-cols-2 tiles-low' : 'tiles-low tiles-one']}>
+        {liveHref && <li class="tile-sq relative overflow-hidden bg-white">
           <p class="text-[20px] leading-[26px] text-ink-n">{tb.tiles.live}<span class="ml-0.5 inline-block size-1.5 -translate-y-2 rounded-full bg-[#e5304f]" aria-hidden="true"></span></p>
           <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-soft">{tb.tiles.liveText}</p>
           <svg class="pointer-events-none absolute bottom-0 left-4 h-[62%] w-auto text-[#c9cad1]" viewBox="0 0 220 260" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -403,12 +407,12 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
             <rect x="136" y="62" width="28" height="30" rx="3" fill="#fff"/>
             <path d="M60 62v80M50 142h20v8H50zM60 150v14" /><path d="M54 170a6 6 0 1 0 12 0" />
           </svg>
-          <a href={liveUrl} target="_blank" rel="noopener" class="tile-btn" aria-label={tb.tiles.live}><Icon name="arrowUpRight" class="size-4" /></a>
+          <a href={liveHref} target={liveUrl ? '_blank' : undefined} rel="noopener" class="tile-btn" aria-label={tb.tiles.live}><Icon name="arrowUpRight" class="size-4" /></a>
         </li>}
-        {pres && <li class="tile-sq bg-white">
+        {presHref && <li class="tile-sq bg-white">
           <p class="text-[20px] leading-[26px] text-ink-n">{tb.tiles.pres}</p>
           <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-soft">{tb.tiles.presText}</p>
-          <a href={pres.file} target="_blank" rel="noopener" download="" class="tile-btn" aria-label={tb.tiles.pres}><Icon name="download" class="size-4" /></a>
+          <a href={presHref} target={pres ? '_blank' : undefined} rel="noopener" download={pres ? '' : undefined} class="tile-btn" aria-label={tb.tiles.pres}><Icon name="download" class="size-4" /></a>
         </li>}
         {docs.length > 0 && <li class="tile-sq bg-accent text-white">
           <p class="text-[20px] leading-[26px]">{tb.tiles.mats}</p>
@@ -701,6 +705,8 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
 <style>
   .tile-sq { position: relative; display: flex; min-height: 240px; flex-direction: column; border-radius: 24px; padding: 24px; }
   @media (min-width: 768px) { .tile-sq { aspect-ratio: 397 / 476; min-height: 0; } }
+  /* Плиток меньше трёх — не растягиваем их в высоту: низкие широкие карточки. */
+  @media (min-width: 768px) { .tiles-low .tile-sq { aspect-ratio: auto; min-height: 200px; } .tiles-one .tile-sq { min-height: 150px; } }
   .tile-btn { position: relative; margin-top: auto; align-self: flex-end; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.08); transition: transform .15s; }
   .tile-btn:hover { transform: translateY(-2px); }
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
