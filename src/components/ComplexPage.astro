@@ -38,7 +38,7 @@ interface Props { c: Complex }
 // Тексты блоков, добавленных по плану страницы ЖК (28.11.2026).
 const NTen = {
   km: 'km', toSea: 'to the sea', perM2: 'm²', area: 'Area', address: 'Address', onMap: 'On the map', tour: '3D tour', example: 'Example', learnMore: 'Learn more', promoBadge: 'Offer',
-  until: (d: string) => `until ${d}`, readMore: 'Read more', liveBtn: 'Live camera', liveOpen: 'Watch the live camera', video: 'Video', photos: 'Photos', live: 'Live',
+  until: (d: string) => `until ${d}`, readMore: 'Read more', liveBtn: 'Live camera', liveOpen: 'Watch the live camera', video: 'Video', photos: 'Photos', live: 'Live', liveTab: 'Live stream', liveSoon: 'The staff member adds the camera link in the admin panel.',
   installment: (dn: number | null, m: number | null) => [dn != null ? `Down payment from ${dn}%` : '', m ? `up to ${m} months` : ''].filter(Boolean).join(', '),
   mortgage: (dn: number, y: number) => `We will help you get a mortgage from a Turkish bank: down payment from ${dn}%, term up to ${y} years. For completed properties; the manager will calculate the exact terms.`,
   docTabs: { pres: 'Presentation', plans: 'Floor plans', docs: 'Documents' },
@@ -48,7 +48,7 @@ const NTen = {
 const NT: Record<string, typeof NTen> = {
   ru: {
     km: 'км', toSea: 'до моря', perM2: 'м²', area: 'Площадь', address: 'Адрес', onMap: 'На карте', tour: '3D-тур', example: 'Пример', learnMore: 'Узнать больше', promoBadge: 'Акция',
-    until: (d) => `до ${d}`, readMore: 'Читать полностью', liveBtn: 'Live-камера', liveOpen: 'Смотреть Live-камеру', video: 'Видео', photos: 'Фото', live: 'Live',
+    until: (d) => `до ${d}`, readMore: 'Читать полностью', liveBtn: 'Live-камера', liveOpen: 'Смотреть Live-камеру', video: 'Видео', photos: 'Фото', liveTab: 'Онлайн-трансляция', liveSoon: 'Ссылку на камеру сотрудник добавит в админке.', live: 'Live',
     installment: (dn, m) => [dn != null ? `Первый взнос от ${dn}%` : '', m ? `рассрочка до ${m} мес.` : ''].filter(Boolean).join(', '),
     mortgage: (dn, y) => `Поможем оформить ипотеку в турецком банке: первый взнос от ${dn}%, срок до ${y} лет. Для сданных объектов; точные условия рассчитает менеджер.`,
     docTabs: { pres: 'Презентация', plans: 'Планировки', docs: 'Документы' },
@@ -56,9 +56,9 @@ const NT: Record<string, typeof NTen> = {
     office: 'Офис Stay Property в Аланье', hours: 'Часы работы', hoursText: 'Ежедневно, 9:00–19:00', write: 'Написать в WhatsApp',
   },
   en: NTen,
-  tr: { ...NTen, toSea: 'denize', area: 'Alan', address: 'Adres', onMap: 'Haritada', tour: '3D tur', example: 'Örnek', learnMore: 'Detaylar', promoBadge: 'Kampanya', until: (d) => `${d} tarihine kadar`, readMore: 'Devamını oku', liveBtn: 'Canlı kamera', liveOpen: 'Canlı kamerayı izle', video: 'Video', photos: 'Fotoğraflar', office: 'Stay Property Alanya ofisi', hours: 'Çalışma saatleri', hoursText: 'Her gün, 9:00–19:00', write: 'WhatsApp’tan yazın', docTabs: { pres: 'Sunum', plans: 'Planlar', docs: 'Belgeler' } },
-  de: { ...NTen, toSea: 'zum Meer', area: 'Fläche', address: 'Adresse', onMap: 'Auf der Karte', tour: '3D-Tour', example: 'Beispiel', learnMore: 'Mehr erfahren', promoBadge: 'Angebot', until: (d) => `bis ${d}`, readMore: 'Weiterlesen', liveBtn: 'Live-Kamera', liveOpen: 'Live-Kamera ansehen', video: 'Video', photos: 'Fotos', office: 'Stay Property Büro in Alanya', hours: 'Öffnungszeiten', hoursText: 'Täglich, 9:00–19:00', write: 'Per WhatsApp schreiben', docTabs: { pres: 'Präsentation', plans: 'Grundrisse', docs: 'Dokumente' } },
-  sr: { ...NTen, toSea: 'do mora', area: 'Površina', address: 'Adresa', onMap: 'Na mapi', tour: '3D tura', example: 'Primer', learnMore: 'Saznajte više', promoBadge: 'Akcija', until: (d) => `do ${d}`, readMore: 'Pročitajte više', liveBtn: 'Live kamera', liveOpen: 'Pogledajte live kameru', video: 'Video', photos: 'Fotografije', office: 'Kancelarija Stay Property u Alanji', hours: 'Radno vreme', hoursText: 'Svakog dana, 9:00–19:00', write: 'Pišite na WhatsApp', docTabs: { pres: 'Prezentacija', plans: 'Planovi', docs: 'Dokumenta' } },
+  tr: { ...NTen, liveTab: 'Canlı yayın', toSea: 'denize', area: 'Alan', address: 'Adres', onMap: 'Haritada', tour: '3D tur', example: 'Örnek', learnMore: 'Detaylar', promoBadge: 'Kampanya', until: (d) => `${d} tarihine kadar`, readMore: 'Devamını oku', liveBtn: 'Canlı kamera', liveOpen: 'Canlı kamerayı izle', video: 'Video', photos: 'Fotoğraflar', office: 'Stay Property Alanya ofisi', hours: 'Çalışma saatleri', hoursText: 'Her gün, 9:00–19:00', write: 'WhatsApp’tan yazın', docTabs: { pres: 'Sunum', plans: 'Planlar', docs: 'Belgeler' } },
+  de: { ...NTen, liveTab: 'Livestream', toSea: 'zum Meer', area: 'Fläche', address: 'Adresse', onMap: 'Auf der Karte', tour: '3D-Tour', example: 'Beispiel', learnMore: 'Mehr erfahren', promoBadge: 'Angebot', until: (d) => `bis ${d}`, readMore: 'Weiterlesen', liveBtn: 'Live-Kamera', liveOpen: 'Live-Kamera ansehen', video: 'Video', photos: 'Fotos', office: 'Stay Property Büro in Alanya', hours: 'Öffnungszeiten', hoursText: 'Täglich, 9:00–19:00', write: 'Per WhatsApp schreiben', docTabs: { pres: 'Präsentation', plans: 'Grundrisse', docs: 'Dokumente' } },
+  sr: { ...NTen, liveTab: 'Prenos uživo', toSea: 'do mora', area: 'Površina', address: 'Adresa', onMap: 'Na mapi', tour: '3D tura', example: 'Primer', learnMore: 'Saznajte više', promoBadge: 'Akcija', until: (d) => `do ${d}`, readMore: 'Pročitajte više', liveBtn: 'Live kamera', liveOpen: 'Pogledajte live kameru', video: 'Video', photos: 'Fotografije', office: 'Kancelarija Stay Property u Alanji', hours: 'Radno vreme', hoursText: 'Svakog dana, 9:00–19:00', write: 'Pišite na WhatsApp', docTabs: { pres: 'Prezentacija', plans: 'Planovi', docs: 'Dokumenta' } },
 };
 const { c } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
@@ -225,8 +225,18 @@ const docTabs = (['pres', 'plans', 'docs'] as const).filter((k) => docs.some((x)
 const pres = docsReal.find((x) => x.tab === 'pres') ?? null;
 // Ход строительства: месяцы из админки (новые первыми); на превью без данных — пример из фото ЖК.
 const progressReal = (pp.progress ?? []).map((x) => ({ month: x.month, photos: x.photos, text: tx(x.text, lang) }));
-const progress = progressReal.length ? progressReal
-  : demo ? [0, 1, 2].map((k) => { const dt = new Date(today.getFullYear(), today.getMonth() - k, 1); return { month: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, photos: gallery.slice(k * 2, k * 2 + 3), text: k ? '' : N.demoProgress }; }).filter((x) => x.photos.length) : [];
+// Пример на превью: несколько месяцев за последние два года, фото — из галереи ЖК, иначе главное фото, иначе серые заглушки.
+const demoPool = gallery.length ? gallery : [hero, c.image].filter((x): x is string => !!x);
+const progress: { month: string; photos: (string | null)[]; text: string }[] = progressReal.length ? progressReal
+  : demo ? [0, 1, 3, 5, 12, 24].map((k, j) => { const dt = new Date(today.getFullYear(), today.getMonth() - k, 1); return { month: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, photos: [0, 1, 2].map((n) => (demoPool.length ? demoPool[(j * 3 + n) % demoPool.length] : null)), text: k ? '' : N.demoProgress }; }) : [];
+// Шкала как у образца: годы слева, месяцы выбранного года по линии; месяц без фото — бледный и не нажимается.
+const progMonths = new Set(progress.map((m) => m.month));
+const progYears = [...new Set(progress.map((m) => m.month.slice(0, 4)))].sort();
+const progRows = progYears.map((y) => {
+  const last = Math.max(...progress.filter((m) => m.month.startsWith(y)).map((m) => Number(m.month.slice(5))));
+  const upto = y === progYears[progYears.length - 1] ? last : 12;
+  return { y, months: Array.from({ length: upto }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`) };
+});
 const monthLabel = (m: string) => { const [y, mm] = m.split('-').map(Number); return `${tb.months[mm - 1]} ${y}`; };
 const liveUrl = pp.liveUrl ?? null;
 // Плитки под слайдами: на превью без данных показываем все три как пример.
@@ -623,26 +633,68 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   )}
 
   {progress.length > 0 && (
-  <section id="progress" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-tabs>
-    {/* Ход строительства: фото по месяцам из админки (новые первыми), кнопка Live-камеры, видео проекта. */}
+  <section id="progress" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-prog>
+    {/* Ход строительства как у образца (ЖК МИРА): справа Фото / Онлайн-трансляция / Видео; фото по месяцам, внизу шкала годов и месяцев. */}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.progress}{!progressReal.length && <> <span class="stub">{N.example}</span></>}</h2>
-      <div class="flex flex-wrap items-center gap-2">
-        {liveUrl && <a href={liveUrl} target="_blank" rel="noopener" class="btn-n btn-n-dark gap-2"><span class="size-2 rounded-full bg-[#e5304f]" aria-hidden="true"></span>{N.liveOpen}</a>}
-        {ytId && <a href="#video" class="btn-n btn-n-white gap-2"><Icon name="play" class="size-4" />{N.video}</a>}
+      {(liveUrl || demo || ytId) && (
+        <div class="seg" role="tablist">
+          <button type="button" role="tab" aria-selected="true" data-prog-view="photo">{N.photos}</button>
+          {(liveUrl || demo) && <button type="button" role="tab" aria-selected="false" data-prog-view="live">{N.liveTab}</button>}
+          {ytId && <button type="button" role="tab" aria-selected="false" data-prog-view="video">{N.video}</button>}
+        </div>
+      )}
+    </div>
+    <div data-prog-pane="photo">
+      {progress.map((m, i) => (
+        <div class="relative" data-prog-month-pane={m.month} hidden={i !== 0} data-car>
+          <ul class="scroll-x flex snap-x snap-mandatory gap-5" data-car-track>
+            {m.photos.map((src) => (
+              <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-[#dfe0e8] md:w-[calc(50%-10px)]">
+                {src ? <Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[610/375] w-full" width={800} height={492} /> : <div class="aspect-[610/375] w-full" />}
+              </li>
+            ))}
+          </ul>
+          {m.photos.length > 2 && <>
+            <button type="button" class="prog-arrow left-5 hidden md:grid" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-5" /></button>
+            <button type="button" class="prog-arrow right-5 hidden md:grid" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-5" /></button>
+          </>}
+          {m.text && <p class="mt-4 max-w-3xl text-[16px] leading-[24px] text-ink-n">{m.text}</p>}
+        </div>
+      ))}
+      <div class="scroll-x mt-5 rounded-[20px] bg-white px-5 pb-4 pt-5">
+        <div class="flex min-w-max items-start gap-4 lg:min-w-0">
+          <div class="flex shrink-0 gap-4" role="tablist">
+            {progYears.map((y, i) => <button type="button" role="tab" aria-selected={i === progYears.length - 1 ? 'true' : 'false'} class="prog-y" data-prog-year={y}>{y}</button>)}
+          </div>
+          {progRows.map((r, i) => (
+            <div class="flex flex-1 border-t border-[#8e9099]" data-prog-row={r.y} hidden={i !== progRows.length - 1}>
+              {r.months.map((mm) => <button type="button" class="prog-m" data-prog-month={mm} disabled={!progMonths.has(mm)} aria-pressed={mm === progress[0]?.month ? 'true' : 'false'}>{tb.months[Number(mm.slice(5)) - 1]}</button>)}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-    {progress.map((m, i) => (
-      <div data-pane={i} hidden={i !== 0} data-car>
-        <ul class="scroll-x flex snap-x gap-6" data-car-track>
-          {m.photos.map((src) => <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] md:w-[calc(50%-12px)]"><Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[788/562] w-full" width={800} height={570} /></li>)}
-        </ul>
-        {m.text && <p class="mt-4 max-w-3xl text-[16px] leading-[24px] text-ink-n">{m.text}</p>}
+    {(liveUrl || demo) && (
+      <div data-prog-pane="live" hidden>
+        <div class="relative grid aspect-[16/9] place-items-center overflow-hidden rounded-[20px] bg-ink md:aspect-[1240/560]">
+          {hero && <Img src={hero} alt="" class="absolute inset-0 size-full opacity-50" width={1280} height={720} />}
+          <div class="relative px-6 text-center text-white">
+            <p class="inline-flex items-center gap-2 text-[14px] uppercase tracking-[1px]"><span class="size-2 rounded-full bg-[#e5304f]" aria-hidden="true"></span>Live</p>
+            {liveUrl ? <a href={liveUrl} target="_blank" rel="noopener" class="btn-n btn-n-white mt-4 gap-2">{N.liveOpen}<Icon name="arrowUpRight" class="size-4" /></a>
+              : <p class="mt-3 max-w-[420px] text-[16px] leading-[24px] text-white/85">{N.liveSoon}</p>}
+          </div>
+        </div>
       </div>
-    ))}
-    {progress.length > 1 && (
-      <div class="scroll-x mt-6 flex items-end gap-1 whitespace-nowrap" role="tablist">
-        {progress.map((m, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'} class="prog-m">{monthLabel(m.month)}</button>)}
+    )}
+    {ytId && (
+      <div data-prog-pane="video" hidden>
+        <div class="relative aspect-[16/9] overflow-hidden rounded-[20px] bg-ink md:aspect-[1240/560]" data-yt={ytId}>
+          <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={N.video}>
+            <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
+            <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
+          </button>
+        </div>
       </div>
     )}
   </section>
@@ -744,8 +796,17 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     .lead-photo::after { background: linear-gradient(to right, transparent 55%, var(--color-ink-n) 98%); }
     .lead-photo :global(img) { clip-path: ellipse(100% 140% at 0% 50%); }
   }
-  .prog-m { min-width: 96px; flex: 1; border-top: 2px solid var(--color-line); padding: 6px 8px 0; text-align: center; font-size: 12px; line-height: 16px; color: #8e9099; }
-  .prog-m[aria-selected='true'] { border-color: var(--color-ink-n); color: var(--color-ink-n); }
+  .seg { display: inline-flex; gap: 2px; border-radius: 999px; background: #fff; padding: 4px; box-shadow: 0 2px 12px rgba(9,7,20,.06); }
+  .seg button { border-radius: 999px; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: #8e9099; white-space: nowrap; transition: background .2s, color .2s, box-shadow .2s; }
+  .seg button[aria-selected='true'] { background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.16); }
+  .prog-arrow { position: absolute; top: calc(50% - 26px); place-items: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(30,30,36,.72); color: #fff; backdrop-filter: blur(6px); transition: background .2s; }
+  .prog-arrow:hover { background: rgba(30,30,36,.9); }
+  .prog-y { margin-top: -1px; min-width: 40px; border-top: 1px solid #8e9099; padding-top: 12px; font-size: 16px; line-height: 20px; color: #8e9099; }
+  .prog-y[aria-selected='true'] { border-top-color: var(--color-ink-n); color: var(--color-ink-n); }
+  .prog-m { min-width: 52px; flex: 1; margin-top: -1px; border-top: 2px solid transparent; padding: 12px 4px 0; text-align: center; font-size: 11px; line-height: 16px; color: #6f717c; }
+  .prog-m:disabled { color: #c3c4cc; cursor: default; }
+  .prog-m:not(:disabled):hover { color: var(--color-ink-n); }
+  .prog-m[aria-pressed='true'] { border-top-color: var(--color-ink-n); color: var(--color-ink-n); font-weight: 500; }
   .news-text summary::-webkit-details-marker { display: none; }
 </style>
 <script>
@@ -759,6 +820,26 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     f.className = 'absolute inset-0 size-full'; f.src = v.dataset.tour!; f.title = '3D'; f.allow = 'fullscreen; xr-spatial-tracking'; f.allowFullscreen = true;
     v.replaceChildren(f);
   }));
+  // Ход строительства: вид (фото / трансляция / видео), год и месяц на шкале.
+  document.querySelectorAll<HTMLElement>('[data-prog]').forEach((box) => {
+    const views = [...box.querySelectorAll<HTMLElement>('[data-prog-view]')];
+    views.forEach((b) => b.addEventListener('click', () => {
+      views.forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      box.querySelectorAll<HTMLElement>('[data-prog-pane]').forEach((pn) => { pn.hidden = pn.dataset.progPane !== b.dataset.progView; });
+    }));
+    const pick = (m: string) => {
+      box.querySelectorAll<HTMLElement>('[data-prog-month-pane]').forEach((pn) => { pn.hidden = pn.dataset.progMonthPane !== m; });
+      box.querySelectorAll<HTMLElement>('[data-prog-month]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.progMonth === m)));
+    };
+    box.querySelectorAll<HTMLButtonElement>('[data-prog-month]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.progMonth!)));
+    box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((b) => b.addEventListener('click', () => {
+      const y = b.dataset.progYear!;
+      box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      box.querySelectorAll<HTMLElement>('[data-prog-row]').forEach((r) => { r.hidden = r.dataset.progRow !== y; });
+      const last = [...box.querySelectorAll<HTMLButtonElement>(`[data-prog-row="${y}"] [data-prog-month]:not(:disabled)`)].pop();
+      if (last) pick(last.dataset.progMonth!);
+    }));
+  });
   // Галерея по категориям: кнопка показывает только свои фото и листает ленту в начало.
   document.querySelectorAll<HTMLElement>('[data-gcat]').forEach((box) => {
     const track = box.querySelector<HTMLElement>('[data-car-track]');
