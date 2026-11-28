@@ -92,19 +92,31 @@ const W = { prev: { ru: 'Предыдущее фото', en: 'Previous photo', t
     const strip = g.querySelector<HTMLElement>('[data-strip]');
     const thumbs = [...g.querySelectorAll<HTMLButtonElement>('[data-thumb]')];
     let cur = 0;
-    // Просмотр крупно: берём ту же картинку из оптимизатора, но 1920 px; без оптимизатора — исходный файл.
+    // Просмотр крупно (Anuar 28.11.2026): у Portfolio фото «large» всего 1024 px, а без «/large/» в адресе — 1500 px.
+    // Берём крупный вариант (через оптимизатор, если он есть), пока грузится — показываем уже загруженное среднее,
+    // соседние фото подгружаем заранее. Если крупного нет — «large» в 1920 px, затем исходный файл.
     const lb = g.querySelector<HTMLDialogElement>('[data-lb]');
     const lbImg = g.querySelector<HTMLImageElement>('[data-lb-img]');
     const lbCounter = g.querySelector('[data-lb-counter]');
-    const big = () => {
-      const src = main.currentSrc || main.src;
-      return /[?&]w=\d+/.test(src) ? src.replace(/w=\d+/, 'w=1920') : src;
+    const rawOf = (i: number) => (thumbs.length ? thumbs[(i + thumbs.length) % thumbs.length].dataset.thumb! : main.dataset.orig || main.src);
+    const optBase = () => { const m = /^(.*?\/(?:_vercel\/image|img))\?url=/.exec(main.currentSrc || main.src); return m ? m[1] : ''; };
+    const via = (raw: string) => { const b = optBase(); return b ? `${b}?url=${encodeURIComponent(raw)}&w=1920&q=80` : raw; };
+    const bigger = (raw: string) => raw.replace(/([^:])\/\/+/g, '$1/').replace(/\/large\//, '/');
+    const variants = (i: number) => { const raw = rawOf(i); const b = bigger(raw); return [...new Set([via(b), via(raw), raw])]; };
+    const cache = new Map<string, Promise<string>>();
+    const load = (list: string[]): Promise<string> => {
+      const key = list[0];
+      if (!cache.has(key)) cache.set(key, list.reduce<Promise<string>>((p, u) => p.catch(() => new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(u); im.onerror = no; im.src = u; })), Promise.reject()).catch(() => list[list.length - 1]));
+      return cache.get(key)!;
     };
     const lbSync = () => {
       if (!lbImg) return;
-      lbImg.src = big();
+      const at = cur;
+      lbImg.src = main.currentSrc || main.src; // сразу — то, что уже на экране
       lbImg.alt = main.alt;
-      if (lbCounter) lbCounter.textContent = `${cur + 1} / ${thumbs.length}`;
+      if (lbCounter) lbCounter.textContent = thumbs.length > 1 ? `${cur + 1} / ${thumbs.length}` : '';
+      load(variants(at)).then((u) => { if (cur === at && lb?.open) lbImg.src = u; });
+      if (thumbs.length > 1) { load(variants(at + 1)); load(variants(at - 1)); }
     };
     g.querySelector('[data-zoom]')?.addEventListener('click', () => {
       if (!lb) return;
