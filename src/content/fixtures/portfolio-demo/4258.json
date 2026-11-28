@@ -1,0 +1,93 @@
+{
+ "card": {
+  "id": "4258",
+  "bitrixId": "",
+  "code": "-63",
+  "title": "Просторный земельный участок в районе Угурлу",
+  "projectBitrixId": null,
+  "projectCode": null,
+  "projectName": null,
+  "roomLabel": null,
+  "propertyType": "Land",
+  "city": "Аланья",
+  "area": null,
+  "operation": "sale",
+  "objectType": "object",
+  "price": 3750000,
+  "currency": "TRY",
+  "totalArea": null,
+  "distanceToSea": 27000,
+  "floor": null,
+  "objectCode": "LN048",
+  "buildName": null,
+  "isPrivate": false,
+  "discount": null,
+  "imageUrl": "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/e472a56ac98caa7252d7f9b5b86b321c.jpg",
+  "detailUrl": "/sale/4258?source=portfolio&language=ru",
+  "langs": [
+   "ru",
+   "en",
+   "sr"
+  ],
+  "modified": "2025-10-01 01:15:26"
+ },
+ "detail": {
+  "id": "4258",
+  "operation": "sale",
+  "i18n": {
+   "ru": {
+    "title": "Просторный земельный участок в районе Угурлу",
+    "content": "<p>Предлагаем вашему вниманию земельный участок под застройку в Алании, район Угурлу.<br>Площадь участка составляет 2.515,75 м². Расстояние до центра Алании — всего 25 км.</p><p>Район Угурлу — это тихий и зеленый уголок Аланьи, расположенный на возвышенности с прекрасными видами на море и горы. Здесь преобладают виллы, частные дома и земельные участки, что делает район особенно привлекательным для тех, кто ценит уединение, простор и близость к природе.</p><p>Инфраструктура района Угурлу: небольшие продуктовые магазины и локальные маркеты, традиционные кафе и рестораны, школы и детские сады. До центра Аланьи можно доехать всего за 15–20 минут. Район отличается чистым воздухом, тишиной и панорамными видами, поэтому Угурлу выбирают для строительства частных вилл и загородных резиденций.</p>"
+   },
+   "en": {
+    "title": "Spacious plot of land in the Ugurlu area",
+    "content": "<p>We present to your attention a plot of land for development in Alanya, Ugurlu district.<br>The plot area is 2,515.75 m². The distance to the center of Alanya is only 25 km.</p><p>Ugurlu is a quiet and green part of Alanya, located on an elevated position with stunning views of the sea and mountains. The area is dominated by villas, private houses, and land plots, which makes it especially attractive for those who value privacy, space, and closeness to nature.</p><p>Infrastructure of Ugurlu district: small grocery stores and local markets, traditional cafés and restaurants, schools and kindergartens. The city center of Alanya can be reached in just 15–20 minutes. The district is distinguished by clean air, tranquility, and panoramic views, which is why Ugurlu is chosen for building private villas and countryside residences</p>"
+   },
+   "sr": {
+    "title": "Prostrano zemljište u oblasti Ugurlu",
+    "content": "<p>Nudimo vam na prodaju zemljište za izgradnju u Alanyi, oblast Ugurlu.<br>Površina parcele iznosi 2.515,75 m². Udaljenost do centra Alanye je samo 25 km.</p><p>Ugurlu je miran i zelen kutak Alanye, smešten na uzvišenju sa prelepim pogledom na more i planine. U oblasti preovladavaju vile, privatne kuće i zemljišne parcele, što čini ovaj kraj posebno privlačnim za one koji cene privatnost, prostranost i blizinu prirode.</p><p>Infrastruktura oblasti Ugurlu: manji marketi i lokalne pijace, tradicionalni kafići i restorani, škole i vrtići. Do centra Alanye može se stići za samo 15–20 minuta. Oblast se odlikuje čistim vazduhom, tišinom i panoramskim pogledima, pa se Ugurlu bira za izgradnju privatnih vila i seoskih rezidencija.</p>"
+   }
+  },
+  "imageUrls": [
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/e472a56ac98caa7252d7f9b5b86b321c.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/a6df29f1ea8dd8bbd92d96defbc132fa.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/effd6c692cb6008de7c7e4f089e8b429.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/cfb59e0693f2f4eb02430abae6cbed37.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/7d2ce5aeea1ea7503f923b2a10b2d5f0.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/3d93621d51b876daed77bd8b20a0b14d.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4258/large/3bba48b90fe4d1f69f19f918376300f7.jpg"
+  ],
+  "yearBuilt": null,
+  "regionName": "Аланья",
+  "country": "Turkey",
+  "pricePerSquare": null,
+  "videoUrl": null,
+  "latitude": null,
+  "longitude": null,
+  "amenities": {
+   "ru": [],
+   "en": []
+  },
+  "view": {
+   "ru": [],
+   "en": []
+  },
+  "purpose": {
+   "ru": [],
+   "en": []
+  },
+  "businessType": {
+   "ru": [],
+   "en": []
+  },
+  "extra": {
+   "relax_zone": "N",
+   "distance_sea": "27000",
+   "active": "Y",
+   "land_area": "2515",
+   "citizenship": "N",
+   "sorting": "500"
+  },
+  "modified": "2025-10-01 01:15:26"
+ }
+}

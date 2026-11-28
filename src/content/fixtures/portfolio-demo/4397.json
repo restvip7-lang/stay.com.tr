@@ -1,0 +1,131 @@
+{
+ "card": {
+  "id": "4397",
+  "bitrixId": "",
+  "code": "71",
+  "title": "Просторная вилла 7+1 с видом на горы и море в районе Каргыджак",
+  "projectBitrixId": null,
+  "projectCode": null,
+  "projectName": null,
+  "roomLabel": "7+1",
+  "propertyType": "Villa",
+  "city": "Аланья",
+  "area": "Каргыджак",
+  "operation": "sale",
+  "objectType": "object",
+  "price": 2500000,
+  "currency": "EUR",
+  "totalArea": 721,
+  "distanceToSea": 2550,
+  "floor": null,
+  "objectCode": "VL252",
+  "buildName": null,
+  "isPrivate": false,
+  "discount": null,
+  "imageUrl": "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/166a6b6727cca58118c2a210218d5fe0.jpg",
+  "detailUrl": "/sale/4397?source=portfolio&language=ru",
+  "langs": [
+   "ru",
+   "en",
+   "sr"
+  ],
+  "modified": "2026-07-05 01:15:20"
+ },
+ "detail": {
+  "id": "4397",
+  "operation": "sale",
+  "i18n": {
+   "ru": {
+    "title": "Просторная вилла 7+1 с видом на горы и море в районе Каргыджак",
+    "content": "<p>Выставлена на продажу вилла в Каргыджаке.</p><p>Планировка виллы 7+1, общая площадь 721 квадратных метров, расстояние до моря 2550 метров.</p><p>Каргыджак - престижный район Аланьи, где представлен большой выбор вилл на любой вкус и бюджет - от простых и небольших до отдельностоящих роскошных особняков с большими бассейнами. В отличие от других районов Тепе и Бекташ, где тоже активно строятся и продаются виллы в Аланье у подножья гор, в Каргыджаке более мягкий рельеф и не такой резкий спуск по дороге к морю.</p><p>Каргыджак расположен в 13 км от центра Аланьи и всего в 25 км от аэропорта Газипаша с международными рейсами. Здесь 4 км береговой линии с красивыми песчано-галечными пляжами, многие из которых отдалены от трассы D-400 растительностью.</p><p>Заход в море комфортный, берег широкий. На набережной есть пляжные кафе, зона отдыха с беседками и барбекю, кемпинг с рестораном. В городке есть вся базовая инфраструктура, включая супермаркеты, магазины, аптеки, заправки, сервисы.</p>"
+   },
+   "en": {
+    "title": "Spacious 7+1 villa with mountain and sea views in the Kargicak area",
+    "content": "<p>A villa in Kargicak for sale<br>Villa layout: 7+1, total area: 721 sq.m, distance to the sea: 2550 m</p><p>Kargicak is a prestigious district of Alanya with a wide choice of villas for every taste and budget - from simple and small to stand-alone luxurious mansions with big swimming pools. Unlike other districts such as Tepe and Bektas, where villas are also being actively built up and sold in Alanya, Kargicak offers a more smooth terrain and less sharp road descent to the sea.</p><p>Kargicak is 13 km from the center of Alanya and only 25 km from Gazipasa Airport with international flights. The district has 4 km of coastline with beautiful sand and pebble beaches, many of which are separated from the D-400 Highway by vegetation.</p><p>The entrance to the sea is convenient and the beach line is wide. There are beach cafes, recreation areas with gazebos and barbecue, a camping area and a restaurant on the seafront. There is all the necessary infrastructure including supermarkets, shops, pharmacies, gas stations and services in the town.&nbsp;<br>&nbsp;</p>"
+   },
+   "sr": {
+    "title": "Prostrana vila 7+1 sa pogledom na planine i more u oblasti Kargicak",
+    "content": "<p>Vila na prodaju u Kargičaku.</p><p>Raspored vile je 7+1, ukupne površine 721 m2, udaljenost do mora je 2550 metara.</p><p>Kargicak je prestižna oblast Alanje, gde je predstavljen veliki izbor vila za svačiji ukus i budžet - od jednostavnih i malih do samostojećih luksuznih vila sa velikim bazenima. Za razliku od drugih oblasti Tepea i Bektaša, gde se takođe aktivno grade i prodaju vile u Alanji, Kargičak ima blaži teren i manje naglo spuštanje putem ka moru.</p><p>Kargicak se nalazi 13 km od centra Alanje i samo 25 km od aerodroma Gazipaša sa međunarodnim letovima. Ima 4 km obale sa prekrasnim peščanim i šljunčanim plažama, od kojih su mnoge odvojene od D-400 vegetacijom.</p><p>Ulaz u more je udoban, obala široka. Na nasipu se nalaze kafići na plaži, prostori za rekreaciju sa letnjikovcima i roštiljem, kampovanje sa restoranom. Grad ima svu osnovnu infrastrukturu, uključujući supermarkete, prodavnice, apoteke, benzinske pumpe, usluge.</p>"
+   }
+  },
+  "imageUrls": [
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/166a6b6727cca58118c2a210218d5fe0.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/db5c322fb0e73419d12c3dc15617febc.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/c7783d12794140c49a46896ae6f224e9.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/e9199ae81404c60141bbe64bc474a93f.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/3d5142399b71bb54eb1c389c4c0315a2.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/2705c68c22e61602dd02ce8ec90c901c.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/113ab64ffaa38a06927988a8319e3b12.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/19992caddc8033d0306e0e70c873f3c3.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/d8017f071ed92153f8973c8df8ccc999.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/5f947ea2bad1d637816c7a939c399aab.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/66ebd7107d222a22acac7d18bc67648f.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/d11d422bf379e7b093ba0b8065348e39.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/a63f49130d25a867ead449bc5224925e.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/77dfa39f93abe5e78000a84edc4c90bb.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/d27b51efae67308ae1d4df442537cfe2.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/9217c0fccd8aecb3a6ec8fe2bd55d9f8.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/76e7adfa0368680912250552ec684a47.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4397/large/9ac42e4f42be87f618eeb821502f7d29.jpg"
+  ],
+  "yearBuilt": "2027",
+  "regionName": "Каргыджак, Аланья",
+  "country": "Turkey",
+  "pricePerSquare": 3467,
+  "videoUrl": null,
+  "latitude": null,
+  "longitude": null,
+  "amenities": {
+   "ru": [
+    "Видеонаблюдение 24/7",
+    "Children's swimming pool",
+    "Джакузи",
+    "Крытая парковка",
+    "Открытая парковка",
+    "Открытый бассейн",
+    "Римская парная",
+    "Турецкий хаммам",
+    "Финская сауна",
+    "Фитнес-центр",
+    "Электрический генератор"
+   ],
+   "en": [
+    "Video surveillance 24/7",
+    "Children's swimming pool",
+    "Jacuzzi",
+    "Covered parking",
+    "Open Parking",
+    "Open Pool",
+    "Roman Steam Room",
+    "Turkish Hammam",
+    "Finnish Sauna",
+    "Fitness Center",
+    "Electric Generator"
+   ]
+  },
+  "view": {
+   "ru": [],
+   "en": []
+  },
+  "purpose": {
+   "ru": [],
+   "en": []
+  },
+  "businessType": {
+   "ru": [],
+   "en": []
+  },
+  "extra": {
+   "relax_zone": "N",
+   "distance_sea": "2550",
+   "area_square": "721",
+   "year_built": "2027",
+   "active": "Y",
+   "floors_villa": "3",
+   "land_area": "718",
+   "citizenship": "Y",
+   "sorting": "500"
+  },
+  "modified": "2026-07-05 01:15:20"
+ }
+}
