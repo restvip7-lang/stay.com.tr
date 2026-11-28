@@ -34,18 +34,18 @@ const team = TEAM.filter((m) => m.photo);
 {team.length > 0 && (
   <section class="card-n p-5" data-managers aria-label={T.title}>
     <p class="text-[12px] font-medium uppercase tracking-[1px] text-soft">{T.title}</p>
-    <div class="relative mt-3 grid">
+    <div class="relative mt-3 grid grid-cols-[minmax(0,1fr)]">
       {team.map((m, i) => (
         <div class:list={['mgr-slide col-start-1 row-start-1 flex items-center gap-3', i === 0 && 'is-on']} data-mgr={i} aria-hidden={i === 0 ? undefined : 'true'}>
-          <a href={`/${lang}/team/${m.slug}/`} class="size-16 shrink-0 overflow-hidden rounded-full bg-page-n" tabindex={i === 0 ? undefined : -1}>
+          <a href={`/${lang}/team/${m.slug}/`} class="size-14 shrink-0 overflow-hidden rounded-full bg-page-n sm:size-16" tabindex={i === 0 ? undefined : -1}>
             <Img src={m.photo} alt={m.name[lang]} class="size-full object-top" width={128} height={128} loading="eager" />
           </a>
           <div class="min-w-0 flex-1">
             <a href={`/${lang}/team/${m.slug}/`} class="block truncate text-[16px] font-medium leading-[22px] hover:text-accent" tabindex={i === 0 ? undefined : -1}>{m.name[lang]}</a>
             <p class="mt-0.5 text-[13px] leading-[18px] text-soft">{MEMBER_ROLE[lang]}</p>
           </div>
-          <a href={`https://wa.me/${WA}?text=${encodeURIComponent(HELLO(m.name[lang]))}`} target="_blank" rel="noopener" class="grid size-11 shrink-0 place-items-center rounded-full bg-[#25d366] text-white transition hover:brightness-95" aria-label={`${T.wa}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="whatsapp" class="size-5" /></a>
-          <a href={TG} target="_blank" rel="noopener" class="grid size-11 shrink-0 place-items-center rounded-full bg-[#2aabee] text-white transition hover:brightness-95" aria-label={`${T.tg}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="telegram" class="size-5" /></a>
+          <a href={`https://wa.me/${WA}?text=${encodeURIComponent(HELLO(m.name[lang]))}`} target="_blank" rel="noopener" class="grid size-10 shrink-0 place-items-center rounded-full sm:size-11 bg-[#25d366] text-white transition hover:brightness-95" aria-label={`${T.wa}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="whatsapp" class="size-5" /></a>
+          <a href={TG} target="_blank" rel="noopener" class="grid size-10 shrink-0 place-items-center rounded-full sm:size-11 bg-[#2aabee] text-white transition hover:brightness-95" aria-label={`${T.tg}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="telegram" class="size-5" /></a>
         </div>
       ))}
     </div>
