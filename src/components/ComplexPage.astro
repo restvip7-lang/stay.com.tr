@@ -490,13 +490,28 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
         <button type="button" class="gal2-arrow left-[3%] lg:left-[8%]" data-gal2-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-5" /></button>
         <button type="button" class="gal2-arrow right-[3%] lg:right-[8%]" data-gal2-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-5" /></button>
       </div>
-      <dialog class="gal2-lb m-0 size-full max-h-none max-w-none bg-transparent p-0 backdrop:bg-[#0e0f14]/90" data-gal2-lb aria-label={GAL.title[lang]}>
-        <div class="relative grid size-full place-items-center p-4 lg:px-24 lg:py-10" data-gal2-lb-stage>
-          <img src="" alt="" class="max-h-full max-w-full rounded-[12px] object-contain" data-gal2-lb-img />
-          <button type="button" class="gal2-lb-btn right-4 top-4" data-gal2-lb-close aria-label={GAL.close[lang]}><Icon name="close" class="size-6" /></button>
-          <button type="button" class="gal2-lb-btn left-2 top-1/2 -translate-y-1/2 lg:left-6" data-gal2-lb-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-6" /></button>
-          <button type="button" class="gal2-lb-btn right-2 top-1/2 -translate-y-1/2 lg:right-6" data-gal2-lb-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-6" /></button>
-          <span class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-medium tracking-[1px] text-white" data-gal2-lb-count></span>
+      <dialog class="gal2-lb m-0 size-full max-h-none max-w-none p-0" data-gal2-lb aria-label={GAL.title[lang]}>
+        {/* На весь экран как у образца (ЖК МИРА): фото во всю высоту слева, справа тёмная колонка — «закрыть» вверху,
+            стрелки внизу; вкладки категорий поверх фото сверху, счётчик «02 / 06» в углу фото. */}
+        <div class="flex size-full">
+          <div class="relative min-w-0 flex-1 overflow-hidden" data-gal2-lb-stage>
+            <img src="" alt="" class="size-full object-contain lg:object-cover" data-gal2-lb-img />
+            {galGroups.length > 1 && (
+              <div class="absolute left-3 right-[68px] top-3 flex justify-start lg:inset-x-3 lg:top-6 lg:justify-center">
+                <div class="seg gal2-lb-tabs max-w-full scroll-x" role="tablist">
+                  {galGroups.map((gr, gi) => <button type="button" role="tab" aria-selected="false" data-gal2-lb-tab={gi}>{gr.label}</button>)}
+                </div>
+              </div>
+            )}
+            <span class="absolute bottom-6 left-4 lg:bottom-4 lg:left-auto lg:right-4 text-[12px] font-semibold tracking-[1px] text-white [text-shadow:0_1px_4px_rgb(0_0_0/.5)]" data-gal2-lb-count></span>
+          </div>
+          <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 lg:pointer-events-auto lg:static lg:w-[152px] lg:shrink-0 lg:p-4">
+            <button type="button" class="gal2-lb-btn pointer-events-auto self-end" data-gal2-lb-close aria-label={GAL.close[lang]}><Icon name="close" class="size-5" /></button>
+            <div class="pointer-events-auto flex justify-end gap-3">
+              <button type="button" class="gal2-lb-btn" data-gal2-lb-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-5" /></button>
+              <button type="button" class="gal2-lb-btn" data-gal2-lb-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-5" /></button>
+            </div>
+          </div>
         </div>
       </dialog>
     </section>
@@ -837,9 +852,13 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   .gal2-arrow { position: absolute; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; color: #fff; background: rgb(28 30 38 / .55); backdrop-filter: blur(6px); transition: background .2s; }
   .gal2-arrow:hover { background: rgb(28 30 38 / .75); }
   @media (min-width: 1024px) { .gal2-arrow { width: 64px; height: 64px; border-radius: 16px; } }
+  .gal2-lb { background: #0b0c1f; }
   .gal2-lb[open] { display: block; }
-  .gal2-lb-btn { position: absolute; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 999px; color: #fff; background: rgb(255 255 255 / .12); }
-  .gal2-lb-btn:hover { background: rgb(255 255 255 / .24); }
+  .gal2-lb::backdrop { background: #0b0c1f; }
+  .gal2-lb-btn { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #fff; color: var(--color-ink-n, #1c1e26); box-shadow: 0 4px 16px rgb(0 0 0 / .25); transition: transform .15s; }
+  .gal2-lb-btn:hover { transform: scale(1.05); }
+  @media (min-width: 1024px) { .gal2-lb-btn { width: 56px; height: 56px; border-radius: 16px; } }
+  .gal2-lb-tabs { background: rgb(255 255 255 / .82); backdrop-filter: blur(8px); }
   .tile-btn { position: relative; margin-top: auto; align-self: flex-end; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.08); transition: transform .15s; }
   .tile-btn:hover { transform: translateY(-2px); }
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
@@ -950,12 +969,17 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
       const big = new Image();
       big.onload = () => { if (slides[at] === el) lbImg.src = big.src; };
       big.src = el.dataset.src!.replace(/([^:])\/\/+/g, '$1/');
-      lbCount.textContent = `${at + 1} / ${slides.length}`;
+      const g = el.dataset.g!;
+      const inG = slides.filter((x) => x.dataset.g === g);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      lbCount.innerHTML = `${pad(inG.indexOf(el) + 1)}<span style="opacity:.6"> / ${pad(inG.length)}</span>`;
+      box.querySelectorAll<HTMLElement>('[data-gal2-lb-tab]').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.gal2LbTab === g)));
     };
     slides.forEach((el, i) => el.querySelectorAll('[data-gal2-open]').forEach((b) => b.addEventListener('click', () => { showLb(i); lb.showModal(); document.documentElement.style.overflow = 'hidden'; })));
     lb.addEventListener('close', () => { document.documentElement.style.overflow = ''; goTo(at, false); });
     lb.addEventListener('click', (e) => { if (e.target === lb || e.target === box.querySelector('[data-gal2-lb-stage]')) lb.close(); });
     box.querySelector('[data-gal2-lb-close]')?.addEventListener('click', () => lb.close());
+    box.querySelectorAll<HTMLElement>('[data-gal2-lb-tab]').forEach((t) => t.addEventListener('click', () => { const i = slides.findIndex((el) => el.dataset.g === t.dataset.gal2LbTab); if (i >= 0) showLb(i); }));
     box.querySelectorAll<HTMLButtonElement>('[data-gal2-lb-step]').forEach((b) => b.addEventListener('click', () => showLb(at + Number(b.dataset.gal2LbStep))));
     lb.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') { showLb(at - 1); e.preventDefault(); } if (e.key === 'ArrowRight') { showLb(at + 1); e.preventDefault(); } });
     let x0 = 0, y0 = 0;
