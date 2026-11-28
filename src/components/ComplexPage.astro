@@ -225,6 +225,17 @@ const buyWays = tb.buyWays.map((x, i) => i === 1 && (insDown || insMonths || ins
 // Фото по категориям: фото из базы ЖК + свои из админки; без категории — только во «Все».
 const photoList = [...galleryApi.map((src) => ({ src, cat: (pp.photoCats?.[src] ?? '') as PhotoCat | '' })), ...(pp.photos ?? [])];
 const catsUsed = PHOTO_CATS.filter((k) => photoList.some((x) => x.cat === k));
+// Галерея: фото по категориям подряд (порядок категорий как в админке), без категории — в конце «Другое».
+const GAL = {
+  title: { ru: 'Галерея', en: 'Gallery', tr: 'Galeri', de: 'Galerie', sr: 'Galerija' } as Record<string, string>,
+  other: { ru: 'Другое', en: 'Other', tr: 'Diğer', de: 'Weitere', sr: 'Ostalo' } as Record<string, string>,
+  open: { ru: 'Открыть фото на весь экран', en: 'Open photo full screen', tr: 'Fotoğrafı tam ekran aç', de: 'Foto im Vollbild öffnen', sr: 'Otvori fotografiju preko celog ekrana' } as Record<string, string>,
+  close: { ru: 'Закрыть', en: 'Close', tr: 'Kapat', de: 'Schließen', sr: 'Zatvori' } as Record<string, string>,
+};
+const galGroups = [
+  ...catsUsed.map((k) => ({ label: PHOTO_CAT_LABEL[k][lang], items: photoList.filter((x) => x.cat === k).map((x) => x.src) })),
+  { label: catsUsed.length ? GAL.other[lang] : GAL.title[lang], items: photoList.filter((x) => !x.cat).map((x) => x.src) },
+].filter((gr) => gr.items.length);
 // Материалы (PDF) по вкладкам; плитка «Презентация» ведёт на первую презентацию.
 const docsReal = (pp.docs ?? []).map((x) => ({ tab: x.tab, title: tx(x.title, lang), file: x.file, cover: x.cover || null, demo: false }));
 const docs = docsReal.length ? docsReal : demo ? tb.docsList.slice(0, 3).map((title, i) => ({ tab: (['pres', 'plans', 'docs'] as const)[i], title, file: '', cover: null, demo: true })) : [];
@@ -442,26 +453,41 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   </section>
 
   {photoList.length > 2 && (
-    <section class="container-n mt-20 lg:mt-28" data-car data-gcat>
-      {/* Галерея с категориями (Anuar 28.11.2026): Все · Территория · Инфраструктура · Интерьер · Вид и окружение; пустая категория не показывается. */}
-      <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
-        <h2 class="display h-section-n">{d.item.gallery}</h2>
-        <div class="flex max-w-full items-center gap-2">
+    <section class="mt-20 lg:mt-28" data-gal2 aria-labelledby="gal2-h">
+      {/* Галерея как у образца (ЖК МИРА, Anuar 28.11.2026): одна карусель, фото идут по категориям; вкладка переносит к первому
+          фото категории и подсвечивается сама при листании. На каждом фото — «01 / 06» внутри категории и кнопка «на весь экран». */}
+      <div class="container-n mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+        <h2 id="gal2-h" class="display h-section-n">{GAL.title[lang]}</h2>
+        {galGroups.length > 1 && (
           <div class="seg max-w-full scroll-x" role="tablist">
-            <button type="button" role="tab" aria-selected="true" data-gcat-btn="">{PHOTO_CAT_LABEL.all[lang]} · {photoList.length}</button>
-            {catsUsed.map((k) => <button type="button" role="tab" aria-selected="false" data-gcat-btn={k}>{PHOTO_CAT_LABEL[k][lang]} · {photoList.filter((x) => x.cat === k).length}</button>)}
+            {galGroups.map((gr, gi) => <button type="button" role="tab" aria-selected={gi === 0 ? 'true' : 'false'} data-gal2-tab={gi}>{gr.label}</button>)}
           </div>
-          <button type="button" class="car-btn hidden lg:grid" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button>
-          <button type="button" class="car-btn hidden lg:grid" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button>
+        )}
+      </div>
+      <div class="relative">
+        <div class="gal2-track scroll-x flex snap-x snap-mandatory gap-3 lg:gap-6" data-gal2-track>
+          {galGroups.flatMap((gr, gi) => gr.items.map((src, k) => (
+            <div class="gal2-slide relative shrink-0 snap-center overflow-hidden rounded-[24px] bg-page-n" data-gal2-slide data-g={gi} data-src={src}>
+              <button type="button" class="block w-full cursor-zoom-in" data-gal2-open aria-label={`${GAL.open[lang]}: ${d.photo} ${k + 1}`}>
+                <Img src={src} alt={`${c.title} — ${gr.label} — ${d.photo} ${k + 1}`} class="aspect-[4/3] w-full lg:aspect-[16/9]" width={1280} height={720} sizes="(min-width: 1024px) 80vw, 90vw" />
+              </button>
+              <span class="pointer-events-none absolute left-4 top-4 rounded-full bg-[#1c1e2680] px-2.5 py-1 text-[11px] font-semibold tracking-[1px] text-white backdrop-blur lg:left-6 lg:top-6">{String(k + 1).padStart(2, '0')}<span class="opacity-60"> / {String(gr.items.length).padStart(2, '0')}</span></span>
+              <button type="button" class="absolute right-4 top-4 grid size-11 place-items-center rounded-[14px] bg-white text-ink-n shadow-md transition hover:scale-105 lg:right-6 lg:top-6 lg:size-14" data-gal2-open aria-label={GAL.open[lang]}><Icon name="expand" class="size-5" /></button>
+            </div>
+          )))}
         </div>
+        <button type="button" class="gal2-arrow left-[3%] lg:left-[8%]" data-gal2-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-5" /></button>
+        <button type="button" class="gal2-arrow right-[3%] lg:right-[8%]" data-gal2-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-5" /></button>
       </div>
-      <div class="scroll-x flex snap-x snap-mandatory gap-3" data-car-track>
-        {photoList.map((x, i) => (
-          <a href={x.src} target="_blank" rel="noopener" class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] lg:w-[82%]" data-gcat-item={x.cat}>
-            <Img src={x.src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="aspect-[4/3] w-full lg:aspect-[16/9]" width={1280} height={720} />
-          </a>
-        ))}
-      </div>
+      <dialog class="gal2-lb m-0 size-full max-h-none max-w-none bg-transparent p-0 backdrop:bg-[#0e0f14]/90" data-gal2-lb aria-label={GAL.title[lang]}>
+        <div class="relative grid size-full place-items-center p-4 lg:px-24 lg:py-10" data-gal2-lb-stage>
+          <img src="" alt="" class="max-h-full max-w-full rounded-[12px] object-contain" data-gal2-lb-img />
+          <button type="button" class="gal2-lb-btn right-4 top-4" data-gal2-lb-close aria-label={GAL.close[lang]}><Icon name="close" class="size-6" /></button>
+          <button type="button" class="gal2-lb-btn left-2 top-1/2 -translate-y-1/2 lg:left-6" data-gal2-lb-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-6" /></button>
+          <button type="button" class="gal2-lb-btn right-2 top-1/2 -translate-y-1/2 lg:right-6" data-gal2-lb-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-6" /></button>
+          <span class="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full bg-white/15 px-3 py-1.5 text-[12px] font-medium tracking-[1px] text-white" data-gal2-lb-count></span>
+        </div>
+      </dialog>
     </section>
   )}
 
@@ -766,6 +792,16 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   @media (min-width: 768px) { .tile-sq { aspect-ratio: 397 / 476; min-height: 0; } }
   /* Плиток меньше трёх — не растягиваем их в высоту: низкие широкие карточки. */
   @media (min-width: 768px) { .tiles-low .tile-sq { aspect-ratio: auto; min-height: 200px; } .tiles-one .tile-sq { min-height: 150px; } }
+  .gal2-track { scrollbar-width: none; padding-inline: 5vw; scroll-padding-inline: 5vw; }
+  .gal2-track::-webkit-scrollbar { display: none; }
+  .gal2-slide { width: 90vw; }
+  @media (min-width: 1024px) { .gal2-track { padding-inline: 10vw; scroll-padding-inline: 10vw; } .gal2-slide { width: 80vw; } }
+  .gal2-arrow { position: absolute; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; color: #fff; background: rgb(28 30 38 / .55); backdrop-filter: blur(6px); transition: background .2s; }
+  .gal2-arrow:hover { background: rgb(28 30 38 / .75); }
+  @media (min-width: 1024px) { .gal2-arrow { width: 64px; height: 64px; border-radius: 16px; } }
+  .gal2-lb[open] { display: block; }
+  .gal2-lb-btn { position: absolute; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 999px; color: #fff; background: rgb(255 255 255 / .12); }
+  .gal2-lb-btn:hover { background: rgb(255 255 255 / .24); }
   .tile-btn { position: relative; margin-top: auto; align-self: flex-end; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.08); transition: transform .15s; }
   .tile-btn:hover { transform: translateY(-2px); }
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
@@ -847,15 +883,46 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
       if (last) pick(last.dataset.progMonth!);
     }));
   });
-  // Галерея по категориям: кнопка показывает только свои фото и листает ленту в начало.
-  document.querySelectorAll<HTMLElement>('[data-gcat]').forEach((box) => {
-    const track = box.querySelector<HTMLElement>('[data-car-track]');
-    box.querySelectorAll<HTMLElement>('[data-gcat-btn]').forEach((b) => b.addEventListener('click', () => {
-      const k = b.dataset.gcatBtn ?? '';
-      box.querySelectorAll<HTMLElement>('[data-gcat-btn]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-      box.querySelectorAll<HTMLElement>('[data-gcat-item]').forEach((it) => { it.hidden = !!k && it.dataset.gcatItem !== k; });
-      track?.scrollTo({ left: 0 });
-    }));
+  // Галерея-карусель (как у ЖК МИРА): стрелки и вкладки листают к фото по центру, вкладка подсвечивается по текущему фото;
+  // «на весь экран» — крупное фото со стрелками, ←/→, свайпом; Esc и клик по фону закрывают.
+  document.querySelectorAll<HTMLElement>('[data-gal2]').forEach((box) => {
+    const track = box.querySelector<HTMLElement>('[data-gal2-track]')!;
+    const slides = [...box.querySelectorAll<HTMLElement>('[data-gal2-slide]')];
+    const tabs = [...box.querySelectorAll<HTMLButtonElement>('[data-gal2-tab]')];
+    const center = (el: HTMLElement) => el.offsetLeft - track.offsetLeft + el.offsetWidth / 2 - track.clientWidth / 2;
+    const current = () => { const mid = track.scrollLeft; let best = 0, dist = Infinity; slides.forEach((el, i) => { const dd = Math.abs(center(el) - mid); if (dd < dist) { dist = dd; best = i; } }); return best; };
+    const goTo = (i: number, smooth = true) => { const n = (i + slides.length) % slides.length; track.scrollTo({ left: center(slides[n]), behavior: smooth ? 'smooth' : 'auto' }); };
+    const markTab = () => { const g = slides[current()]?.dataset.g; tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.gal2Tab === g))); };
+    let raf = 0;
+    track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(markTab); }, { passive: true });
+    box.querySelectorAll<HTMLButtonElement>('[data-gal2-step]').forEach((b) => b.addEventListener('click', () => goTo(current() + Number(b.dataset.gal2Step))));
+    tabs.forEach((t) => t.addEventListener('click', () => { const i = slides.findIndex((el) => el.dataset.g === t.dataset.gal2Tab); if (i >= 0) goTo(i); }));
+    requestAnimationFrame(() => goTo(0, false));
+    // На весь экран: сразу то, что уже на экране, затем исходный файл.
+    const lb = box.querySelector<HTMLDialogElement>('[data-gal2-lb]')!;
+    const lbImg = box.querySelector<HTMLImageElement>('[data-gal2-lb-img]')!;
+    const lbCount = box.querySelector<HTMLElement>('[data-gal2-lb-count]')!;
+    let at = 0;
+    const showLb = (i: number) => {
+      at = (i + slides.length) % slides.length;
+      const el = slides[at];
+      const shown = el.querySelector('img');
+      lbImg.src = shown?.currentSrc || shown?.src || el.dataset.src!;
+      lbImg.alt = shown?.alt ?? '';
+      const big = new Image();
+      big.onload = () => { if (slides[at] === el) lbImg.src = big.src; };
+      big.src = el.dataset.src!.replace(/([^:])\/\/+/g, '$1/');
+      lbCount.textContent = `${at + 1} / ${slides.length}`;
+    };
+    slides.forEach((el, i) => el.querySelectorAll('[data-gal2-open]').forEach((b) => b.addEventListener('click', () => { showLb(i); lb.showModal(); document.documentElement.style.overflow = 'hidden'; })));
+    lb.addEventListener('close', () => { document.documentElement.style.overflow = ''; goTo(at, false); });
+    lb.addEventListener('click', (e) => { if (e.target === lb || e.target === box.querySelector('[data-gal2-lb-stage]')) lb.close(); });
+    box.querySelector('[data-gal2-lb-close]')?.addEventListener('click', () => lb.close());
+    box.querySelectorAll<HTMLButtonElement>('[data-gal2-lb-step]').forEach((b) => b.addEventListener('click', () => showLb(at + Number(b.dataset.gal2LbStep))));
+    lb.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') { showLb(at - 1); e.preventDefault(); } if (e.key === 'ArrowRight') { showLb(at + 1); e.preventDefault(); } });
+    let x0 = 0, y0 = 0;
+    lb.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    lb.addEventListener('touchend', (e) => { const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) showLb(at + (dx < 0 ? 1 : -1)); });
   });
   const mapEl = document.querySelector<HTMLElement>('[data-map]');
   if (mapEl) {
