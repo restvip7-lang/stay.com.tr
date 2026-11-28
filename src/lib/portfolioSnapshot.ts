@@ -25,6 +25,9 @@ export interface SnapshotDetail {
   /** Справочники Portfolio: инфраструктура и вид (подписи ru/en). Нет в старых снимках. */
   amenities?: { ru: string[]; en: string[] };
   view?: { ru: string[]; en: string[] };
+  /** Назначение земли и тип коммерции (справочники purpose, business_type). */
+  purpose?: { ru: string[]; en: string[] };
+  businessType?: { ru: string[]; en: string[] };
   /** Прочие короткие мета-поля объекта как есть (мебель, санузлы, участок…). */
   extra?: Record<string, string>;
 }

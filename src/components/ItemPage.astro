@@ -93,7 +93,9 @@ const XT = {
   baths: { ru: 'Санузлы', en: 'Bathrooms', tr: 'Banyo', de: 'Badezimmer', sr: 'Kupatila' }[lang],
   furniture: { ru: 'Мебель', en: 'Furniture', tr: 'Eşya', de: 'Möblierung', sr: 'Nameštaj' }[lang],
   land: { ru: 'Участок', en: 'Plot', tr: 'Arsa', de: 'Grundstück', sr: 'Plac' }[lang],
-  pool: { ru: 'Свой бассейн', en: 'Private pool', tr: 'Özel havuz', de: 'Eigener Pool', sr: 'Sopstveni bazen' }[lang],
+  purpose: { ru: 'Назначение', en: 'Zoning', tr: 'İmar durumu', de: 'Nutzung', sr: 'Namena' }[lang],
+  communication: { ru: 'Коммуникации', en: 'Utilities', tr: 'Altyapı', de: 'Erschließung', sr: 'Infrastruktura' }[lang],
+  business: { ru: 'Тип помещения', en: 'Premises type', tr: 'İşyeri türü', de: 'Gewerbeart', sr: 'Vrsta prostora' }[lang],
   view: { ru: 'Вид', en: 'View', tr: 'Manzara', de: 'Aussicht', sr: 'Pogled' }[lang],
   toCenter: { ru: 'До центра', en: 'To the centre', tr: 'Merkeze', de: 'Zum Zentrum', sr: 'Do centra' }[lang],
   toAirport: { ru: 'До аэропорта', en: 'To the airport', tr: 'Havalimanına', de: 'Zum Flughafen', sr: 'Do aerodroma' }[lang],
@@ -129,11 +131,17 @@ const facts: [string, string | null, string?][] = [
   ] as [string, string | null][] : []),
   ...(isHouse ? [
     [XT.villaFloors, ex(/^(floors_villa|villa_floors|floors)$/i)],
-    [XT.bedrooms, x.bedrooms ? String(x.bedrooms) : null],
-    [XT.pool, ex(/private_pool|own_pool/i) ? XT.yes : null],
+    [XT.bedrooms, x.bedrooms ? String(x.bedrooms) : ex(/^bedrooms$/i)],
+  ] as [string, string | null][] : []),
+  ...(x.type === 'land' ? [
+    [XT.purpose, ((own ?? fallback)?.purpose ?? []).join(', ') || null],
+    [XT.communication, ex(/communication/i)],
+  ] as [string, string | null][] : []),
+  ...(x.type === 'commercial' ? [
+    [XT.business, ((own ?? fallback)?.businessType ?? []).join(', ') || null],
   ] as [string, string | null][] : []),
   ...(x.type !== 'land' ? [
-    [XT.baths, ex(/bath|wc|toilet|санузл/i)],
+    [XT.baths, ex(/^(toilet|bath|bathrooms|wc)$|санузл/i)],
     [XT.furniture, x.type !== 'commercial' ? (yesNo(exAny(/furni|мебел/i)) ?? (chipOf('furnished') ? XT.yes : null)) : null, chipOf('furnished') ? linkOf('furnished') : undefined],
   ] as [string, string | null, string?][] : []),
   [XT.view, views.length ? views.join(', ') : null],

@@ -741,6 +741,8 @@ export interface DetailL {
   updated: string | null;
   /** Вид из окна (справочник Portfolio). */
   view?: string[];
+  purpose?: string[];
+  businessType?: string[];
   /** Прочие поля карточки Portfolio как есть — ItemPage берёт нужные по именам. */
   extra?: Record<string, string>;
 }
@@ -763,6 +765,8 @@ export async function getDetailL(id: string, operation: 'sale' | 'rental', lang:
       video: det.videoUrl,
       updated: det.modified,
       view: det.view?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
+      purpose: det.purpose?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
+      businessType: det.businessType?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
       extra: det.extra ?? {},
     };
   }

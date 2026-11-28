@@ -167,6 +167,8 @@ async function terms(id, tax, language = 'en') {
   return Array.isArray(r?.result) ? r.result : [];
 }
 
+// Подписи терминов без повторов (в справочниках есть дубли терминов с id 400+).
+const labels = (ts) => [...new Set(ts.map(termLabel).filter(Boolean))];
 const SKIP_META = /^(_|object_gallery|sales_cost|price|currency|refno|latitude|longitude|lat$|lng$|map|video|youtube|i18n|content|title|description)/i;
 /** Короткие значения мета-полей объекта (без служебных и уже разобранных). */
 function extraMeta(meta) {
@@ -190,10 +192,13 @@ async function readObject(listItem) {
 
   const TAX_AMEN = taxId('amenities', 'amenity', 'infrastructure', 'facilities');
   const TAX_VIEW = taxId('view', 'views', 'object_view');
-  const [cls, loc, cur, rooms, offer, type, amenRu, amenEn, viewRu, viewEn] = await Promise.all([
+  const [cls, loc, cur, rooms, offer, type, amenRu, amenEn, viewRu, viewEn, toilet, beds, purposeRu, purposeEn, bizRu, bizEn] = await Promise.all([
     terms(id, TAX_CLASS), terms(id, TAX_LOCATION), terms(id, TAX_CURRENCY), terms(id, TAX_ROOMS),
     terms(id, taxId('offer_type')), terms(id, taxId('object_type', 'object_types', 'property_type', 'property_types')),
     terms(id, TAX_AMEN, 'ru'), terms(id, TAX_AMEN, 'en'), terms(id, TAX_VIEW, 'ru'), terms(id, TAX_VIEW, 'en'),
+    // Справочники adminer/Portfolio (проба 28.11): 13 toilet — санузлы, 12 bedrooms — спальни, 8 purpose — назначение земли, 9 business_type — коммерция.
+    terms(id, taxId('toilet', 'toilets', 'bathrooms')), terms(id, taxId('bedrooms')),
+    terms(id, taxId('purpose'), 'ru'), terms(id, taxId('purpose'), 'en'), terms(id, taxId('business_type'), 'ru'), terms(id, taxId('business_type'), 'en'),
   ]);
   if (cls.some((t) => Number(t.term_id) === PROJECT_TERM)) return { skip: 'ЖК' };
   const offerIds = offer.map((t) => Number(t.term_id));
@@ -249,11 +254,13 @@ async function readObject(listItem) {
     latitude: num(meta.latitude ?? meta.lat),
     longitude: num(meta.longitude ?? meta.lng),
     // Инфраструктура и вид из окна (справочники Portfolio) — подписи на ru и en.
-    amenities: { ru: amenRu.map(termLabel).filter(Boolean), en: amenEn.map(termLabel).filter(Boolean) },
-    view: { ru: viewRu.map(termLabel).filter(Boolean), en: viewEn.map(termLabel).filter(Boolean) },
+    amenities: { ru: labels(amenRu), en: labels(amenEn) },
+    view: { ru: labels(viewRu), en: labels(viewEn) },
+    purpose: { ru: labels(purposeRu), en: labels(purposeEn) },
+    businessType: { ru: labels(bizRu), en: labels(bizEn) },
     // Прочие короткие поля карточки (мебель, санузлы, участок, этажность, до центра/аэропорта…):
     // сайт сам выбирает нужные по именам, так новые поля Portfolio появляются без правки синхронизации.
-    extra: extraMeta(meta),
+    extra: { ...extraMeta(meta), ...(toilet[0] ? { toilet: termLabel(toilet[0]) } : {}), ...(beds[0] ? { bedrooms: termLabel(beds[0]) } : {}) },
     modified: card.modified,
   };
   return { card, detail };
