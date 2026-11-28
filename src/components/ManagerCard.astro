@@ -1,6 +1,6 @@
 ---
 /**
- * Карточка менеджера на странице объекта (Anuar 28.11.2026): фото, имя, должность, WhatsApp.
+ * Карточка менеджера на странице объекта (Anuar 28.11.2026): фото, имя, должность, WhatsApp и Telegram.
  * Менеджеры сменяются по кругу раз в 6 секунд (после последнего — снова первый); на наведении пауза,
  * при «уменьшить движение» — без автосмены, только точками. Первый показанный — случайный, чтобы обращения
  * распределялись между менеджерами. WhatsApp у всех общий (+90 530 178 29 16) — в текст подставляем имя и ID объекта.
@@ -14,6 +14,8 @@ interface Props { objectId: string; url: string }
 const { objectId, url } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const WA = '905301782916';
+// Telegram — чат с тем же общим номером (Telegram не умеет подставлять текст в личный чат).
+const TG = `https://t.me/+${WA}`;
 const HELLO = {
   ru: (n: string) => `Здравствуйте, ${n}! Интересует объект ID ${objectId}: ${SITE}${url}`,
   en: (n: string) => `Hello ${n}! I'm interested in property ID ${objectId}: ${SITE}${url}`,
@@ -24,6 +26,7 @@ const HELLO = {
 const T = {
   title: { ru: 'Ваш менеджер', en: 'Your manager', tr: 'Danışmanınız', de: 'Ihr Ansprechpartner', sr: 'Vaš menadžer' }[lang],
   wa: { ru: 'Написать в WhatsApp', en: 'Message on WhatsApp', tr: 'WhatsApp’tan yazın', de: 'Per WhatsApp schreiben', sr: 'Pišite na WhatsApp' }[lang],
+  tg: { ru: 'Написать в Telegram', en: 'Message on Telegram', tr: 'Telegram’dan yazın', de: 'Per Telegram schreiben', sr: 'Pišite na Telegram' }[lang],
   show: { ru: 'Показать менеджера', en: 'Show manager', tr: 'Danışmanı göster', de: 'Ansprechpartner zeigen', sr: 'Prikaži menadžera' }[lang],
 };
 const team = TEAM.filter((m) => m.photo);
@@ -33,7 +36,7 @@ const team = TEAM.filter((m) => m.photo);
     <p class="text-[12px] font-medium uppercase tracking-[1px] text-soft">{T.title}</p>
     <div class="relative mt-3 grid">
       {team.map((m, i) => (
-        <div class:list={['mgr-slide col-start-1 row-start-1 flex items-center gap-4', i === 0 && 'is-on']} data-mgr={i} aria-hidden={i === 0 ? undefined : 'true'}>
+        <div class:list={['mgr-slide col-start-1 row-start-1 flex items-center gap-3', i === 0 && 'is-on']} data-mgr={i} aria-hidden={i === 0 ? undefined : 'true'}>
           <a href={`/${lang}/team/${m.slug}/`} class="size-16 shrink-0 overflow-hidden rounded-full bg-page-n" tabindex={i === 0 ? undefined : -1}>
             <Img src={m.photo} alt={m.name[lang]} class="size-full object-top" width={128} height={128} loading="eager" />
           </a>
@@ -42,6 +45,7 @@ const team = TEAM.filter((m) => m.photo);
             <p class="mt-0.5 text-[13px] leading-[18px] text-soft">{MEMBER_ROLE[lang]}</p>
           </div>
           <a href={`https://wa.me/${WA}?text=${encodeURIComponent(HELLO(m.name[lang]))}`} target="_blank" rel="noopener" class="grid size-11 shrink-0 place-items-center rounded-full bg-[#25d366] text-white transition hover:brightness-95" aria-label={`${T.wa}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="whatsapp" class="size-5" /></a>
+          <a href={TG} target="_blank" rel="noopener" class="grid size-11 shrink-0 place-items-center rounded-full bg-[#2aabee] text-white transition hover:brightness-95" aria-label={`${T.tg}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="telegram" class="size-5" /></a>
         </div>
       ))}
     </div>
