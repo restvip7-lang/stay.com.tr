@@ -193,6 +193,16 @@ const pp: ProjectPage = ppDb.projects[c.code]
 // Фото для слайдера и блоков: из базы ЖК, а если там пусто — загруженные в админке.
 const gallery = galleryApi.length ? galleryApi : (pp.photos ?? []).map((x) => x.src);
 const ytId = ytApi ?? (demoProject ? DEMO_VIDEO : null);
+// «О проекте»: короткое описание под заголовком, как у образца (Anuar 28.11.2026): из админки, иначе 2–3 первых
+// предложения из текста «Расположение» или описания ЖК (не длиннее ~320 знаков, по границе предложения).
+const firstSentences = (html: string, max = 320) => {
+  const txt = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+  let out = '';
+  for (const s of txt.match(/[^.!?]+[.!?]+/g) ?? [txt]) { if (out && (out + s).length > max) break; out += s; }
+  return out.trim().slice(0, max + 80);
+};
+const aboutText = tx(pp.about, lang) || firstSentences(about?.html || p?.introHtml || '') || '';
+const aboutLang = lang !== 'ru' && pp.about?.en ? 'en' : 'ru';
 const N = NT[lang];
 const today = new Date();
 const isoIn = (days: number) => new Date(today.getTime() + days * 86_400_000).toISOString().slice(0, 10);
@@ -269,7 +279,8 @@ const office = OFFICES.find((o) => o.id === 'alanya')!;
 const officeTel = 'tel:+' + office.phone.split('').filter((ch) => ch >= '0' && ch <= '9').join('');
 const officePhone = office.phone.replace(/-/g, ' ');
 const tourUrl = pp.tourUrl ?? null;
-const formImage = pp.formImage ?? hero ?? gallery[0] ?? null;
+// Фото в форме — только если сотрудник загрузил его в админке; иначе нейтральная картинка, как у образца (Anuar 28.11.2026: фото ЖК на странице и так много).
+const formImage = pp.formImage ?? null;
 // «Смотрите также»: плашка «Акция», если у того ЖК есть действующая акция.
 const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).length > 0;
 ---
@@ -512,7 +523,7 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   <section class="mt-20 lg:mt-28" data-tabs>
     <div class="mx-auto max-w-[988px] px-5 text-center">
       <h2 class="display h-section-n mb-4">{tb.aboutProject}</h2>
-      {about?.html && <div class="prose-stay about-text" lang="ru" set:html={about.html} />}
+      {aboutText && <p class="mx-auto max-w-[900px] text-[16px] leading-[24px] text-ink-n lg:text-[20px] lg:leading-[30px]" lang={aboutLang}>{aboutText}</p>}
       {about?.pairs && (
         <dl class="mt-5 flex flex-wrap justify-center gap-3" lang="ru">
           {about.pairs.map(([k, v]) => <div class="min-w-[160px] rounded-[16px] bg-white px-5 py-4 text-left"><dt class="text-[13px] text-soft">{k}</dt><dd class="mt-1 text-[18px] leading-[24px] text-ink-n">{v}</dd></div>)}
@@ -544,7 +555,34 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     {/* Как у образца (МИРА): край фото дугой и мягкое затемнение к форме, Имя и Телефон в строку, одна галочка (Anuar 28.11.2026). */}
     <div class="lead-box grid overflow-hidden rounded-[24px] bg-ink-n md:grid-cols-[1.05fr_1fr]">
       <div class="lead-photo relative min-h-[220px] md:min-h-[440px]">
-        <Img src={formImage} alt="" class="absolute inset-0 size-full" width={960} height={720} />
+        {formImage ? <Img src={formImage} alt="" class="absolute inset-0 size-full" width={960} height={720} /> : (
+          <div class="lead-art absolute inset-0" aria-hidden="true">
+            <svg class="absolute left-1/2 top-1/2 h-[92%] w-auto -translate-x-[58%] -translate-y-1/2 md:-translate-x-[62%]" viewBox="0 0 420 420" fill="none">
+              <defs>
+                <linearGradient id="la-ph" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2540"/><stop offset="1" stop-color="#14121f"/></linearGradient>
+                <linearGradient id="la-nb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf8f2"/><stop offset="1" stop-color="#efe9dd"/></linearGradient>
+                <filter id="la-sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="14" dy="22" stdDeviation="16" flood-color="#1b0f4d" flood-opacity=".45"/></filter>
+              </defs>
+              <g filter="url(#la-sh)" transform="rotate(-14 210 210)">
+                <rect x="96" y="92" width="210" height="262" rx="10" fill="url(#la-nb)"/>
+                <path d="M201 92v262" stroke="#ddd4c4" stroke-width="2"/>
+                <g stroke="#e3dccd" stroke-width="2">{[0,1,2,3,4,5,6,7].map((i) => <path d={`M114 ${134 + i * 26}h70M218 ${134 + i * 26}h70`}/>)}</g>
+              </g>
+              <g filter="url(#la-sh)" transform="rotate(10 300 250)">
+                <rect x="250" y="150" width="112" height="226" rx="20" fill="url(#la-ph)"/>
+                <rect x="258" y="160" width="96" height="206" rx="14" fill="#1e1a2e"/>
+                <rect x="268" y="196" width="62" height="20" rx="10" fill="#8f74ff"/>
+                <rect x="282" y="226" width="62" height="20" rx="10" fill="#3a3452"/>
+                <rect x="268" y="256" width="50" height="20" rx="10" fill="#8f74ff"/>
+                <rect x="290" y="166" width="32" height="6" rx="3" fill="#0d0b16"/>
+              </g>
+              <g filter="url(#la-sh)" transform="rotate(32 150 330)">
+                <rect x="70" y="326" width="170" height="9" rx="4.5" fill="#15131c"/>
+                <rect x="70" y="326" width="22" height="9" rx="4.5" fill="#c9a86a"/>
+              </g>
+            </svg>
+          </div>
+        )}
       </div>
       <div class="relative flex flex-col justify-center p-6 text-white lg:p-12"><LeadForm context={`complex-${c.code}`} title={tb.formTitle} subtitle={tb.formText} submitLabel={tb.leaveRequest} dark row agree /></div>
     </div>
@@ -816,7 +854,6 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   }
   .complex-intro { font-size: 16px; line-height: 24px; letter-spacing: .1px; }
   .complex-intro.clamp { max-height: 144px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
-  .about-text { font-size: 16px; line-height: 24px; max-height: 120px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
   .photo-card { position: relative; display: block; overflow: hidden; border-radius: 24px; background: var(--color-ink); color: #fff; }
   .photo-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(9,7,20,.55), transparent 45%); }
   .photo-card-top { position: absolute; z-index: 1; left: 24px; top: 24px; right: 24px; }
@@ -834,10 +871,11 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   /* Форма: край фото дугой и мягкое затемнение к форме (как у образца). */
   .lead-photo { overflow: hidden; }
   .lead-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 55%, var(--color-ink-n)); }
-  .lead-photo :global(img) { clip-path: ellipse(140% 100% at 50% 0%); }
+  .lead-photo :global(img), .lead-art { clip-path: ellipse(140% 100% at 50% 0%); }
+  .lead-art { background: radial-gradient(120% 90% at 30% 20%, #8d70ff 0%, var(--color-accent, #6b4bd8) 45%, #4a2fb8 100%); }
   @media (min-width: 768px) {
     .lead-photo::after { background: linear-gradient(to right, transparent 55%, var(--color-ink-n) 98%); }
-    .lead-photo :global(img) { clip-path: ellipse(100% 140% at 0% 50%); }
+    .lead-photo :global(img), .lead-art { clip-path: ellipse(100% 140% at 0% 50%); }
   }
   .seg { display: inline-flex; gap: 2px; border-radius: 999px; background: #fff; padding: 4px; box-shadow: 0 2px 12px rgba(9,7,20,.06); }
   .seg button { border-radius: 999px; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: #8e9099; white-space: nowrap; transition: background .2s, color .2s, box-shadow .2s; }

@@ -30,6 +30,8 @@ export interface ProgressMonth { month: string; photos: string[]; text: LText }
 export interface ProjectNews { date: string; title: LText; text: LText; image: string }
 export interface ProjectPage {
   subtitle?: LText;
+  /** Короткое описание для блока «О проекте» (2–3 предложения). */
+  about?: LText;
   promos?: Promo[];
   installment?: { down: number | null; months: number | null; text: LText } | null;
   tourUrl?: string;
@@ -73,6 +75,8 @@ export function normalizePage(raw: unknown): ProjectPage {
   const p: ProjectPage = {};
   const sub = ltext(r.subtitle, 160);
   if (has(sub)) p.subtitle = sub;
+  const ab = ltext(r.about, 600);
+  if (has(ab)) p.about = ab;
   const promos = arr(r.promos, 2, (x) => { const t = ltext(x.title, 120); return has(t) ? { title: t, text: ltext(x.text, 400), until: date(x.until), image: fileUrl(x.image) } : null; });
   if (promos.length) p.promos = promos;
   const ins = (r.installment ?? {}) as Record<string, unknown>;

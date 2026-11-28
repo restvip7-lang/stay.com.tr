@@ -74,7 +74,7 @@ const data = { projects, pages: db.projects, mortgage: db.mortgage };
   type L = { ru?: string; en?: string };
   type Cat = 'territory' | 'infra' | 'interior' | 'view' | '';
   type Page = {
-    subtitle?: L; tourUrl?: string; liveUrl?: string; formImage?: string;
+    subtitle?: L; about?: L; tourUrl?: string; liveUrl?: string; formImage?: string;
     installment?: { down: number | null; months: number | null; text: L } | null;
     promos?: { title: L; text: L; until: string; image: string }[];
     photoCats?: Record<string, Cat>; photos?: { src: string; cat: Cat }[];
@@ -162,6 +162,7 @@ const data = { projects, pages: db.projects, mortgage: db.mortgage };
         onFiles.formImage = (u) => { p.formImage = u[0] ?? ''; };
         html = `<div class="grid max-w-3xl gap-5">
           ${lfield('subtitle', 'Подзаголовок', 'Одна строка под названием в шапке, например «Жилой комплекс у моря в Аланье».')}
+          ${lfield('about', 'Описание «О проекте»', '2–3 предложения под заголовком «О проекте»: где находится, чем хорош. Если пусто — берём начало описания ЖК из базы.', 'textarea')}
           ${field('tourUrl', '3D-тур (ссылка)', 'Ссылка https на 3D-тур. Если есть — в блоке «О комплексе» появится вкладка «3D-тур».', 'url')}
           ${field('liveUrl', 'Live-камера (ссылка)', 'Ссылка https на трансляцию со стройки. Если есть — плитка «Live-камеры» и кнопка в «Ходе строительства».', 'url')}
           ${drop('formImage', 'Фото для формы заявки', p.formImage ?? '')}

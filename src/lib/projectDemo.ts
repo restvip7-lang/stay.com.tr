@@ -24,6 +24,7 @@ export function demoPage(photos: string[], flatIds: string[], hero: string | nul
   const until = ymd(-30);
   return {
     subtitle: { ru: 'Две башни у моря в Махмутларе: бассейны, спа и закрытая территория', en: 'Twin towers by the sea in Mahmutlar: pools, spa and a gated site' },
+    about: { ru: 'Exodus Twins Residence — две жилые башни в Махмутларе, в пяти минутах ходьбы от пляжа. Рядом набережная, магазины, кафе и остановки до центра Аланьи. Для жителей — бассейны, спа, фитнес и закрытая охраняемая территория.', en: 'Exodus Twins Residence is a pair of residential towers in Mahmutlar, a five-minute walk from the beach. The promenade, shops, cafés and buses to central Alanya are nearby. Residents get pools, a spa, a gym and a gated, guarded site.' },
     promos: [
       { title: { ru: 'Скидка 7% при 100% оплате', en: '7% off with full payment' }, text: { ru: 'При единовременной оплате квартиры — скидка 7% от цены в прайсе. Акция действует на все планировки.', en: 'Pay in full and get 7% off the list price. Valid for all layouts.' }, until, image: at(0) },
       { title: { ru: 'Рассрочка 0% на 24 месяца', en: '0% installments for 24 months' }, text: { ru: 'Первый взнос от 40%, остаток равными платежами без процентов до сдачи дома.', en: 'Down payment from 40%, the rest in equal interest-free payments until completion.' }, until: '', image: at(1) },
@@ -31,7 +32,6 @@ export function demoPage(photos: string[], flatIds: string[], hero: string | nul
     installment: { down: 40, months: 24, text: { ru: 'Без процентов, платежи раз в месяц или раз в квартал.', en: 'Interest-free, monthly or quarterly payments.' } },
     tourUrl: 'https://my.matterport.com/show/?m=SxQL3iGyoDo',
     liveUrl: 'https://www.youtube.com/watch?v=' + DEMO_VIDEO,
-    formImage: hero ?? at(2),
     photos: ph.slice(0, 16).map((src, i) => ({ src, cat: cats[i % cats.length] })),
     docs: [
       { tab: 'pres', title: { ru: 'Презентация проекта', en: 'Project presentation' }, file: pdf(0), cover: at(3) },
