@@ -22,6 +22,14 @@ export interface SnapshotDetail {
   pricePerSquare: number | null;
   videoUrl: string | null;
   modified: string | null;
+  /** Справочники Portfolio: инфраструктура и вид (подписи ru/en). Нет в старых снимках. */
+  amenities?: { ru: string[]; en: string[] };
+  view?: { ru: string[]; en: string[] };
+  /** Назначение земли и тип коммерции (справочники purpose, business_type). */
+  purpose?: { ru: string[]; en: string[] };
+  businessType?: { ru: string[]; en: string[] };
+  /** Прочие короткие мета-поля объекта как есть (мебель, санузлы, участок…). */
+  extra?: Record<string, string>;
 }
 
 const mode = () => (process.env.STAY_OBJECTS_SOURCE || 'auto').toLowerCase();
@@ -62,7 +70,7 @@ export function snapshotTranslatedIds(operation: 'sale' | 'rental', lang: string
 /** Подробности объекта. undefined — снимка нет вообще, null — такого объекта в снимке нет. */
 export function snapshotDetail(id: string, operation: 'sale' | 'rental'): { card: Raw; detail: SnapshotDetail | null } | null | undefined {
   const list = readList(operation);
-  if (!list) return undefined;
+  if (!list) return demoDetail(id);
   const card = list.find((x) => String(x.id) === id);
   if (!card) return null;
   if (!/^\d+$/.test(id)) return { card, detail: null };
@@ -71,6 +79,14 @@ export function snapshotDetail(id: string, operation: 'sale' | 'rental'): { card
   } catch {
     return { card, detail: null };
   }
+}
+
+/* Превью без снимка (Vercel): несколько настоящих объектов, снятых пробой sync --ids 28.11.2026,
+ * чтобы на превью можно было проверить описание, характеристики и инфраструктуру. На сервере не используется. */
+const demo = import.meta.glob<{ default: { card: Raw; detail: SnapshotDetail } }>('../content/fixtures/portfolio-demo/*.json', { eager: true });
+function demoDetail(id: string): { card: Raw; detail: SnapshotDetail } | undefined {
+  const hit = demo[`../content/fixtures/portfolio-demo/${id}.json`]?.default;
+  return hit?.detail ? hit : undefined;
 }
 
 /** Когда снимок обновлялся (для админки и проверки). */

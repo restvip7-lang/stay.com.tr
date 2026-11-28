@@ -1,0 +1,97 @@
+{
+ "card": {
+  "id": "4296",
+  "bitrixId": "",
+  "code": "-65",
+  "title": "Двухэтажное коммерческое помещение в районе Оба",
+  "projectBitrixId": null,
+  "projectCode": null,
+  "projectName": null,
+  "roomLabel": null,
+  "propertyType": "Commercial",
+  "city": "Аланья",
+  "area": "Оба",
+  "operation": "sale",
+  "objectType": "object",
+  "price": 520000,
+  "currency": "EUR",
+  "totalArea": 418,
+  "distanceToSea": 2800,
+  "floor": null,
+  "objectCode": "COM057",
+  "buildName": null,
+  "isPrivate": false,
+  "discount": null,
+  "imageUrl": "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/7121cb2529c52ded7dd43ebca194ebc4.jpg",
+  "detailUrl": "/sale/4296?source=portfolio&language=ru",
+  "langs": [
+   "ru",
+   "en",
+   "sr"
+  ],
+  "modified": "2025-10-01 01:15:27"
+ },
+ "detail": {
+  "id": "4296",
+  "operation": "sale",
+  "i18n": {
+   "ru": {
+    "title": "Двухэтажное коммерческое помещение в районе Оба",
+    "content": "<p>Выставлено на продажу коммерческое помещение в районе Оба.&nbsp;</p><p>Объект двухэтажный, общая площадь — 418 м², а расстояние до пляжа 2800 метров.&nbsp;</p><p>Район Оба предлагает развитую инфраструктуру: здесь расположены торгово-развлекательный центр Alanyum, Neva Outlet, гипермаркеты Kipa и Metro, турецкие супермаркеты Bim, A101, Şok, Migros, хозяйственный магазин Koçtaş, магазин электроники Vatan, а также бутики и брендовые магазины. В районе находится крупнейшая государственная больница Аланьи. Недвижимость в Оба идеально подходит как для отдыха, так и для постоянного проживания, особенно для семей с детьми. Район находится всего в 2 км от центра города и отличается широким выбором образовательных учреждений. В Оба работают лучшие колледжи — Bahçeşehir и Ted, частные и государственные школы, детские сады. Также открылась школа с русскоязычными преподавателями, действует школа по методике Вальдорфа и американский колледж Amerikan Kültür.</p>"
+   },
+   "en": {
+    "title": "Dvospratni poslovni prostor u oblasti Oba",
+    "content": "<p>A commercial property is offered for sale in the Oba district.</p><p>The property is two-storey, with a total area of 418 m². The distance to the beach is 2800 meters.</p><p>Oba district offers well-developed infrastructure: here you will find the Alanyum shopping and entertainment center, Neva Outlet, Kipa and Metro hypermarkets, Turkish supermarket chains such as Bim, A101, Şok, Migros, the Koçtaş home improvement store, Vatan electronics store, as well as boutiques and brand-name shops.</p><p>The district is home to the largest state hospital in Alanya. Real estate in Oba is ideal both for holidays and for permanent residence, especially for families with children.</p><p>The area is located just 2 km from the city center and boasts a wide range of educational institutions. The best colleges — Bahçeşehir and TED — operate in Oba, as well as private and public schools, kindergartens. A school with Russian-speaking teachers has also opened, along with a Waldorf-method school and the Amerikan Kültür American college.</p>"
+   },
+   "sr": {
+    "title": "Dvospratni poslovni prostor u oblasti Oba",
+    "content": "<p>oslovni prostor na prodaju u oblasti Oba.</p><p>Objekat je dvospratni, ukupne površine 418 m². Udaljenost do plaže je 2800 metara.</p><p>Oba nudi razvijenu infrastrukturu: tu se nalaze tržni centar Alanyum, Neva Outlet, hipermarketi Kipa i Metro, turski supermarketi kao što su Bim, A101, Şok, Migros, prodavnica za domaćinstvo Koçtaş, prodavnica elektronike Vatan, kao i butici i brendirane radnje.</p><p>U ovom delu grada nalazi se i najveća državna bolnica u Alanji. Nekretnine u Oba su idealne kako za odmor, tako i za stalni boravak, naročito za porodice sa decom.</p><p>Oblast se nalazi na samo 2 km od centra grada i poznata je po širokom izboru obrazovnih institucija. U Obi rade prestižni koledži — Bahçeşehir i TED, privatne i državne škole, vrtići. Otvorena je i škola sa nastavom na ruskom jeziku, kao i škola koja radi po Valdorf metodi i američki koledž Amerikan Kültür.</p>"
+   }
+  },
+  "imageUrls": [
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/7121cb2529c52ded7dd43ebca194ebc4.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/4b53efc285f1f63546c234693b4d2cd5.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/2a5702f85f19591101db92084f96385c.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/7e9167c415aa532496fcbc913da1b7f1.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/8cf38658902079f801a60e608bd367c4.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/3cf3c5252efffbffbd7fcf8c3ed59b54.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4296/large/504cdec6b710510aba71c0d81c1ebb29.jpg"
+  ],
+  "yearBuilt": null,
+  "regionName": "Оба, Аланья",
+  "country": "Turkey",
+  "pricePerSquare": 1244,
+  "videoUrl": null,
+  "latitude": null,
+  "longitude": null,
+  "amenities": {
+   "ru": [
+    "Открытая парковка"
+   ],
+   "en": [
+    "Open Parking"
+   ]
+  },
+  "view": {
+   "ru": [],
+   "en": []
+  },
+  "purpose": {
+   "ru": [],
+   "en": []
+  },
+  "businessType": {
+   "ru": [],
+   "en": []
+  },
+  "extra": {
+   "relax_zone": "N",
+   "distance_sea": "2800",
+   "area_square": "418",
+   "active": "Y",
+   "citizenship": "N",
+   "sorting": "500"
+  },
+  "modified": "2025-10-01 01:15:27"
+ }
+}

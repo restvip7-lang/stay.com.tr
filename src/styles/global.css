@@ -100,6 +100,7 @@
   /* Кнопки старой системы: пилюли 44 / 52, широкий шрифт 10/500. */
   .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; border-radius: 999px; padding: 0 20px; border: .67px solid transparent; font-family: var(--font-display); font-weight: 500; font-size: 10px; line-height: 12px; letter-spacing: .1px; white-space: nowrap; transition: background-color .3s, color .3s, border-color .3s, opacity .3s; }
   .btn-lg { height: 52px; }
+  .lead-check { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--color-accent); cursor: pointer; }
   .btn-accent { background: var(--color-accent); color: #fff; }
   .btn-accent:hover { background: var(--color-accent-2); }
   .btn-accent:active { background: var(--color-accent-3); }

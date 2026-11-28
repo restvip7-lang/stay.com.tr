@@ -7,7 +7,7 @@
 interface Props { src?: string | null; alt: string; class?: string; loading?: 'lazy' | 'eager'; sizes?: string; width?: number; height?: number; priority?: boolean }
 const { src, alt, class: cls = '', loading, sizes = '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw', width = 800, height = 600, priority = false } = Astro.props;
 const WIDTHS = [320, 640, 960, 1280, 1920];
-const opt = import.meta.env.PROD && !!src && /^(https:\/\/|\/(media|hero)\/)/.test(src);
+const opt = import.meta.env.PROD && !!src && /^(https:\/\/|\/(media|hero|uploads)\/)/.test(src);
 const base = import.meta.env.STAY_TARGET === 'node' ? '/img' : '/_vercel/image';
 const u = (w: number) => `${base}?url=${encodeURIComponent(src!)}&w=${w}&q=75`;
 const srcset = opt ? WIDTHS.map((w) => `${u(w)} ${w}w`).join(', ') : undefined;

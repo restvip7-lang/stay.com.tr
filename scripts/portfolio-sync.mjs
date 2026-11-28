@@ -31,6 +31,7 @@ import { cleanImgCache } from './img-cache-clean.mjs';
 
 const args = new Set(process.argv.slice(2));
 const FULL = args.has('--full');
+const ONLY_IDS = ([...args].find((a) => a.startsWith('--ids='))?.split('=')[1] || '').split(',').map((x) => x.trim()).filter(Boolean);
 const LIMIT = Number([...args].find((a) => a.startsWith('--limit='))?.split('=')[1] || 0);
 const BASE = (process.env.STAY_PORTFOLIO_BASE || 'https://portfolio.stayrepo.com/ws').replace(/\/$/, '');
 const USER = process.env.STAY_PORTFOLIO_USER;
@@ -161,10 +162,25 @@ async function loadTaxonomies() {
 }
 const taxId = (...slugs) => slugs.map((s) => taxBySlug.get(s)).find((x) => Number.isFinite(x));
 
-async function terms(id, tax) {
+async function terms(id, tax, language = 'en') {
   if (!Number.isFinite(tax)) return [];
-  const r = await api(`/objects/get_terms?object_id=${id}&taxonomy_id=${tax}&language=en`);
+  const r = await api(`/objects/get_terms?object_id=${id}&taxonomy_id=${tax}&language=${language}`);
   return Array.isArray(r?.result) ? r.result : [];
+}
+
+// Подписи терминов без повторов (в справочниках есть дубли терминов с id 400+).
+const labels = (ts) => [...new Set(ts.map(termLabel).filter(Boolean))];
+const SKIP_META = /^(_|object_gallery|sales_cost|price|currency|refno|latitude|longitude|lat$|lng$|map|video|youtube|i18n|content|title|description)/i;
+/** Короткие значения мета-полей объекта (без служебных и уже разобранных). */
+function extraMeta(meta) {
+  const out = {};
+  for (const [k, v] of Object.entries(meta)) {
+    if (SKIP_META.test(k)) continue;
+    const val = typeof v === 'number' || typeof v === 'boolean' ? String(v) : typeof v === 'string' ? v.trim() : null;
+    if (val && val.length <= 120 && !/^https?:/i.test(val)) out[k] = val;
+    if (Object.keys(out).length >= 60) break;
+  }
+  return out;
 }
 
 /** Один объект → { card (как в ленте dev), detail (описание, фото, переводы) } или null, если это ЖК / не продажа и не аренда. */
@@ -175,9 +191,15 @@ async function readObject(listItem) {
   const status = String(d.post_status ?? listItem.post_status ?? 'publish').toLowerCase();
   if (!['publish', 'published'].includes(status)) return { skip: 'не опубликован' };
 
-  const [cls, loc, cur, rooms, offer, type] = await Promise.all([
+  const TAX_AMEN = taxId('amenities', 'amenity', 'infrastructure', 'facilities');
+  const TAX_VIEW = taxId('view', 'views', 'object_view');
+  const [cls, loc, cur, rooms, offer, type, amenRu, amenEn, viewRu, viewEn, toilet, beds, purposeRu, purposeEn, bizRu, bizEn] = await Promise.all([
     terms(id, TAX_CLASS), terms(id, TAX_LOCATION), terms(id, TAX_CURRENCY), terms(id, TAX_ROOMS),
     terms(id, taxId('offer_type')), terms(id, taxId('object_type', 'object_types', 'property_type', 'property_types')),
+    terms(id, TAX_AMEN, 'ru'), terms(id, TAX_AMEN, 'en'), terms(id, TAX_VIEW, 'ru'), terms(id, TAX_VIEW, 'en'),
+    // Справочники adminer/Portfolio (проба 28.11): 13 toilet — санузлы, 12 bedrooms — спальни, 8 purpose — назначение земли, 9 business_type — коммерция.
+    terms(id, taxId('toilet', 'toilets', 'bathrooms')), terms(id, taxId('bedrooms')),
+    terms(id, taxId('purpose'), 'ru'), terms(id, taxId('purpose'), 'en'), terms(id, taxId('business_type'), 'ru'), terms(id, taxId('business_type'), 'en'),
   ]);
   if (cls.some((t) => Number(t.term_id) === PROJECT_TERM)) return { skip: 'ЖК' };
   const offerIds = offer.map((t) => Number(t.term_id));
@@ -232,6 +254,14 @@ async function readObject(listItem) {
     videoUrl: text(meta.video_url, meta.video, meta.youtube) ,
     latitude: num(meta.latitude ?? meta.lat),
     longitude: num(meta.longitude ?? meta.lng),
+    // Инфраструктура и вид из окна (справочники Portfolio) — подписи на ru и en.
+    amenities: { ru: labels(amenRu), en: labels(amenEn) },
+    view: { ru: labels(viewRu), en: labels(viewEn) },
+    purpose: { ru: labels(purposeRu), en: labels(purposeEn) },
+    businessType: { ru: labels(bizRu), en: labels(bizEn) },
+    // Прочие короткие поля карточки (мебель, санузлы, участок, этажность, до центра/аэропорта…):
+    // сайт сам выбирает нужные по именам, так новые поля Portfolio появляются без правки синхронизации.
+    extra: { ...extraMeta(meta), ...(toilet[0] ? { toilet: termLabel(toilet[0]) } : {}), ...(beds[0] ? { bedrooms: termLabel(beds[0]) } : {}) },
     modified: card.modified,
   };
   return { card, detail };
@@ -259,6 +289,18 @@ async function main() {
   const t0 = Date.now();
   await fs.mkdir(path.join(OUT, 'objects'), { recursive: true });
   await loadTaxonomies();
+
+  // Проба отдельных объектов (--ids=4399,4397): только читаем и пишем card+detail в portfolio/probe-ids.json, снимок не трогаем.
+  if (ONLY_IDS.length) {
+    const out = {};
+    for (const id of ONLY_IDS) {
+      try { out[id] = await readObject({ ID: id }); } catch (e) { out[id] = { error: e.message }; }
+    }
+    await fs.mkdir(OUT, { recursive: true });
+    await writeJson(path.join(OUT, 'probe-ids.json'), out);
+    console.log(JSON.stringify({ probe: 'ids', ids: ONLY_IDS, file: path.join(OUT, 'probe-ids.json') }));
+    return;
+  }
 
   // 1. Весь список (по 50).
   const list = [];
@@ -317,7 +359,7 @@ async function main() {
   }
   await writeJson(path.join(OUT, 'sale.json'), sale);
   await writeJson(path.join(OUT, 'rental.json'), rental);
-  await writeJson(path.join(OUT, 'meta.json'), { syncedAt: new Date().toISOString(), ...summary, skippedIds: { ...(FULL ? {} : prevMeta.skippedIds), ...prevMeta.nextSkipped }, errorSamples: errors.slice(0, 20) });
+  await writeJson(path.join(OUT, 'meta.json'), { syncedAt: new Date().toISOString(), ...summary, skippedIds: { ...(FULL ? {} : prevMeta.skippedIds), ...prevMeta.nextSkipped }, errorSamples: errors.slice(0, 20), taxonomies: [...taxBySlug.keys()] });
 
   // Убрать файлы снятых объектов.
   const keep = new Set(cards.map((c) => `${c.id}.json`));

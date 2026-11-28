@@ -2,8 +2,10 @@
 // Форма заявки. По решению Anuar заявки пока никуда не отправляются:
 // после нажатия посетитель видит «Спасибо», данные остаются только в браузере.
 // booking — форма бронирования аренды: даты заезда и выезда в календаре + комментарий.
+// row — Имя и Телефон в одну строку; agree — одна галочка «Согласен на обработку персональных данных» вместо строки
+// под кнопкой и кнопка по размеру текста со стрелкой (форма страницы ЖК, как у образца МИРА; Anuar 28.11.2026).
 import { t } from '../i18n/ui';
-interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean; headingLevel?: 'h2' | 'h3' | 'p'; dark?: boolean }
+interface Props { title?: string; subtitle?: string; context?: string; compact?: boolean; submitLabel?: string; booking?: boolean; headingLevel?: 'h2' | 'h3' | 'p'; dark?: boolean; row?: boolean; agree?: boolean }
 const lang = Astro.locals.lang ?? 'ru';
 const f = t(lang).form;
 const {
@@ -15,7 +17,16 @@ const {
   booking = false,
   headingLevel = 'h2',
   dark = false,
+  row = false,
+  agree = false,
 } = Astro.props;
+const AGREE = {
+  ru: { a: 'Согласен на', err: 'Отметьте согласие на обработку персональных данных' },
+  en: { a: 'I agree to the', err: 'Please agree to the processing of personal data' },
+  tr: { a: 'Onaylıyorum:', err: 'Kişisel verilerin işlenmesine onay verin' },
+  de: { a: 'Ich stimme der', err: 'Bitte stimmen Sie der Datenverarbeitung zu' },
+  sr: { a: 'Saglasan sam sa', err: 'Potvrdite saglasnost za obradu ličnih podataka' },
+}[lang];
 const fc = dark ? 'field field-dark' : 'field';
 const H = headingLevel;
 ---
@@ -24,10 +35,12 @@ const H = headingLevel;
   {!compact && <p class:list={['mb-6 max-w-md', dark ? 'text-[16px] leading-[22px] text-white/60 lg:text-[14px] lg:leading-[19px]' : 'text-muted']}>{subtitle}</p>}
   <input type="hidden" name="context" value={context} />
   <div class="grid gap-3">
+    <div class:list={['grid gap-3', row && 'sm:grid-cols-2']}>
     <label class="sr-only" for={`n-${context}`}>{f.name}</label>
     <input id={`n-${context}`} class={fc} name="name" autocomplete="name" placeholder={f.name} required />
     <label class="sr-only" for={`p-${context}`}>{f.phone}</label>
     <input id={`p-${context}`} class={fc} name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder={f.phone} required />
+    </div>
     {booking && (
       <div data-range-picker class="relative">
         <div class="grid grid-cols-2 gap-3">
@@ -46,8 +59,20 @@ const H = headingLevel;
       </>
     )}
     <p data-error class:list={['hidden text-sm', dark ? 'text-[#ff8a8d]' : 'text-red-600']} role="alert"></p>
-    <button class:list={[dark ? 'btn-n btn-n-white' : 'btn btn-accent', 'mt-2 w-full']} type="submit">{submitLabel}</button>
-    <p class:list={['text-xs', dark ? 'text-white/60' : 'text-muted']}>{f.consent} <a href={`/${lang}/privacy-policy/`} class:list={['underline underline-offset-2', dark && 'text-white']}>{f.consentLink}</a></p>
+    {agree ? (
+      <>
+        <label class:list={['flex items-start gap-2.5 text-[13px] leading-[18px]', dark ? 'text-white/70' : 'text-muted']}>
+          <input type="checkbox" name="agree" value="1" class="lead-check mt-px" data-err={AGREE.err} />
+          <span>{AGREE.a} <a href={`/${lang}/privacy-policy/`} target="_blank" class:list={['underline underline-offset-2', dark && 'text-white']}>{f.consentLink}</a></span>
+        </label>
+        <button class:list={[dark ? 'btn-n btn-n-white' : 'btn btn-accent', 'mt-1 gap-2 self-start justify-self-start max-sm:w-full']} type="submit">{submitLabel}<span aria-hidden="true">→</span></button>
+      </>
+    ) : (
+      <>
+        <button class:list={[dark ? 'btn-n btn-n-white' : 'btn btn-accent', 'mt-2 w-full']} type="submit">{submitLabel}</button>
+        <p class:list={['text-xs', dark ? 'text-white/60' : 'text-muted']}>{f.consent} <a href={`/${lang}/privacy-policy/`} class:list={['underline underline-offset-2', dark && 'text-white']}>{f.consentLink}</a></p>
+      </>
+    )}
   </div>
   <div data-done class="hidden py-6 text-center" role="status">
     <p class="display text-2xl">{f.thanks}</p>

@@ -30,8 +30,37 @@ import ProjectGenplan from './ProjectGenplan.astro';
 import { plansOf } from '../lib/plans';
 import { site } from '../lib/site';
 import { ownUrl } from '../lib/ownUrl';
+import { getProjectPages, livePromos, tx, PHOTO_CATS, PHOTO_CAT_LABEL, type PhotoCat, type ProjectPage } from '../lib/projectPages';
+import { OFFICES } from '../lib/offices';
+import { dateL } from '../lib/format';
+import { demoPage, DEMO_CODE, DEMO_VIDEO } from '../lib/projectDemo';
 
 interface Props { c: Complex }
+// Тексты блоков, добавленных по плану страницы ЖК (28.11.2026).
+const NTen = {
+  km: 'km', toSea: 'to the sea', perM2: 'm²', area: 'Area', address: 'Address', onMap: 'On the map', tour: '3D tour', example: 'Example', learnMore: 'Learn more', promoBadge: 'Offer',
+  until: (d: string) => `until ${d}`, readMore: 'Read more', liveBtn: 'Live camera', liveOpen: 'Watch the live camera', video: 'Video', photos: 'Photos', live: 'Live', liveTab: 'Live stream', liveSoon: 'The staff member adds the camera link in the admin panel.',
+  installment: (dn: number | null, m: number | null) => [dn != null ? `Down payment from ${dn}%` : '', m ? `up to ${m} months` : ''].filter(Boolean).join(', '),
+  mortgage: (dn: number, y: number) => `We will help you get a mortgage from a Turkish bank: down payment from ${dn}%, term up to ${y} years. For completed properties; the manager will calculate the exact terms.`,
+  docTabs: { pres: 'Presentation', plans: 'Floor plans', docs: 'Documents' },
+  demoPromo: '5% off with 100% payment', demoPromoText: 'Example offer: the staff member adds real offers in the admin panel.', demoProgress: 'Example caption: frame of the 5th floor completed.', demoNews: 'Example news: the text and photos are added by the staff member in the admin panel.',
+  office: 'Stay Property office in Alanya', hours: 'Opening hours', hoursText: 'Daily, 9:00–19:00', write: 'Write to WhatsApp',
+};
+const NT: Record<string, typeof NTen> = {
+  ru: {
+    km: 'км', toSea: 'до моря', perM2: 'м²', area: 'Площадь', address: 'Адрес', onMap: 'На карте', tour: '3D-тур', example: 'Пример', learnMore: 'Узнать больше', promoBadge: 'Акция',
+    until: (d) => `до ${d}`, readMore: 'Читать полностью', liveBtn: 'Live-камера', liveOpen: 'Смотреть Live-камеру', video: 'Видео', photos: 'Фото', liveTab: 'Онлайн-трансляция', liveSoon: 'Ссылку на камеру сотрудник добавит в админке.', live: 'Live',
+    installment: (dn, m) => [dn != null ? `Первый взнос от ${dn}%` : '', m ? `рассрочка до ${m} мес.` : ''].filter(Boolean).join(', '),
+    mortgage: (dn, y) => `Поможем оформить ипотеку в турецком банке: первый взнос от ${dn}%, срок до ${y} лет. Для сданных объектов; точные условия рассчитает менеджер.`,
+    docTabs: { pres: 'Презентация', plans: 'Планировки', docs: 'Документы' },
+    demoPromo: 'Скидка 5% при 100% оплате', demoPromoText: 'Пример акции: настоящие акции сотрудник добавит в админке.', demoProgress: 'Пример подписи: завершён каркас 5-го этажа.', demoNews: 'Пример новости: текст и фото сотрудник добавит в админке.',
+    office: 'Офис Stay Property в Аланье', hours: 'Часы работы', hoursText: 'Ежедневно, 9:00–19:00', write: 'Написать в WhatsApp',
+  },
+  en: NTen,
+  tr: { ...NTen, liveTab: 'Canlı yayın', toSea: 'denize', area: 'Alan', address: 'Adres', onMap: 'Haritada', tour: '3D tur', example: 'Örnek', learnMore: 'Detaylar', promoBadge: 'Kampanya', until: (d) => `${d} tarihine kadar`, readMore: 'Devamını oku', liveBtn: 'Canlı kamera', liveOpen: 'Canlı kamerayı izle', video: 'Video', photos: 'Fotoğraflar', office: 'Stay Property Alanya ofisi', hours: 'Çalışma saatleri', hoursText: 'Her gün, 9:00–19:00', write: 'WhatsApp’tan yazın', docTabs: { pres: 'Sunum', plans: 'Planlar', docs: 'Belgeler' } },
+  de: { ...NTen, liveTab: 'Livestream', toSea: 'zum Meer', area: 'Fläche', address: 'Adresse', onMap: 'Auf der Karte', tour: '3D-Tour', example: 'Beispiel', learnMore: 'Mehr erfahren', promoBadge: 'Angebot', until: (d) => `bis ${d}`, readMore: 'Weiterlesen', liveBtn: 'Live-Kamera', liveOpen: 'Live-Kamera ansehen', video: 'Video', photos: 'Fotos', office: 'Stay Property Büro in Alanya', hours: 'Öffnungszeiten', hoursText: 'Täglich, 9:00–19:00', write: 'Per WhatsApp schreiben', docTabs: { pres: 'Präsentation', plans: 'Grundrisse', docs: 'Dokumente' } },
+  sr: { ...NTen, liveTab: 'Prenos uživo', toSea: 'do mora', area: 'Površina', address: 'Adresa', onMap: 'Na mapi', tour: '3D tura', example: 'Primer', learnMore: 'Saznajte više', promoBadge: 'Akcija', until: (d) => `do ${d}`, readMore: 'Pročitajte više', liveBtn: 'Live kamera', liveOpen: 'Pogledajte live kameru', video: 'Video', photos: 'Fotografije', office: 'Kancelarija Stay Property u Alanji', hours: 'Radno vreme', hoursText: 'Svakog dana, 9:00–19:00', write: 'Pišite na WhatsApp', docTabs: { pres: 'Prezentacija', plans: 'Planovi', docs: 'Dokumenta' } },
+};
 const { c } = Astro.props;
 const lang = Astro.locals.lang ?? 'ru';
 const d = t(lang);
@@ -52,11 +81,10 @@ const high = prices.length > 1 ? Math.max(...prices) : c.priceTo;
 const buildEnd = p?.facts.find((f) => f.label === 'build-end')?.value ?? null;
 const meta = complexMeta(lang, c.title, g, low, high, c.rooms, buildEnd);
 const hero = p?.heroImages[0] ?? c.image;
-const gallery = (p?.gallery.length ? p.gallery : p?.heroImages ?? []).filter(Boolean);
+const galleryApi = (p?.gallery.length ? p.gallery : p?.heroImages ?? []).filter(Boolean);
 const intro = p?.introHtml ? sanitize(p.introHtml) : '';
 const description = strip(p?.introHtml || meta.description, 300);
-const ytId = p?.video?.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1] ?? null;
-const FACT_LABEL: Record<string, string> = { price: tc.priceRange, 'build-end': tc.deadline, mix: tc.layouts, location: tc.location };
+const ytApi = p?.video?.match(/(?:youtu\.be\/|v=|embed\/|shorts\/)([\w-]{11})/)?.[1] ?? null;
 
 // Русский — единственный язык с описанием комплекса из API; остальные версии — без индексации и без hreflang.
 const robots: Robots = lang === 'ru' ? 'index,follow' : 'noindex,follow';
@@ -83,7 +111,7 @@ const crumbs = isOurComplex(c) ? [{ label: t(lang).home, href: `/${lang}/` }, { 
   : catCrumbs(lang, { ...geoCat, complexes: true }, c.title);
 const vld = p?.video ? videoLd(p.video, c.title, description, new Date().toISOString()) : null;
 const ld = [
-  complexLd({ url: self, name: c.title, description, images: [hero, ...gallery].filter(Boolean) as string[], city: city.name.en, region: district?.name.en ?? city.name.en, country: c.country === 'turkey' ? 'TR' : c.country === 'uae' ? 'AE' : 'CY', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, units: objects.length || null, amenities: p?.amenities ?? [], low, high, offers: objects.length || units.length }),
+  complexLd({ url: self, name: c.title, description, images: [hero, ...galleryApi].filter(Boolean) as string[], city: city.name.en, region: district?.name.en ?? city.name.en, country: c.country === 'turkey' ? 'TR' : c.country === 'uae' ? 'AE' : 'CY', lat: p?.lat ?? c.lat, lng: p?.lng ?? c.lng, units: objects.length || null, amenities: p?.amenities ?? [], low, high, offers: objects.length || units.length }),
   ...(vld ? [vld] : []),
 ];
 const ogImage = `/og/complex/${c.slug}.jpg?lang=${lang}`;
@@ -117,6 +145,7 @@ const flatGroups = [...grouped.entries()].map(([key, list], i) => {
     key, id: `grp-${i}`, items, type: x0.type, rooms: x0.rooms,
     title: studio ? STUDIO[lang] : `${tw.pl}${x0.rooms ? ` ${x0.rooms}` : ''}`,
     area: areas.length ? Math.min(...areas) : null,
+    areaMax: areas.length ? Math.max(...areas) : null,
     price: pr.length ? Math.min(...pr) : null,
     image: items.find((x) => x.image)?.image ?? null,
     count: `${items.length} ${pluralL(lang, items.length, tw.n)}`,
@@ -125,7 +154,6 @@ const flatGroups = [...grouped.entries()].map(([key, list], i) => {
   };
 }).sort((a, b) => roomsN(a.rooms) - roomsN(b.rooms) || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
 const infra = p?.infrastructure ?? [];
-const progressPhotos = gallery.slice(2, 6);
 // Карточка-характеристики вида «Планировка:» / «1+1, 2+1» / «Площадь:» / «от 61 до 147 кв.м.» → пары «название — значение».
 const pairsOf = (html: string) => {
   const ps = [...html.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/g)].map((m) => m[1].replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()).filter(Boolean);
@@ -154,8 +182,114 @@ const about = aboutCard
   : factsCard || locFromIntro
     ? { html: locFromIntro ? sanitize(locFromIntro) : '', images: factsCard?.images ?? [], pairs: factsCard ? pairsOf(factsCard.html) : null }
     : null;
-const year = new Date().getFullYear();
-const month = new Date().getMonth();
+// «Страница проекта» из админки (план страницы ЖК по МИРА, Anuar 28.11.2026). Пустое поле — блока на сайте нет.
+// На превью Vercel пустые блоки показываем с примером (плашка «Пример»), чтобы оценить вид; на боевом сайте — скрываем.
+const ppDb = await getProjectPages();
+const demo = full && (process.env.VERCEL_ENV ?? '') === 'preview';
+// Демо-проект на превью: один ЖК заполнен тестовыми данными целиком (Anuar 28.11.2026), см. lib/projectDemo.ts.
+const demoProject = demo && c.code === DEMO_CODE && !ppDb.projects[c.code];
+const pp: ProjectPage = ppDb.projects[c.code]
+  ?? (demoProject ? demoPage([...new Set(objects.map((x) => x.image).filter((x): x is string => !!x))], objects.filter((x) => x.unit).map((x) => x.id), hero) : {});
+// Фото для слайдера и блоков: из базы ЖК, а если там пусто — загруженные в админке.
+const gallery = galleryApi.length ? galleryApi : (pp.photos ?? []).map((x) => x.src);
+const ytId = ytApi ?? (demoProject ? DEMO_VIDEO : null);
+// «О проекте»: короткое описание под заголовком, как у образца (Anuar 28.11.2026): из админки, иначе 2–3 первых
+// предложения из текста «Расположение» или описания ЖК (не длиннее ~320 знаков, по границе предложения).
+const firstSentences = (html: string, max = 320) => {
+  const txt = html.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&[a-z]+;/g, ' ').replace(/\s+/g, ' ').trim();
+  let out = '';
+  for (const s of txt.match(/[^.!?]+[.!?]+/g) ?? [txt]) { if (out && (out + s).length > max) break; out += s; }
+  return out.trim().slice(0, max + 80);
+};
+const aboutText = tx(pp.about, lang) || firstSentences(about?.html || p?.introHtml || '') || '';
+const aboutLang = lang !== 'ru' && pp.about?.en ? 'en' : 'ru';
+const N = NT[lang];
+const today = new Date();
+const isoIn = (days: number) => new Date(today.getTime() + days * 86_400_000).toISOString().slice(0, 10);
+const subtitle = tx(pp.subtitle, lang);
+// «До моря» — самое близкое из квартир ЖК (поле квартир Portfolio/adminer), отдельного поля у ЖК нет.
+const seas = objects.map((x) => x.sea).filter((v): v is number => !!v && v > 0);
+const sea = seas.length ? Math.min(...seas) : null;
+const seaText = sea ? (sea >= 1000 ? `${numL(lang, Math.round(sea / 100) / 10)} ${N.km}` : `${numL(lang, sea)} ${d.m}`) : null;
+// Цена за м² — минимальная по квартирам с ценой и площадью; площади — от и до.
+const perM2s = objects.filter((x) => x.price && x.area).map((x) => x.price! / x.area!);
+const perM2 = perM2s.length ? Math.round(Math.min(...perM2s)) : null;
+const areasAll = [...objects.map((x) => x.area), ...units.map((u) => u.areaFrom)].filter((v): v is number => !!v);
+const areaMin = areasAll.length ? Math.min(...areasAll) : null;
+const areaMax = areasAll.length ? Math.max(...areasAll) : null;
+// Акции: из админки (до 2, после даты «до» скрываются сами); без них — строка-акция из базы ЖК.
+const promosLive = livePromos(pp, today).map((x) => ({ title: tx(x.title, lang), text: tx(x.text, lang), until: x.until ? N.until(dateL(lang, x.until)) : '', image: x.image || null, demo: false }));
+const promos = promosLive.length ? promosLive
+  : p?.promo && lang === 'ru' ? [{ title: p.promo, text: '', until: '', image: null, demo: false }]
+  : demo ? [{ title: N.demoPromo, text: N.demoPromoText, until: N.until(dateL(lang, isoIn(45))), image: null, demo: true }] : [];
+const promoImg = (i: number) => promos[i]?.image ?? gallery[i ? 1 : 3] ?? hero;
+// Рассрочка: своя из админки, иначе из базы ЖК; ипотека — общие цифры на все ЖК.
+const insA = pp.installment;
+const insB = p?.installment;
+const insDown = insA?.down ?? insB?.initialPay ?? null;
+const insMonths = insA?.months ?? insB?.months ?? null;
+const insText = tx(insA?.text, lang) || (lang === 'ru' ? insB?.conditions ?? '' : '');
+const buyWays = tb.buyWays.map((x, i) => i === 1 && (insDown || insMonths || insText)
+  ? { ...x, text: [insDown != null || insMonths ? N.installment(insDown, insMonths) : '', insText].filter(Boolean).join('. ') }
+  : i === 2 ? { ...x, text: N.mortgage(ppDb.mortgage.down, ppDb.mortgage.years) } : x);
+// Фото по категориям: фото из базы ЖК + свои из админки; без категории — только во «Все».
+const photoList = [...galleryApi.map((src) => ({ src, cat: (pp.photoCats?.[src] ?? '') as PhotoCat | '' })), ...(pp.photos ?? [])];
+const catsUsed = PHOTO_CATS.filter((k) => photoList.some((x) => x.cat === k));
+// Галерея: фото по категориям подряд (порядок категорий как в админке), без категории — в конце «Другое».
+const GAL = {
+  title: { ru: 'Галерея', en: 'Gallery', tr: 'Galeri', de: 'Galerie', sr: 'Galerija' } as Record<string, string>,
+  other: { ru: 'Другое', en: 'Other', tr: 'Diğer', de: 'Weitere', sr: 'Ostalo' } as Record<string, string>,
+  open: { ru: 'Открыть фото на весь экран', en: 'Open photo full screen', tr: 'Fotoğrafı tam ekran aç', de: 'Foto im Vollbild öffnen', sr: 'Otvori fotografiju preko celog ekrana' } as Record<string, string>,
+  close: { ru: 'Закрыть', en: 'Close', tr: 'Kapat', de: 'Schließen', sr: 'Zatvori' } as Record<string, string>,
+};
+const galGroups = [
+  ...catsUsed.map((k) => ({ label: PHOTO_CAT_LABEL[k][lang], items: photoList.filter((x) => x.cat === k).map((x) => x.src) })),
+  { label: catsUsed.length ? GAL.other[lang] : GAL.title[lang], items: photoList.filter((x) => !x.cat).map((x) => x.src) },
+].filter((gr) => gr.items.length);
+// Материалы (PDF) по вкладкам; плитка «Презентация» ведёт на первую презентацию.
+const docsReal = (pp.docs ?? []).map((x) => ({ tab: x.tab, title: tx(x.title, lang), file: x.file, cover: x.cover || null, demo: false }));
+const docs = docsReal.length ? docsReal : demo ? tb.docsList.slice(0, 3).map((title, i) => ({ tab: (['pres', 'plans', 'docs'] as const)[i], title, file: '', cover: null, demo: true })) : [];
+const docTabs = (['pres', 'plans', 'docs'] as const).filter((k) => docs.some((x) => x.tab === k));
+const pres = docsReal.find((x) => x.tab === 'pres') ?? null;
+// Ход строительства: месяцы из админки (новые первыми); на превью без данных — пример из фото ЖК.
+const progressReal = (pp.progress ?? []).map((x) => ({ month: x.month, photos: x.photos, text: tx(x.text, lang) }));
+// Пример на превью: несколько месяцев за последние два года, фото — из галереи ЖК, иначе главное фото, иначе серые заглушки.
+const demoPool = gallery.length ? gallery : [hero, c.image].filter((x): x is string => !!x);
+const progress: { month: string; photos: (string | null)[]; text: string }[] = progressReal.length ? progressReal
+  : demo ? [0, 1, 3, 5, 12, 24].map((k, j) => { const dt = new Date(today.getFullYear(), today.getMonth() - k, 1); return { month: `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}`, photos: [0, 1, 2].map((n) => (demoPool.length ? demoPool[(j * 3 + n) % demoPool.length] : null)), text: k ? '' : N.demoProgress }; }) : [];
+// Шкала как у образца: годы слева, месяцы выбранного года по линии; месяц без фото — бледный и не нажимается.
+const progMonths = new Set(progress.map((m) => m.month));
+const progYears = [...new Set(progress.map((m) => m.month.slice(0, 4)))].sort();
+const progRows = progYears.map((y) => {
+  const last = Math.max(...progress.filter((m) => m.month.startsWith(y)).map((m) => Number(m.month.slice(5))));
+  const upto = y === progYears[progYears.length - 1] ? last : 12;
+  return { y, months: Array.from({ length: upto }, (_, i) => `${y}-${String(i + 1).padStart(2, '0')}`) };
+});
+const monthLabel = (m: string) => { const [y, mm] = m.split('-').map(Number); return `${tb.months[mm - 1]} ${y}`; };
+const liveUrl = pp.liveUrl ?? null;
+// Плитки под слайдами: на превью без данных показываем все три как пример.
+const liveHref = liveUrl ?? (demo ? '#lead' : null);
+const presHref = pres?.file ?? (demo ? '#docs' : null);
+const tileCount = [liveHref, presHref, docs.length].filter(Boolean).length;
+// Новости проекта: три последние; на превью без данных — пример.
+const newsReal = (pp.news ?? []).slice(0, 12).map((x) => ({ date: dateL(lang, x.date), title: tx(x.title, lang), text: tx(x.text, lang), image: x.image || null }));
+// Новости проекта: карточка открывает новость целиком (окно, адрес #news-N), «Смотреть все новости» — раздел новостей сайта.
+const NW = {
+  all: { ru: 'Смотреть все новости', en: 'See all news', tr: 'Tüm haberler', de: 'Alle Nachrichten', sr: 'Sve vesti' } as Record<string, string>,
+  open: { ru: 'Открыть новость', en: 'Open the news', tr: 'Haberi aç', de: 'Nachricht öffnen', sr: 'Otvori vest' } as Record<string, string>,
+  close: { ru: 'Закрыть', en: 'Close', tr: 'Kapat', de: 'Schließen', sr: 'Zatvori' } as Record<string, string>,
+};
+const newsAllUrl = `/${lang}/blog/news/`;
+const news = newsReal.length ? newsReal : demo ? tb.newsList.map((title, i) => ({ date: dateL(lang, isoIn(-7 * (i + 1))), title, text: N.demoNews, image: gallery[i + 2] ?? null })) : [];
+// Контакты: офис продаж — Аланийский для всех ЖК (Anuar 28.11.2026).
+const office = OFFICES.find((o) => o.id === 'alanya')!;
+const officeTel = 'tel:+' + office.phone.split('').filter((ch) => ch >= '0' && ch <= '9').join('');
+const officePhone = office.phone.replace(/-/g, ' ');
+const tourUrl = pp.tourUrl ?? null;
+// Фото в форме — только если сотрудник загрузил его в админке; иначе нейтральная картинка, как у образца (Anuar 28.11.2026: фото ЖК на странице и так много).
+const formImage = pp.formImage ?? null;
+// «Смотрите также»: плашка «Акция», если у того ЖК есть действующая акция.
+const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).length > 0;
 ---
 <Base system="new" title={meta.title} description={meta.description} canonical={self} robots={robots} alternates={alternates} image={ogImage} overlayHeader jsonLd={ld}>
   <section class="panel-b pb-8 lg:pb-10">
@@ -163,32 +297,43 @@ const month = new Date().getMonth();
       <Img src={hero} alt={`${c.title} — ${place}`} class="absolute inset-0 -z-10 size-full" priority sizes="100vw" width={1920} height={1080} />
       <div class="absolute inset-0 -z-10 bg-gradient-to-b from-ink/50 via-ink/10 to-ink/75"></div>
       <div class="container-n relative flex min-h-[520px] flex-col justify-end pb-8 pt-32 lg:min-h-[520px] lg:pb-10">
-        {(p?.promo || buildEnd) && (
-          <div class="absolute right-5 top-32 hidden w-[294px] rounded-[20px] bg-white p-3 text-ink-n lg:right-10 lg:block">
-            <span class="inline-flex rounded-[6px] bg-ink-n px-2 py-0.5 text-[11px] font-medium uppercase tracking-[1px] text-white">{p?.promo && lang === 'ru' ? tb.promo : tc.deadline}</span>
-            <p class="mt-2 text-[15px] leading-[20px]">{p?.promo && lang === 'ru' ? p.promo : buildEnd}</p>
+        {/* Справа — карточка акции (как у образца); нет акции — карточки нет. */}
+        {promos[0] && (
+          <div class="absolute right-5 top-32 hidden w-[300px] overflow-hidden rounded-[20px] bg-white text-ink-n shadow-[0_8px_30px_rgba(9,7,20,.18)] lg:right-10 lg:block">
+            <div class="relative h-[120px]"><Img src={promoImg(0)} alt="" class="size-full" width={600} height={240} /><span class="absolute left-3 top-3 inline-flex rounded-[6px] bg-accent px-2 py-0.5 text-[11px] font-medium uppercase tracking-[1px] text-white">{N.promoBadge}{promos[0].demo && ` · ${N.example}`}</span></div>
+            <div class="p-4">
+              <p class="text-[16px] leading-[21px]">{promos[0].title}</p>
+              {promos[0].until && <p class="mt-1 text-[13px] text-soft">{promos[0].until}</p>}
+              <a href="#promo" class="mt-3 inline-flex items-center gap-1.5 text-[14px] font-medium text-accent">{N.learnMore}<Icon name="arrowRight" class="size-4" /></a>
+            </div>
           </div>
         )}
-        <h1 class="display h-page max-w-4xl text-white">{meta.h1}</h1>
-        <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-white/90">
-          <span class="inline-flex items-center gap-1.5"><Icon name="pin" class="size-4" />{place}</span>
-          {buildEnd && <span>{tc.deadline}: {buildEnd}</span>}
-          {c.rooms.length > 0 && <span>{c.rooms.join(' · ')}</span>}
+        {/* На экране крупно — название ЖК (как у образца); SEO-заголовок H1 остаётся строкой над ним (решение Anuar 28.11.2026). */}
+        <h1 class="max-w-4xl text-[13px] font-medium uppercase leading-[18px] tracking-[1px] text-white/80">{meta.h1}</h1>
+        <p class="display mt-2 max-w-4xl text-[44px] leading-[48px] text-white sm:text-[60px] sm:leading-[64px] lg:text-[76px] lg:leading-[80px]">{c.title}</p>
+        {subtitle && <p class="mt-3 max-w-2xl text-[17px] leading-[24px] text-white/90 lg:text-[20px] lg:leading-[28px]">{subtitle}</p>}
+        <p class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px] leading-[20px] text-white/90">
+          {seaText && <span class="inline-flex items-center gap-1.5"><Icon name="wave" class="size-4" />{seaText} {N.toSea}</span>}
+          {seaText && <span aria-hidden="true">·</span>}
+          <span class="inline-flex items-center gap-1.5">{!seaText && <Icon name="pin" class="size-4" />}{place}</span>
         </p>
         <div class="mt-6 flex flex-wrap gap-2.5">
           {picker || ours ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
           {picker && <a href="#lead" class="btn-n btn-n-glass max-sm:w-full">{tc.getPrice}</a>}
+          {!picker && ours && <a href="#viewing" class="btn-n btn-n-glass gap-2 max-sm:w-full"><Icon name="phone" class="size-4" />{tb.orderCall}</a>}
         </div>
       </div>
     </div>
 
     <div class="container-n">
       <div class="pt-5"><Breadcrumbs items={crumbs} /></div>
-      {((p?.facts.length ?? 0) > 0 || low || objects.length > 0) && (
-        <dl class="mt-6 grid gap-5 sm:grid-cols-2 lg:flex lg:flex-wrap lg:gap-x-10">
-          {low && <div class="fact"><span class="fact-i"><Icon name="tag" class="size-5" /></span><div><dt>{tc.priceRange}</dt><dd>{d.from(moneyL(lang, low))}{high && high > low ? ` – ${moneyL(lang, high)}` : ''}</dd></div></div>}
-          {p?.facts.filter((f) => f.label !== 'price').map((f) => <div class="fact"><span class="fact-i"><Icon name={f.label === 'build-end' ? 'calendar' : f.label === 'location' ? 'pin' : f.label === 'mix' ? 'layout' : 'building'} class="size-5" /></span><div><dt>{FACT_LABEL[f.label] ?? f.label}</dt><dd>{f.value}</dd></div></div>)}
-          {objects.length > 0 && <div class="fact lg:ml-auto"><span class="fact-i fact-dark"><Icon name="building" class="size-5" /></span><div><dt>{tc.available}</dt><dd>{numL(lang, objects.length)}</dd></div></div>}
+      {/* Строка фактов как у образца — четыре ячейки: цена от и за м², площади, срок сдачи, адрес с картой. Пустая ячейка не показывается. */}
+      {(low || areaMin || buildEnd || place) && (
+        <dl class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+          {low && <div class="fact"><span class="fact-i"><Icon name="tag" class="size-5" /></span><div><dt>{tc.priceRange}</dt><dd>{d.from(moneyL(lang, low))}{perM2 && <span class="fact-sub">{`${moneyL(lang, perM2)}/${N.perM2}`}</span>}</dd></div></div>}
+          {areaMin && <div class="fact"><span class="fact-i"><Icon name="layout" class="size-5" /></span><div><dt>{N.area}</dt><dd>{areaMax && areaMax > areaMin ? `${numL(lang, areaMin)}–${numL(lang, areaMax)} ${d.m2}` : `${numL(lang, areaMin)} ${d.m2}`}</dd></div></div>}
+          {buildEnd && <div class="fact"><span class="fact-i"><Icon name="calendar" class="size-5" /></span><div><dt>{tc.deadline}</dt><dd>{buildEnd}</dd></div></div>}
+          <div class="fact"><a href="#viewing" class="fact-i fact-dark" aria-label={N.onMap}><Icon name="pin" class="size-5" /></a><div><dt>{N.address}</dt><dd>{place}{district && <a href={catUrl(lang, geoCat, { complexes: true })} class="fact-chip">{district.name[lang]}</a>}</dd></div></div>
         </dl>
       )}
 
@@ -199,20 +344,17 @@ const month = new Date().getMonth();
             {flatGroups.map((g) => {
               const inner = (
                 <>
-                  <span class="flex items-start justify-between gap-3">
-                    <span class="text-[16px] leading-[22px] tracking-[.2px] text-ink-n">{g.title}</span>
-                    <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium uppercase leading-[14px] tracking-[.6px] text-ink-n">{g.count}</span>
-                  </span>
+                  <span class="text-[16px] leading-[22px] tracking-[.2px] text-ink-n">{g.title}</span>
                   {g.area && <span class="text-[14px] leading-[19px] text-ink-n">{d.from(`${numL(lang, g.area)} ${d.m2}`)}</span>}
                   <span class="text-[14px] leading-[19px] text-soft">{g.price ? d.from(moneyL(lang, g.price)) : d.priceOnRequest}</span>
-                  <span class="mt-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-[12px] bg-white">{g.image ? <Img src={g.image} alt="" class="size-full object-contain" width={480} height={360} /> : <Icon name="building" class="size-8 text-soft" />}</span>
+                  <span class="relative mt-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-[12px] bg-white">{g.image ? <Img src={g.image} alt="" class="size-full object-contain" width={480} height={360} /> : <Icon name="building" class="size-8 text-soft" />}<span class="absolute bottom-2 left-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium uppercase leading-[14px] tracking-[.6px] text-ink-n shadow-[0_1px_4px_rgba(9,7,20,.08)]">{g.count}</span><span class="absolute bottom-2 right-2 grid size-12 place-items-center rounded-[14px] bg-white text-ink-n shadow-[0_2px_10px_rgba(9,7,20,.10)] transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-visible:opacity-100" aria-hidden="true"><Icon name="chevronRight" class="size-4" /></span></span>
                 </>
               );
               return (
                 <li class="w-[248px] shrink-0 snap-start lg:w-[calc((100%-48px)/4)]">
                   {g.href
-                    ? <a href={g.href} class="tile-n group flex h-full flex-col gap-1 p-4 transition hover:shadow-[var(--shadow-card)]">{inner}</a>
-                    : <button type="button" class="tile-n group flex h-full w-full flex-col gap-1 p-4 text-left transition hover:shadow-[var(--shadow-card)]" data-grp={g.id} aria-haspopup="dialog">{inner}</button>}
+                    ? <a href={g.href} class="tile-n group flex h-full flex-col gap-1 p-4 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]">{inner}</a>
+                    : <button type="button" class="tile-n group flex h-full w-full flex-col gap-1 p-4 text-left transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-card)]" data-grp={g.id} aria-haspopup="dialog">{inner}</button>}
                 </li>
               );
             })}
@@ -272,6 +414,7 @@ const month = new Date().getMonth();
         <div class="seg">
           {ytId && <button type="button" aria-selected="true" data-jump="0">{tb.video}</button>}
           {gallery.length > 0 && <button type="button" aria-selected={ytId ? 'false' : 'true'} data-jump={ytId ? '1' : '0'}>{tb.photo}</button>}
+          {tourUrl && <button type="button" aria-selected="false" data-jump={String((ytId ? 1 : 0) + Math.min(gallery.length, 6))}>{N.tour}</button>}
         </div>
       </div>
     </div>
@@ -288,35 +431,96 @@ const month = new Date().getMonth();
         {gallery.slice(0, 6).map((src, i) => (
           <div class="aspect-[1216/730] w-[92%] shrink-0 snap-center overflow-hidden rounded-[24px] lg:w-full"><Img src={src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="size-full" width={1280} height={720} /></div>
         ))}
+        {tourUrl && (
+          <div class="relative aspect-[1216/730] w-[92%] shrink-0 snap-center overflow-hidden rounded-[24px] bg-ink lg:w-full" data-tour={tourUrl}>
+            <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={N.tour}>
+              {hero && <Img src={hero} alt="" class="absolute inset-0 size-full opacity-70" width={1280} height={720} />}
+              <span class="relative rounded-[16px] bg-white px-5 py-3 text-[16px] font-medium text-ink shadow-lg">{N.tour}</span>
+            </button>
+          </div>
+        )}
       </div>
-      {full && (<>
+      {full && tileCount > 0 && (<>
       <h2 class="sr-only">{tb.status}</h2>
-      <ul class="mt-3 grid gap-3 md:grid-cols-3">
-        <li class="flex min-h-[220px] flex-col rounded-[24px] bg-white p-6 md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px] text-ink-n">{tb.status}</p><p class="mt-1 text-[13px] text-soft">{tc.deadline}: {buildEnd ?? '—'}</p><span class="mt-auto grid size-10 place-items-center self-start rounded-[12px] bg-page-n text-ink-n"><Icon name="building" class="size-5" /></span></li>
-        <li class="flex min-h-[220px] flex-col rounded-[24px] bg-white p-6 md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px] text-ink-n">{tb.statusStage} <span class="stub">{tb.stub}</span></p><p class="mt-1 text-[13px] text-soft">{tb.statusStageText}</p><span class="mt-auto self-end text-soft"><Icon name="arrowRight" class="size-4" /></span></li>
-        <li class="flex min-h-[220px] flex-col rounded-[24px] bg-accent p-6 text-white md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px]">{tb.viewing}</p><p class="mt-1 text-[13px] text-white/80">{tb.viewingText}</p><a href="#viewing" class="mt-auto grid size-10 place-items-center self-end rounded-[12px] bg-white text-ink" aria-label={tb.viewingBtn}><Icon name="arrowRight" class="size-4" /></a></li>
+      {/* Плитки как у образца (ЖК МИРА): Live-камеры, Презентация, Материалы (фиолетовая). Плитка без данных не показывается. */}
+      <ul class:list={['mt-3 grid gap-3', tileCount === 3 ? 'md:grid-cols-3' : tileCount === 2 ? 'md:grid-cols-2 tiles-low' : 'tiles-low tiles-one']}>
+        {liveHref && <li class="tile-sq relative overflow-hidden bg-white">
+          <p class="text-[20px] leading-[26px] text-ink-n">{tb.tiles.live}<span class="ml-0.5 inline-block size-1.5 -translate-y-2 rounded-full bg-[#e5304f]" aria-hidden="true"></span></p>
+          <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-soft">{tb.tiles.liveText}</p>
+          <svg class="pointer-events-none absolute bottom-0 left-4 h-[62%] w-auto text-[#c9cad1]" viewBox="0 0 220 260" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M150 260V40M170 260V40M150 40h20M150 60l20 20M170 60l-20 20M150 100l20 20M170 100l-20 20M150 140l20 20M170 140l-20 20M150 180l20 20M170 180l-20 20M150 220l20 20M170 220l-20 20"/>
+            <path d="M10 46h210M10 62h140M10 46l16 16M42 46l16 16M74 46l16 16M106 46l16 16M26 62l16-16M58 62l16-16M90 62l16-16M122 62l16-16M160 10v36M160 10 30 46M160 10l60 36"/>
+            <rect x="136" y="62" width="28" height="30" rx="3" fill="#fff"/>
+            <path d="M60 62v80M50 142h20v8H50zM60 150v14" /><path d="M54 170a6 6 0 1 0 12 0" />
+          </svg>
+          <a href={liveHref} target={liveUrl ? '_blank' : undefined} rel="noopener" class="tile-btn" aria-label={tb.tiles.live}><Icon name="arrowUpRight" class="size-4" /></a>
+        </li>}
+        {presHref && <li class="tile-sq bg-white">
+          <p class="text-[20px] leading-[26px] text-ink-n">{tb.tiles.pres}</p>
+          <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-soft">{tb.tiles.presText}</p>
+          <a href={presHref} target={pres ? '_blank' : undefined} rel="noopener" download={pres ? '' : undefined} class="tile-btn" aria-label={tb.tiles.pres}><Icon name="download" class="size-4" /></a>
+        </li>}
+        {docs.length > 0 && <li class="tile-sq bg-accent text-white">
+          <p class="text-[20px] leading-[26px]">{tb.tiles.mats}</p>
+          <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-white/85">{tb.tiles.matsText}</p>
+          <a href="#docs" class="tile-btn" aria-label={tb.tiles.mats}><Icon name="arrowUpRight" class="size-4" /></a>
+        </li>}
       </ul>
       </>)}
     </div>
   </section>
 
-  {gallery.length > 2 && (
-    <section class="container-n mt-20 lg:mt-28" data-car>
-      <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
-        <h2 class="display h-section-n">{d.item.gallery}</h2>
-        <div class="flex items-center gap-2">
-          <div class="seg"><span aria-selected="true">{tb.all} · {gallery.length}</span></div>
-          <button type="button" class="car-btn hidden lg:grid" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button>
-          <button type="button" class="car-btn hidden lg:grid" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button>
+  {photoList.length > 2 && (
+    <section class="mt-20 lg:mt-28" data-gal2 aria-labelledby="gal2-h">
+      {/* Галерея как у образца (ЖК МИРА, Anuar 28.11.2026): одна карусель, фото идут по категориям; вкладка переносит к первому
+          фото категории и подсвечивается сама при листании. На каждом фото — «01 / 06» внутри категории и кнопка «на весь экран». */}
+      <div class="container-n mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+        <h2 id="gal2-h" class="display h-section-n">{GAL.title[lang]}</h2>
+        {galGroups.length > 1 && (
+          <div class="seg max-w-full scroll-x" role="tablist">
+            {galGroups.map((gr, gi) => <button type="button" role="tab" aria-selected={gi === 0 ? 'true' : 'false'} data-gal2-tab={gi}>{gr.label}</button>)}
+          </div>
+        )}
+      </div>
+      <div class="relative">
+        <div class="gal2-track scroll-x flex snap-x snap-mandatory gap-3 lg:gap-6" data-gal2-track>
+          {galGroups.flatMap((gr, gi) => gr.items.map((src, k) => (
+            <div class="gal2-slide relative shrink-0 snap-center overflow-hidden rounded-[24px] bg-page-n" data-gal2-slide data-g={gi} data-src={src}>
+              <button type="button" class="block w-full cursor-zoom-in" data-gal2-open aria-label={`${GAL.open[lang]}: ${d.photo} ${k + 1}`}>
+                <Img src={src} alt={`${c.title} — ${gr.label} — ${d.photo} ${k + 1}`} class="aspect-[4/3] w-full lg:aspect-[16/9]" width={1280} height={720} sizes="(min-width: 1024px) 80vw, 90vw" />
+              </button>
+              <span class="pointer-events-none absolute left-4 top-4 rounded-full bg-[#1c1e2680] px-2.5 py-1 text-[11px] font-semibold tracking-[1px] text-white backdrop-blur lg:left-6 lg:top-6">{String(k + 1).padStart(2, '0')}<span class="opacity-60"> / {String(gr.items.length).padStart(2, '0')}</span></span>
+              <button type="button" class="absolute right-4 top-4 grid size-11 place-items-center rounded-[14px] bg-white text-ink-n shadow-md transition hover:scale-105 lg:right-6 lg:top-6 lg:size-14" data-gal2-open aria-label={GAL.open[lang]}><Icon name="expand" class="size-5" /></button>
+            </div>
+          )))}
         </div>
+        <button type="button" class="gal2-arrow left-[3%] lg:left-[8%]" data-gal2-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-5" /></button>
+        <button type="button" class="gal2-arrow right-[3%] lg:right-[8%]" data-gal2-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-5" /></button>
       </div>
-      <div class="scroll-x flex snap-x snap-mandatory gap-3" data-car-track>
-        {gallery.map((src, i) => (
-          <a href={src} target="_blank" rel="noopener" class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] lg:w-[82%]">
-            <Img src={src} alt={`${c.title} — ${d.photo} ${i + 1}`} class="aspect-[4/3] w-full lg:aspect-[16/9]" width={1280} height={720} />
-          </a>
-        ))}
-      </div>
+      <dialog class="gal2-lb m-0 size-full max-h-none max-w-none p-0" data-gal2-lb aria-label={GAL.title[lang]}>
+        {/* На весь экран как у образца (ЖК МИРА): фото во всю высоту слева, справа тёмная колонка — «закрыть» вверху,
+            стрелки внизу; вкладки категорий поверх фото сверху, счётчик «02 / 06» в углу фото. */}
+        <div class="flex size-full">
+          <div class="relative min-w-0 flex-1 overflow-hidden" data-gal2-lb-stage>
+            <img src="" alt="" class="size-full object-contain lg:object-cover" data-gal2-lb-img />
+            {galGroups.length > 1 && (
+              <div class="absolute left-3 right-[68px] top-3 flex justify-start lg:inset-x-3 lg:top-6 lg:justify-center">
+                <div class="seg gal2-lb-tabs max-w-full scroll-x" role="tablist">
+                  {galGroups.map((gr, gi) => <button type="button" role="tab" aria-selected="false" data-gal2-lb-tab={gi}>{gr.label}</button>)}
+                </div>
+              </div>
+            )}
+            <span class="absolute bottom-6 left-4 lg:bottom-4 lg:left-auto lg:right-4 text-[12px] font-semibold tracking-[1px] text-white [text-shadow:0_1px_4px_rgb(0_0_0/.5)]" data-gal2-lb-count></span>
+          </div>
+          <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 lg:pointer-events-auto lg:static lg:w-[152px] lg:shrink-0 lg:p-4">
+            <button type="button" class="gal2-lb-btn pointer-events-auto self-end" data-gal2-lb-close aria-label={GAL.close[lang]}><Icon name="close" class="size-5" /></button>
+            <div class="pointer-events-auto flex justify-end gap-3">
+              <button type="button" class="gal2-lb-btn" data-gal2-lb-step="-1" aria-label={tb.prev}><Icon name="chevronLeft" class="size-5" /></button>
+              <button type="button" class="gal2-lb-btn" data-gal2-lb-step="1" aria-label={tb.next}><Icon name="chevronRight" class="size-5" /></button>
+            </div>
+          </div>
+        </div>
+      </dialog>
     </section>
   )}
 
@@ -340,8 +544,8 @@ const month = new Date().getMonth();
 
   <section class="mt-20 lg:mt-28" data-tabs>
     <div class="mx-auto max-w-[988px] px-5 text-center">
-      <h2 class="display h-section-n mb-4">{tb.aboutProject}{full && infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
-      {about?.html && <div class="prose-stay about-text" lang="ru" set:html={about.html} />}
+      <h2 class="display h-section-n mb-4">{tb.aboutProject}</h2>
+      {aboutText && <p class="mx-auto max-w-[900px] text-[16px] leading-[24px] text-ink-n lg:text-[20px] lg:leading-[30px]" lang={aboutLang}>{aboutText}</p>}
       {about?.pairs && (
         <dl class="mt-5 flex flex-wrap justify-center gap-3" lang="ru">
           {about.pairs.map(([k, v]) => <div class="min-w-[160px] rounded-[16px] bg-white px-5 py-4 text-left"><dt class="text-[13px] text-soft">{k}</dt><dd class="mt-1 text-[18px] leading-[24px] text-ink-n">{v}</dd></div>)}
@@ -370,9 +574,39 @@ const month = new Date().getMonth();
   </section>
 
   <section id="lead" class="container-n mt-20 scroll-mt-28 lg:mt-28">
-    <div class="grid overflow-hidden rounded-[24px] bg-ink-n md:grid-cols-2">
-      <Img src={gallery[4] ?? gallery[0] ?? hero} alt="" class="aspect-[16/10] size-full md:aspect-auto" width={960} height={600} />
-      <div class="p-6 text-white lg:p-10"><LeadForm context={`complex-${c.code}`} title={tb.formTitle} subtitle={tb.formText} submitLabel={tb.formBtn} dark /></div>
+    {/* Как у образца (МИРА): край фото дугой и мягкое затемнение к форме, Имя и Телефон в строку, одна галочка (Anuar 28.11.2026). */}
+    <div class="lead-box grid overflow-hidden rounded-[24px] bg-ink-n md:grid-cols-[1.05fr_1fr]">
+      <div class="lead-photo relative min-h-[220px] md:min-h-[440px]">
+        {formImage ? <Img src={formImage} alt="" class="absolute inset-0 size-full" width={960} height={720} /> : (
+          <div class="lead-art absolute inset-0" aria-hidden="true">
+            <svg class="absolute left-1/2 top-1/2 h-[92%] w-auto -translate-x-[58%] -translate-y-1/2 md:-translate-x-[62%]" viewBox="0 0 420 420" fill="none">
+              <defs>
+                <linearGradient id="la-ph" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2540"/><stop offset="1" stop-color="#14121f"/></linearGradient>
+                <linearGradient id="la-nb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbf8f2"/><stop offset="1" stop-color="#efe9dd"/></linearGradient>
+                <filter id="la-sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="14" dy="22" stdDeviation="16" flood-color="#1b0f4d" flood-opacity=".45"/></filter>
+              </defs>
+              <g filter="url(#la-sh)" transform="rotate(-14 210 210)">
+                <rect x="96" y="92" width="210" height="262" rx="10" fill="url(#la-nb)"/>
+                <path d="M201 92v262" stroke="#ddd4c4" stroke-width="2"/>
+                <g stroke="#e3dccd" stroke-width="2">{[0,1,2,3,4,5,6,7].map((i) => <path d={`M114 ${134 + i * 26}h70M218 ${134 + i * 26}h70`}/>)}</g>
+              </g>
+              <g filter="url(#la-sh)" transform="rotate(10 300 250)">
+                <rect x="250" y="150" width="112" height="226" rx="20" fill="url(#la-ph)"/>
+                <rect x="258" y="160" width="96" height="206" rx="14" fill="#1e1a2e"/>
+                <rect x="268" y="196" width="62" height="20" rx="10" fill="#8f74ff"/>
+                <rect x="282" y="226" width="62" height="20" rx="10" fill="#3a3452"/>
+                <rect x="268" y="256" width="50" height="20" rx="10" fill="#8f74ff"/>
+                <rect x="290" y="166" width="32" height="6" rx="3" fill="#0d0b16"/>
+              </g>
+              <g filter="url(#la-sh)" transform="rotate(32 150 330)">
+                <rect x="70" y="326" width="170" height="9" rx="4.5" fill="#15131c"/>
+                <rect x="70" y="326" width="22" height="9" rx="4.5" fill="#c9a86a"/>
+              </g>
+            </svg>
+          </div>
+        )}
+      </div>
+      <div class="relative flex flex-col justify-center p-6 text-white lg:p-12"><LeadForm context={`complex-${c.code}`} title={tb.formTitle} subtitle={tb.formText} submitLabel={tb.leaveRequest} dark row agree /></div>
     </div>
   </section>
 
@@ -388,6 +622,7 @@ const month = new Date().getMonth();
             <a href={complexUrl(lang, o)} class="photo-card aspect-[788/404]">
               <Img src={o.image} alt={o.title} class="absolute inset-0 size-full" width={800} height={410} />
               <span class="photo-card-top"><span class="text-[20px] leading-[26px]">{o.title}</span>{o.priceFrom && <span class="mt-1 block text-[14px] text-white/85">{d.from(moneyL(lang, o.priceFrom))}</span>}</span>
+              {promoOf(o) && <span class="absolute bottom-5 left-6 z-[1] inline-flex rounded-[6px] bg-accent px-2 py-0.5 text-[11px] font-medium uppercase tracking-[1px] text-white">{N.promoBadge}</span>}
             </a>
           </li>
         ))}
@@ -399,48 +634,92 @@ const month = new Date().getMonth();
     <div class="container-n" data-car>
       <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
         <h2 class="display h-section-n">{tb.buy}</h2>
-        {(p?.paymentCards.length ?? 0) > 3 && <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>}
+        {/* Способы покупки (Anuar 28.11): у нас всегда 100% оплата, рассрочка и ипотека в Турции для иностранцев. */}
       </div>
       <ul class="scroll-x flex snap-x gap-6" data-car-track>
-        {(p?.paymentCards ?? []).map((x, i) => (
+        {buyWays.map((x) => (
           <li class="flex min-h-[260px] w-[86%] shrink-0 snap-start flex-col gap-6 rounded-[24px] bg-page-n p-6 md:w-[calc((100%-48px)/3)] lg:min-h-[316px]">
-            <span class="grid size-12 place-items-center rounded-[14px] bg-white text-ink-n"><Icon name={['tag', 'calendar', 'building'][i % 3]} class="size-5" /></span>
-            <span><h3 class="text-[20px] leading-[26px] text-ink-n">{x.title}</h3><p class="mt-2 text-[14px] leading-[20px] text-soft">{x.description}</p></span>
-            <a href="#lead" class="mt-auto text-[14px] text-accent">{x.buttonLabel || tc.consult} →</a>
+            <Icon name={x.icon} class="size-10 text-ink-n" />
+            <span><h3 class="display text-[20px] leading-[26px] text-ink-n">{x.title}</h3><p class="mt-3 text-[14px] leading-[20px] text-soft">{x.text}</p></span>
+            <a href="#lead" class="mt-auto text-[14px] text-accent">{tc.consult} →</a>
           </li>
         ))}
       </ul>
     </div>
-    {full && (
-    <div class="container-n">
-      <h2 class="display h-section-n mb-6 mt-14 lg:mb-8 lg:mt-20">{tb.promo} <span class="stub">{tb.stub}</span></h2>
-      <div class="relative overflow-hidden rounded-[24px] bg-ink-n text-white">
-        <Img src={gallery[3] ?? hero} alt="" class="absolute inset-0 size-full opacity-70" width={1600} height={404} />
-        <div class="absolute inset-0 bg-gradient-to-r from-ink/80 to-transparent"></div>
-        <div class="relative flex min-h-[320px] max-w-[560px] flex-col p-6 lg:min-h-[404px] lg:p-8">
-          <p class="text-[24px] leading-[30px] lg:text-[28px] lg:leading-[36px]">{p?.promo && lang === 'ru' ? p.promo : tb.promoTitle}</p>
-          <p class="mt-2 text-white/80">{tb.promoText}</p>
-          <span class="mt-3 self-start rounded-[6px] bg-white/15 px-2 py-1 text-[12px] font-medium">{tb.until}</span>
-          <a href="#lead" class="btn-n btn-n-white mt-auto self-start">{tb.leaveRequest}</a>
-        </div>
-      </div>
+    {promos.length > 0 && (
+    <div id="promo" class="container-n scroll-mt-28">
+      <h2 class="display h-section-n mb-6 mt-14 lg:mb-8 lg:mt-20">{tb.promo}{promos[0].demo && <> <span class="stub">{N.example}</span></>}</h2>
+      {/* Как у образца (МИРА): до двух карточек рядом — заголовок, текст, дата «до», кнопка заявки. После даты акция скрывается сама. */}
+      <ul class="grid gap-6 md:grid-cols-2">
+        {promos.map((x, i) => (
+          <li class:list={['relative isolate flex min-h-[300px] flex-col overflow-hidden rounded-[24px] bg-ink-n p-6 text-white lg:min-h-[404px] lg:p-8', promos.length === 1 && 'md:col-span-2']}>
+            <Img src={promoImg(i)} alt="" class="absolute inset-0 -z-10 size-full" width={800} height={410} />
+            <div class="absolute inset-0 -z-10 bg-gradient-to-b from-ink/70 via-ink/10 to-ink/40"></div>
+            <p class="display max-w-[520px] text-[24px] leading-[30px] lg:text-[28px] lg:leading-[34px]">{x.title}</p>
+            {x.text && <p class="mt-2 max-w-[460px] text-[15px] leading-[21px] text-white/85">{x.text}</p>}
+            {x.until && <span class="mt-3 self-start rounded-[8px] bg-accent px-2.5 py-1 text-[13px] font-medium text-white">{x.until}</span>}
+            <a href="#lead" class="btn-n btn-n-white mt-auto gap-2 self-start">{tb.leaveRequest}<Icon name="arrowRight" class="size-4" /></a>
+          </li>
+        ))}
+      </ul>
     </div>
     )}
   </section>
 
-  {full && (
-  <section class="container-n mt-20 lg:mt-28" data-tabs>
-    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
-      <h2 class="display h-section-n">{tb.docs} <span class="stub">{tb.stub}</span></h2>
-      <div class="seg" role="tablist">{tb.docsTabs.map((x, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{x}</button>)}</div>
+  {(flatGroups.length > 0 || links.length > 0) && (
+  <section class="container-n mt-20 lg:mt-28" data-car>
+    {/* Подборки как у образца (МИРА): по планировкам этого ЖК, после «Акций»; в конце — ссылки на район/город (перелинковка). */}
+    <div class="mb-6 flex items-end justify-between gap-4 lg:mb-8">
+      <div><h2 class="display h-section-n">{tb.collections}</h2><p class="mt-2 text-[16px] text-soft">{tb.collectionsText}</p></div>
+      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="chevronLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button></div>
     </div>
-    {[tb.docsList.slice(0, 2), tb.docsList.slice(2)].map((list, i) => (
+    <ul class="scroll-x flex snap-x gap-6" data-car-track>
+      {flatGroups.map((g, i) => {
+        const inner = (<>
+          <Img src={gallery[(i + 4) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={560} height={412} />
+          <span class="photo-card-top"><span class="text-[20px] leading-[26px] lg:text-[24px] lg:leading-[30px]">{g.title}{g.areaMax ? ` ${tb.upTo(`${numL(lang, g.areaMax)} ${d.m2}`)}` : ''}</span><span class="mt-1 block text-[14px] text-white/85">{g.count}{g.price ? ` · ${d.from(moneyL(lang, g.price))}` : ''}</span></span>
+          <span class="photo-card-go" aria-hidden="true"><Icon name="arrowUpRight" class="size-4" /></span>
+        </>);
+        return (
+          <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+            {g.href ? <a href={g.href} class="photo-card aspect-[558/412]">{inner}</a> : <button type="button" class="photo-card aspect-[558/412] w-full text-left" data-grp={g.id} aria-haspopup="dialog">{inner}</button>}
+          </li>
+        );
+      })}
+      {links.map((l, i) => (
+        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+          <a href={l.href} class="photo-card aspect-[558/412]">
+            <Img src={gallery[(i + 1) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={560} height={412} />
+            <span class="photo-card-top text-[20px] leading-[26px]">{l.text}</span>
+            <span class="photo-card-go" aria-hidden="true"><Icon name="arrowUpRight" class="size-4" /></span>
+          </a>
+        </li>
+      ))}
+      {picker && (
+        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+          <a href={pickerUrl} class="flex aspect-[558/412] flex-col justify-between rounded-[24px] bg-ink-n p-6 text-white"><span class="text-[20px] leading-[26px]">{tb.pickOnPlan}</span><span class="text-[14px] text-white/70">{numL(lang, objects.length)} · {tc.available}</span></a>
+        </li>
+      )}
+    </ul>
+  </section>
+  )}
+
+  {docs.length > 0 && (
+  <section id="docs" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-tabs>
+    {/* Материалы (PDF из админки): обложка слева, название, «PDF ↓»; вкладки только те, где есть файлы. */}
+    <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
+      <h2 class="display h-section-n">{tb.docs}{docs[0].demo && <> <span class="stub">{N.example}</span></>}</h2>
+      {docTabs.length > 1 && <div class="seg" role="tablist">{docTabs.map((k, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{N.docTabs[k]}</button>)}</div>}
+    </div>
+    {docTabs.map((k, i) => (
       <ul class="grid gap-6 md:grid-cols-2" data-pane={i} hidden={i !== 0}>
-        {list.map((x) => (
-          <li class="flex min-h-[96px] items-center gap-4 rounded-[20px] bg-white py-3 pl-3 pr-5 lg:min-h-[120px]">
-            <span class="grid size-[72px] shrink-0 place-items-center rounded-[14px] bg-page-n text-soft lg:size-24"><Icon name="layout" class="size-6" /></span>
-            <span class="text-[16px] leading-[22px] text-ink-n">{x}</span>
-            <span class="ml-auto shrink-0 text-[12px] font-medium uppercase tracking-[1px] text-soft">PDF · {tb.soon}</span>
+        {docs.filter((x) => x.tab === k).map((x, j) => (
+          <li>
+            <a href={x.file || '#lead'} target={x.file ? '_blank' : undefined} rel="noopener" download={x.file ? '' : undefined} class="flex min-h-[96px] items-center gap-4 rounded-[20px] bg-white py-3 pl-3 pr-5 transition hover:shadow-[var(--shadow-card)] lg:min-h-[120px]">
+              <span class="relative size-[72px] shrink-0 overflow-hidden rounded-[14px] bg-page-n lg:size-24"><Img src={x.cover ?? gallery[(j + 1) % Math.max(gallery.length, 1)] ?? hero} alt="" class="size-full" width={96} height={96} /></span>
+              <span class="text-[16px] leading-[22px] text-ink-n">{x.title}</span>
+              <span class="ml-auto inline-flex shrink-0 items-center gap-2 text-[15px] font-medium text-ink-n">PDF <Icon name="download" class="size-4" /></span>
+            </a>
           </li>
         ))}
       </ul>
@@ -448,38 +727,112 @@ const month = new Date().getMonth();
   </section>
   )}
 
-  {full && (
-  <section class="container-n mt-20 lg:mt-28" data-tabs>
+  {progress.length > 0 && (
+  <section id="progress" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-prog>
+    {/* Ход строительства как у образца (ЖК МИРА): справа Фото / Онлайн-трансляция / Видео; фото по месяцам, внизу шкала годов и месяцев. */}
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
-      <h2 class="display h-section-n">{tb.progress} <span class="stub">{tb.stub}</span></h2>
-      <div class="seg max-w-full scroll-x" role="tablist">{tb.progressTabs.map((x, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{x}</button>)}</div>
+      <h2 class="display h-section-n">{tb.progress}{!progressReal.length && <> <span class="stub">{N.example}</span></>}</h2>
+      {(liveUrl || demo || ytId) && (
+        <div class="seg" role="tablist">
+          <button type="button" role="tab" aria-selected="true" data-prog-view="photo">{N.photos}</button>
+          {(liveUrl || demo) && <button type="button" role="tab" aria-selected="false" data-prog-view="live">{N.liveTab}</button>}
+          {ytId && <button type="button" role="tab" aria-selected="false" data-prog-view="video">{N.video}</button>}
+        </div>
+      )}
     </div>
-    <div data-pane="0" data-car>
-      <ul class="scroll-x flex snap-x gap-6" data-car-track>
-        {(progressPhotos.length ? progressPhotos : [hero, hero]).map((src) => <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] md:w-[calc(50%-12px)]"><Img src={src} alt="" class="aspect-[788/562] w-full" width={800} height={570} /></li>)}
-      </ul>
-      <div class="scroll-x mt-6 flex items-end gap-1 whitespace-nowrap">
-        {[year - 2, year - 1, year].map((y) => <span class:list={['px-3 pt-1.5 text-[18px] leading-[26px]', y === year ? 'text-ink-n' : 'text-[#8e9099]']}>{y}</span>)}
-        {tb.months.slice(0, month + 1).map((m, i) => <span class:list={['min-w-[64px] flex-1 border-t-2 px-2 pt-1.5 text-center text-[11px] leading-[15px]', i === month ? 'border-ink-n text-ink-n' : 'border-line text-[#8e9099]']}>{m}</span>)}
+    <div data-prog-pane="photo">
+      {progress.map((m, i) => (
+        <div data-prog-month-pane={m.month} hidden={i !== 0}>
+          {/* Как у образца: на экране сразу два фото, стрелка листает ровно на два. */}
+          <div class="relative">
+            <ul class="scroll-x flex snap-x snap-mandatory gap-5" data-prog-track>
+              {m.photos.map((src) => (
+                <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-[#dfe0e8] md:w-[calc(50%-10px)]">
+                  {src ? <Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[610/375] w-full" width={800} height={492} /> : <div class="aspect-[610/375] w-full" />}
+                </li>
+              ))}
+            </ul>
+            {m.photos.length > 2 && <>
+              <button type="button" class="prog-arrow left-5 hidden md:grid" data-prog-step="-1" aria-label={tb.prev}><Icon name="arrowLeft" class="size-5" /></button>
+              <button type="button" class="prog-arrow right-5 hidden md:grid" data-prog-step="1" aria-label={tb.next}><Icon name="arrowRight" class="size-5" /></button>
+            </>}
+          </div>
+          {m.text && <p class="mt-4 max-w-3xl text-[16px] leading-[24px] text-ink-n">{m.text}</p>}
+        </div>
+      ))}
+      <div class="scroll-x mt-5 rounded-[20px] bg-white px-5 pb-4 pt-5">
+        <div class="flex min-w-max items-start gap-4 lg:min-w-0">
+          <div class="flex shrink-0 gap-4" role="tablist">
+            {progYears.map((y, i) => <button type="button" role="tab" aria-selected={i === progYears.length - 1 ? 'true' : 'false'} class="prog-y" data-prog-year={y}>{y}</button>)}
+          </div>
+          {progRows.map((r, i) => (
+            <div class="flex flex-1 border-t border-[#8e9099]" data-prog-row={r.y} hidden={i !== progRows.length - 1}>
+              {r.months.map((mm) => <button type="button" class="prog-m" data-prog-month={mm} disabled={!progMonths.has(mm)} aria-pressed={mm === progress[0]?.month ? 'true' : 'false'}>{tb.months[Number(mm.slice(5)) - 1]}</button>)}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
-    <div data-pane="1" hidden><div class="grid aspect-[16/7] place-items-center rounded-[20px] bg-white p-6 text-center text-soft">{tb.streamSoon}</div></div>
-    <div data-pane="2" hidden>
-      {ytId ? <a href="#video" class="photo-card aspect-[16/7]"><img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" class="absolute inset-0 size-full object-cover" /><span class="absolute bottom-6 right-6 btn-n btn-n-white">{tc.video}</span></a> : <div class="grid aspect-[16/7] place-items-center rounded-[20px] bg-white p-6 text-center text-soft">{tb.streamSoon}</div>}
-    </div>
+    {(liveUrl || demo) && (
+      <div data-prog-pane="live" hidden>
+        <div class="relative grid aspect-[16/9] place-items-center overflow-hidden rounded-[20px] bg-ink md:aspect-[1240/560]">
+          {hero && <Img src={hero} alt="" class="absolute inset-0 size-full opacity-50" width={1280} height={720} />}
+          <div class="relative px-6 text-center text-white">
+            <p class="inline-flex items-center gap-2 text-[14px] uppercase tracking-[1px]"><span class="size-2 rounded-full bg-[#e5304f]" aria-hidden="true"></span>Live</p>
+            {liveUrl ? <a href={liveUrl} target="_blank" rel="noopener" class="btn-n btn-n-white mt-4 gap-2">{N.liveOpen}<Icon name="arrowUpRight" class="size-4" /></a>
+              : <p class="mt-3 max-w-[420px] text-[16px] leading-[24px] text-white/85">{N.liveSoon}</p>}
+          </div>
+        </div>
+      </div>
+    )}
+    {ytId && (
+      <div data-prog-pane="video" hidden>
+        <div class="relative aspect-[16/9] overflow-hidden rounded-[20px] bg-ink md:aspect-[1240/560]" data-yt={ytId}>
+          <button type="button" class="group absolute inset-0 grid place-items-center" aria-label={N.video}>
+            <img src={`https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`} alt="" loading="lazy" width="480" height="360" class="absolute inset-0 size-full object-cover opacity-80" />
+            <span class="relative grid size-14 place-items-center rounded-[16px] bg-white text-ink shadow-lg"><Icon name="play" class="size-6" /></span>
+          </button>
+        </div>
+      </div>
+    )}
   </section>
   )}
 
-  {full && (
-  <section class="container-n mt-20 lg:mt-28" data-car>
+  {news.length > 0 && (
+  <section class="container-n mt-20 lg:mt-28" data-car data-news>
+    {/* Новости проекта как у образца (ЖК МИРА): лента карточек со стрелками, клик открывает новость целиком,
+        внизу «Смотреть все новости» — раздел новостей сайта. Новости заводит сотрудник в админке. */}
     <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
-      <h2 class="display h-section-n">{tb.news} <span class="stub">{tb.stub}</span></h2>
-      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
+      <h2 class="display h-section-n">{tb.news}{!newsReal.length && <> <span class="stub">{N.example}</span></>}</h2>
+      {news.length > 3 && <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="chevronLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button></div>}
     </div>
     <ul class="scroll-x flex snap-x gap-6" data-car-track>
-      {[...tb.newsList, tb.newsList[0]].map((x) => <li class="flex min-h-[260px] w-[80%] shrink-0 snap-start flex-col gap-5 rounded-[24px] bg-white p-6 md:w-[calc((100%-48px)/3)] lg:min-h-[324px]"><span class="text-[11px] font-medium uppercase tracking-[1px] text-soft">{tb.newsDate}</span><span class="text-[20px] leading-[26px] text-ink-n">{x}</span></li>)}
+      {news.map((x, i) => (
+        <li class="flex w-[84%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+          <button type="button" class="news-card group flex w-full flex-col overflow-hidden rounded-[24px] bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgb(9_7_20/.08)]" data-news-open={i} aria-haspopup="dialog" aria-label={`${NW.open[lang]}: ${x.title}`}>
+            {x.image && <Img src={x.image} alt="" class="aspect-[16/10] w-full" width={560} height={350} />}
+            <span class="flex flex-1 flex-col gap-3 p-6">
+              <span class="text-[11px] font-medium uppercase tracking-[1px] text-soft">{x.date}</span>
+              <span class="text-[20px] leading-[26px] text-ink-n group-hover:text-accent">{x.title}</span>
+              {x.text && <span class="line-clamp-5 text-[15px] leading-[22px] text-soft">{x.text}</span>}
+            </span>
+          </button>
+          <template data-news-body={i}>
+            {x.image && <Img src={x.image} alt="" class="mb-6 aspect-[16/9] w-full rounded-[16px]" width={960} height={540} />}
+            <p class="text-[12px] font-medium uppercase tracking-[1px] text-soft">{x.date}</p>
+            <h3 class="mt-3 text-[24px] leading-[30px] text-ink-n lg:text-[28px] lg:leading-[34px]">{x.title}</h3>
+            {x.text && <div class="mt-4 whitespace-pre-line text-[16px] leading-[25px] text-ink-n/85">{x.text}</div>}
+          </template>
+        </li>
+      ))}
     </ul>
-    <a href={`/${lang}/blog/`} class="btn-n btn-n-dark mt-6">{tb.newsAll}</a>
+    <a href={newsAllUrl} class="btn-n btn-n-dark mt-6 inline-flex gap-2 lg:mt-8">{NW.all[lang]}<Icon name="arrowRight" class="size-4" /></a>
+    <dialog class="news-dlg m-auto max-h-[calc(100dvh-32px)] w-[min(760px,calc(100%-32px))] overflow-y-auto rounded-[24px] bg-white p-0 text-ink-n backdrop:bg-black/50" data-news-dlg aria-label={tb.news}>
+      <div class="relative p-6 lg:p-10">
+        <button type="button" class="absolute right-4 top-4 z-10 grid size-11 place-items-center rounded-[14px] bg-white text-ink-n shadow-md" data-news-close aria-label={NW.close[lang]}><Icon name="close" class="size-5" /></button>
+        <div data-news-content></div>
+      </div>
+    </dialog>
   </section>
   )}
 
@@ -499,10 +852,12 @@ const month = new Date().getMonth();
             <div class="mt-auto flex flex-col gap-2 pt-8 text-[16px] text-ink-n"><a href={`mailto:${site.email}`}>{site.email}</a><a href={site.phone.href}>{site.phone.label}</a></div>
           </div>
           <div class="flex flex-1 flex-col gap-2 rounded-[28px] bg-page-n p-6" data-pane="1" hidden>
-            <p class="display text-[24px] leading-[30px] text-ink-n">{tb.office}</p>
-            <p class="text-[16px] text-soft">{site.address}</p>
-            <p class="text-[16px]"><span class="text-soft">{tb.hours}:</span> {tb.hoursText}</p>
-            <div class="mt-auto flex flex-col gap-2 pt-8 text-[16px] text-ink-n"><a href={`mailto:${site.email}`}>{site.email}</a><a href={site.phone.href}>{site.phone.label}</a></div>
+            {/* Офис продаж — Аланийский для всех ЖК (Anuar 28.11.2026), данные со страницы «Контакты». */}
+            <p class="display text-[24px] leading-[30px] text-ink-n">{N.office}</p>
+            <p class="text-[16px] text-soft">{office.address}</p>
+            <p class="text-[16px]"><span class="text-soft">{N.hours}:</span> {N.hoursText}</p>
+            <a href={`https://www.google.com/maps/dir/?api=1&destination=${office.lat},${office.lng}`} target="_blank" rel="noopener" class="text-[16px] text-soft underline-offset-2 hover:underline"><Icon name="pin" class="mr-1 inline size-4" />Google Maps</a>
+            <div class="mt-auto flex flex-col gap-2 pt-8 text-[16px] text-ink-n"><a href={`mailto:${office.email}`}>{office.email}</a><a href={officeTel}>{officePhone}</a>{office.wa && <a href={`https://wa.me/${office.wa}`} target="_blank" rel="noopener" class="text-accent">{N.write}</a>}</div>
           </div>
           <div class="rounded-[24px] bg-ink-n p-6 text-white"><LeadForm context={`complex-${c.code}-viewing`} title={tb.callback} subtitle={tb.callbackText} submitLabel={tb.send} headingLevel="p" dark /></div>
         </div>
@@ -510,29 +865,28 @@ const month = new Date().getMonth();
     </div>
   </section>
 
-  <section class="container-n mt-20 mb-10 lg:mt-28" data-car>
-    <div class="mb-6 flex items-end justify-between gap-4 lg:mb-8">
-      <div><h2 class="display h-section-n">{tb.collections}</h2><p class="mt-2 text-[16px] text-soft">{tb.collectionsText}</p></div>
-      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
-    </div>
-    <ul class="scroll-x flex snap-x gap-6" data-car-track>
-      {links.map((l, i) => (
-        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
-          <a href={l.href} class="photo-card aspect-[517/380]">
-            <Img src={gallery[(i + 5) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={520} height={380} />
-            <span class="photo-card-top text-[20px] leading-[26px]">{l.text}</span>
-          </a>
-        </li>
-      ))}
-      {picker && (
-        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
-          <a href={pickerUrl} class="flex aspect-[517/380] flex-col justify-between rounded-[24px] bg-ink-n p-6 text-white"><span class="text-[20px] leading-[26px]">{tb.pickOnPlan}</span><span class="text-[14px] text-white/70">{numL(lang, objects.length)} · {tc.available}</span></a>
-        </li>
-      )}
-    </ul>
-  </section>
 </Base>
 <style>
+  .tile-sq { position: relative; display: flex; min-height: 240px; flex-direction: column; border-radius: 24px; padding: 24px; }
+  @media (min-width: 768px) { .tile-sq { aspect-ratio: 397 / 476; min-height: 0; } }
+  /* Плиток меньше трёх — не растягиваем их в высоту: низкие широкие карточки. */
+  @media (min-width: 768px) { .tiles-low .tile-sq { aspect-ratio: auto; min-height: 200px; } .tiles-one .tile-sq { min-height: 150px; } }
+  .gal2-track { scrollbar-width: none; padding-inline: 5vw; scroll-padding-inline: 5vw; }
+  .gal2-track::-webkit-scrollbar { display: none; }
+  .gal2-slide { width: 90vw; }
+  @media (min-width: 1024px) { .gal2-track { padding-inline: 10vw; scroll-padding-inline: 10vw; } .gal2-slide { width: 80vw; } }
+  .gal2-arrow { position: absolute; top: 50%; translate: 0 -50%; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 14px; color: #fff; background: rgb(28 30 38 / .55); backdrop-filter: blur(6px); transition: background .2s; }
+  .gal2-arrow:hover { background: rgb(28 30 38 / .75); }
+  @media (min-width: 1024px) { .gal2-arrow { width: 64px; height: 64px; border-radius: 16px; } }
+  .gal2-lb { background: #0b0c1f; }
+  .gal2-lb[open] { display: block; }
+  .gal2-lb::backdrop { background: #0b0c1f; }
+  .gal2-lb-btn { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: #fff; color: var(--color-ink-n, #1c1e26); box-shadow: 0 4px 16px rgb(0 0 0 / .25); transition: transform .15s; }
+  .gal2-lb-btn:hover { transform: scale(1.05); }
+  @media (min-width: 1024px) { .gal2-lb-btn { width: 56px; height: 56px; border-radius: 16px; } }
+  .gal2-lb-tabs { background: rgb(255 255 255 / .82); backdrop-filter: blur(8px); }
+  .tile-btn { position: relative; margin-top: auto; align-self: flex-end; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.08); transition: transform .15s; }
+  .tile-btn:hover { transform: translateY(-2px); }
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
   .fact { display: flex; align-items: center; gap: 12px; }
   .fact-i { display: grid; place-items: center; flex-shrink: 0; width: 56px; height: 56px; border-radius: 16px; background: #d0d1d766; color: var(--color-ink-n); }
@@ -545,9 +899,8 @@ const month = new Date().getMonth();
   }
   .complex-intro { font-size: 16px; line-height: 24px; letter-spacing: .1px; }
   .complex-intro.clamp { max-height: 144px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
-  .about-text { font-size: 16px; line-height: 24px; max-height: 120px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
   .photo-card { position: relative; display: block; overflow: hidden; border-radius: 24px; background: var(--color-ink); color: #fff; }
-  .photo-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(9,7,20,.55), transparent 45%); }
+  .photo-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(9,7,20,.7), rgba(9,7,20,.25) 40%, transparent 60%); }
   .photo-card-top { position: absolute; z-index: 1; left: 24px; top: 24px; right: 24px; }
   .infra-text :global(ul) { columns: 2; column-gap: 24px; text-align: left; padding-left: 18px; }
   @media (min-width: 768px) { .infra-text :global(ul) { columns: 3; } }
@@ -555,14 +908,146 @@ const month = new Date().getMonth();
   .chip-n.is-on { background: var(--color-ink-n); color: #fff; }
   .car-btn { place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--color-ink-n); box-shadow: var(--shadow-btn); }
   .car-btn:hover { background: var(--color-page-n); }
+  .car-btn:disabled { color: #b8bac4; box-shadow: none; cursor: default; background: #fff; }
+  .photo-card-go { position: absolute; z-index: 1; right: 20px; bottom: 20px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--color-ink-n); box-shadow: 0 4px 16px rgb(9 7 20 / .18); opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
+  .photo-card:hover .photo-card-go, .photo-card:focus-visible .photo-card-go { opacity: 1; transform: none; }
+  @media (hover: none) { .photo-card-go { opacity: 1; transform: none; } }
   .seg > button { cursor: pointer; }
   .fact-dark { background: var(--color-ink-n); color: #fff; }
+  .fact-sub { display: block; margin-top: 2px; color: var(--color-soft); }
+  .fact-chip { display: inline-flex; margin-left: 8px; border-radius: 999px; background: #d0d1d766; padding: 2px 8px; color: var(--color-ink-n); }
+  .fact-chip:hover { background: var(--color-ink-n); color: #fff; }
+  /* Форма: край фото дугой и мягкое затемнение к форме (как у образца). */
+  .lead-photo { overflow: hidden; }
+  .lead-photo::after { content: ''; position: absolute; inset: 0; background: linear-gradient(to bottom, transparent 55%, var(--color-ink-n)); }
+  .lead-photo :global(img), .lead-art { clip-path: ellipse(140% 100% at 50% 0%); }
+  .lead-art { background: radial-gradient(120% 90% at 30% 20%, #8d70ff 0%, var(--color-accent, #6b4bd8) 45%, #4a2fb8 100%); }
+  @media (min-width: 768px) {
+    .lead-photo::after { background: linear-gradient(to right, transparent 55%, var(--color-ink-n) 98%); }
+    .lead-photo :global(img), .lead-art { clip-path: ellipse(100% 140% at 0% 50%); }
+  }
+  .seg { display: inline-flex; gap: 2px; border-radius: 999px; background: #fff; padding: 4px; box-shadow: 0 2px 12px rgba(9,7,20,.06); }
+  .seg button { border-radius: 999px; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: #8e9099; white-space: nowrap; transition: background .2s, color .2s, box-shadow .2s; }
+  .seg button[aria-selected='true'] { background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.16); }
+  .prog-arrow { position: absolute; top: calc(50% - 26px); z-index: 1; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(30,30,36,.72); color: #fff; backdrop-filter: blur(6px); transition: background .2s; }
+  .prog-arrow:hover { background: rgba(30,30,36,.9); }
+  .prog-arrow:disabled { opacity: .35; cursor: default; }
+  .prog-y { margin-top: -1px; min-width: 40px; border-top: 1px solid #8e9099; padding-top: 12px; font-size: 16px; line-height: 20px; color: #8e9099; }
+  .prog-y[aria-selected='true'] { border-top-color: var(--color-ink-n); color: var(--color-ink-n); }
+  .prog-m { min-width: 52px; flex: 1; margin-top: -1px; border-top: 2px solid transparent; padding: 12px 4px 0; text-align: center; font-size: 11px; line-height: 16px; color: #6f717c; }
+  .prog-m:disabled { color: #c3c4cc; cursor: default; }
+  .prog-m:not(:disabled):hover { color: var(--color-ink-n); }
+  .prog-m[aria-pressed='true'] { border-top-color: var(--color-ink-n); color: var(--color-ink-n); font-weight: 500; }
+  .news-text summary::-webkit-details-marker { display: none; }
 </style>
 <script>
   import { mountMap } from '../scripts/map';
   document.querySelectorAll<HTMLElement>('[data-yt]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
     v.innerHTML = `<iframe class="absolute inset-0 size-full" src="https://www.youtube-nocookie.com/embed/${v.dataset.yt}?autoplay=1&rel=0" title="Video" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;
   }));
+  // 3D-тур открываем только по нажатию (тяжёлый).
+  document.querySelectorAll<HTMLElement>('[data-tour]').forEach((v) => v.querySelector('button')?.addEventListener('click', () => {
+    const f = document.createElement('iframe');
+    f.className = 'absolute inset-0 size-full'; f.src = v.dataset.tour!; f.title = '3D'; f.allow = 'fullscreen; xr-spatial-tracking'; f.allowFullscreen = true;
+    v.replaceChildren(f);
+  }));
+  // Ход строительства: вид (фото / трансляция / видео), год и месяц на шкале.
+  document.querySelectorAll<HTMLElement>('[data-prog]').forEach((box) => {
+    const views = [...box.querySelectorAll<HTMLElement>('[data-prog-view]')];
+    views.forEach((b) => b.addEventListener('click', () => {
+      views.forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      box.querySelectorAll<HTMLElement>('[data-prog-pane]').forEach((pn) => { pn.hidden = pn.dataset.progPane !== b.dataset.progView; });
+    }));
+    const pick = (m: string) => {
+      box.querySelectorAll<HTMLElement>('[data-prog-month-pane]').forEach((pn) => { pn.hidden = pn.dataset.progMonthPane !== m; });
+      box.querySelectorAll<HTMLElement>('[data-prog-month]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.progMonth === m)));
+    };
+    box.querySelectorAll<HTMLButtonElement>('[data-prog-month]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.progMonth!)));
+    // Стрелки листают на ширину видимой части — ровно два фото; в начале «назад» неактивна, в конце — «вперёд».
+    box.querySelectorAll<HTMLElement>('[data-prog-month-pane]').forEach((pn) => {
+      const track = pn.querySelector<HTMLElement>('[data-prog-track]');
+      const btns = [...pn.querySelectorAll<HTMLButtonElement>('[data-prog-step]')];
+      if (!track || !btns.length) return;
+      const gap = () => parseFloat(getComputedStyle(track).columnGap) || 0;
+      const sync = () => btns.forEach((b) => { b.disabled = b.dataset.progStep === '-1' ? track.scrollLeft <= 2 : track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; });
+      btns.forEach((b) => b.addEventListener('click', () => track.scrollBy({ left: Number(b.dataset.progStep) * (track.clientWidth + gap()), behavior: 'smooth' })));
+      track.addEventListener('scroll', sync, { passive: true });
+      new ResizeObserver(sync).observe(track);
+      sync();
+    });
+    box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((b) => b.addEventListener('click', () => {
+      const y = b.dataset.progYear!;
+      box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+      box.querySelectorAll<HTMLElement>('[data-prog-row]').forEach((r) => { r.hidden = r.dataset.progRow !== y; });
+      const last = [...box.querySelectorAll<HTMLButtonElement>(`[data-prog-row="${y}"] [data-prog-month]:not(:disabled)`)].pop();
+      if (last) pick(last.dataset.progMonth!);
+    }));
+  });
+  // Галерея-карусель (как у ЖК МИРА): стрелки и вкладки листают к фото по центру, вкладка подсвечивается по текущему фото;
+  // «на весь экран» — крупное фото со стрелками, ←/→, свайпом; Esc и клик по фону закрывают.
+  document.querySelectorAll<HTMLElement>('[data-gal2]').forEach((box) => {
+    const track = box.querySelector<HTMLElement>('[data-gal2-track]')!;
+    const slides = [...box.querySelectorAll<HTMLElement>('[data-gal2-slide]')];
+    const tabs = [...box.querySelectorAll<HTMLButtonElement>('[data-gal2-tab]')];
+    const center = (el: HTMLElement) => el.offsetLeft - track.offsetLeft + el.offsetWidth / 2 - track.clientWidth / 2;
+    const current = () => { const mid = track.scrollLeft; let best = 0, dist = Infinity; slides.forEach((el, i) => { const dd = Math.abs(center(el) - mid); if (dd < dist) { dist = dd; best = i; } }); return best; };
+    const goTo = (i: number, smooth = true) => { const n = (i + slides.length) % slides.length; track.scrollTo({ left: center(slides[n]), behavior: smooth ? 'smooth' : 'auto' }); };
+    const markTab = () => { const g = slides[current()]?.dataset.g; tabs.forEach((t) => t.setAttribute('aria-selected', String(t.dataset.gal2Tab === g))); };
+    let raf = 0;
+    track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(markTab); }, { passive: true });
+    box.querySelectorAll<HTMLButtonElement>('[data-gal2-step]').forEach((b) => b.addEventListener('click', () => goTo(current() + Number(b.dataset.gal2Step))));
+    tabs.forEach((t) => t.addEventListener('click', () => { const i = slides.findIndex((el) => el.dataset.g === t.dataset.gal2Tab); if (i >= 0) goTo(i); }));
+    requestAnimationFrame(() => goTo(0, false));
+    // На весь экран: сразу то, что уже на экране, затем исходный файл.
+    const lb = box.querySelector<HTMLDialogElement>('[data-gal2-lb]')!;
+    const lbImg = box.querySelector<HTMLImageElement>('[data-gal2-lb-img]')!;
+    const lbCount = box.querySelector<HTMLElement>('[data-gal2-lb-count]')!;
+    let at = 0;
+    const showLb = (i: number) => {
+      at = (i + slides.length) % slides.length;
+      const el = slides[at];
+      const shown = el.querySelector('img');
+      lbImg.src = shown?.currentSrc || shown?.src || el.dataset.src!;
+      lbImg.alt = shown?.alt ?? '';
+      const big = new Image();
+      big.onload = () => { if (slides[at] === el) lbImg.src = big.src; };
+      big.src = el.dataset.src!.replace(/([^:])\/\/+/g, '$1/');
+      const g = el.dataset.g!;
+      const inG = slides.filter((x) => x.dataset.g === g);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      lbCount.innerHTML = `${pad(inG.indexOf(el) + 1)}<span style="opacity:.6"> / ${pad(inG.length)}</span>`;
+      box.querySelectorAll<HTMLElement>('[data-gal2-lb-tab]').forEach((t) => t.setAttribute('aria-selected', String(t.dataset.gal2LbTab === g)));
+    };
+    slides.forEach((el, i) => el.querySelectorAll('[data-gal2-open]').forEach((b) => b.addEventListener('click', () => { showLb(i); lb.showModal(); document.documentElement.style.overflow = 'hidden'; })));
+    lb.addEventListener('close', () => { document.documentElement.style.overflow = ''; goTo(at, false); });
+    lb.addEventListener('click', (e) => { if (e.target === lb || e.target === box.querySelector('[data-gal2-lb-stage]')) lb.close(); });
+    box.querySelector('[data-gal2-lb-close]')?.addEventListener('click', () => lb.close());
+    box.querySelectorAll<HTMLElement>('[data-gal2-lb-tab]').forEach((t) => t.addEventListener('click', () => { const i = slides.findIndex((el) => el.dataset.g === t.dataset.gal2LbTab); if (i >= 0) showLb(i); }));
+    box.querySelectorAll<HTMLButtonElement>('[data-gal2-lb-step]').forEach((b) => b.addEventListener('click', () => showLb(at + Number(b.dataset.gal2LbStep))));
+    lb.addEventListener('keydown', (e) => { if (e.key === 'ArrowLeft') { showLb(at - 1); e.preventDefault(); } if (e.key === 'ArrowRight') { showLb(at + 1); e.preventDefault(); } });
+    let x0 = 0, y0 = 0;
+    lb.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    lb.addEventListener('touchend', (e) => { const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) showLb(at + (dx < 0 ? 1 : -1)); });
+  });
+  // Новости проекта: клик по карточке открывает новость целиком; адрес #news-N, чтобы ссылкой можно было поделиться.
+  document.querySelectorAll<HTMLElement>('[data-news]').forEach((box) => {
+    const dlg = box.querySelector<HTMLDialogElement>('[data-news-dlg]');
+    const content = box.querySelector<HTMLElement>('[data-news-content]');
+    if (!dlg || !content) return;
+    const open = (i: string) => {
+      const tpl = box.querySelector<HTMLTemplateElement>(`[data-news-body="${i}"]`);
+      if (!tpl) return;
+      content.replaceChildren(tpl.content.cloneNode(true));
+      if (!dlg.open) dlg.showModal();
+      history.replaceState(null, '', `#news-${Number(i) + 1}`);
+    };
+    box.querySelectorAll<HTMLElement>('[data-news-open]').forEach((b) => b.addEventListener('click', () => open(b.dataset.newsOpen!)));
+    box.querySelector('[data-news-close]')?.addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener('close', () => { if (/^#news-\d+$/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search); });
+    const m = /^#news-(\d+)$/.exec(location.hash);
+    if (m) open(String(Number(m[1]) - 1));
+  });
   const mapEl = document.querySelector<HTMLElement>('[data-map]');
   if (mapEl) {
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });
@@ -575,6 +1060,18 @@ const month = new Date().getMonth();
     const go = (dir: number) => track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
     car.querySelectorAll('[data-car-prev]').forEach((b) => b.addEventListener('click', () => go(-1)));
     car.querySelectorAll('[data-car-next]').forEach((b) => b.addEventListener('click', () => go(1)));
+    // В начале ленты «назад» неактивна, в конце — «вперёд» (как у образца).
+    const prevs = [...car.querySelectorAll<HTMLButtonElement>('[data-car-prev]')];
+    const nexts = [...car.querySelectorAll<HTMLButtonElement>('[data-car-next]')];
+    const edges = () => {
+      const atStart = track.scrollLeft <= 2;
+      const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
+      prevs.forEach((b) => { b.disabled = atStart; });
+      nexts.forEach((b) => { b.disabled = atEnd; });
+    };
+    track.addEventListener('scroll', edges, { passive: true });
+    addEventListener('resize', edges);
+    edges();
     car.closest('section')?.querySelectorAll<HTMLElement>('[data-jump]').forEach((b) => b.addEventListener('click', () => {
       const slide = track.children[Number(b.dataset.jump)] as HTMLElement | undefined;
       if (slide) track.scrollTo({ left: slide.offsetLeft - track.offsetLeft, behavior: 'smooth' });
