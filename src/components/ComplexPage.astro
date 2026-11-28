@@ -733,18 +733,21 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     </div>
     <div data-prog-pane="photo">
       {progress.map((m, i) => (
-        <div class="relative" data-prog-month-pane={m.month} hidden={i !== 0} data-car>
-          <ul class="scroll-x flex snap-x snap-mandatory gap-5" data-car-track>
-            {m.photos.map((src) => (
-              <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-[#dfe0e8] md:w-[calc(50%-10px)]">
-                {src ? <Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[610/375] w-full" width={800} height={492} /> : <div class="aspect-[610/375] w-full" />}
-              </li>
-            ))}
-          </ul>
-          {m.photos.length > 2 && <>
-            <button type="button" class="prog-arrow left-5 hidden md:grid" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-5" /></button>
-            <button type="button" class="prog-arrow right-5 hidden md:grid" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-5" /></button>
-          </>}
+        <div data-prog-month-pane={m.month} hidden={i !== 0}>
+          {/* Как у образца: на экране сразу два фото, стрелка листает ровно на два. */}
+          <div class="relative">
+            <ul class="scroll-x flex snap-x snap-mandatory gap-5" data-prog-track>
+              {m.photos.map((src) => (
+                <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-[#dfe0e8] md:w-[calc(50%-10px)]">
+                  {src ? <Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[610/375] w-full" width={800} height={492} /> : <div class="aspect-[610/375] w-full" />}
+                </li>
+              ))}
+            </ul>
+            {m.photos.length > 2 && <>
+              <button type="button" class="prog-arrow left-5 hidden md:grid" data-prog-step="-1" aria-label={tb.prev}><Icon name="arrowLeft" class="size-5" /></button>
+              <button type="button" class="prog-arrow right-5 hidden md:grid" data-prog-step="1" aria-label={tb.next}><Icon name="arrowRight" class="size-5" /></button>
+            </>}
+          </div>
           {m.text && <p class="mt-4 max-w-3xl text-[16px] leading-[24px] text-ink-n">{m.text}</p>}
         </div>
       ))}
@@ -899,8 +902,9 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   .seg { display: inline-flex; gap: 2px; border-radius: 999px; background: #fff; padding: 4px; box-shadow: 0 2px 12px rgba(9,7,20,.06); }
   .seg button { border-radius: 999px; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: #8e9099; white-space: nowrap; transition: background .2s, color .2s, box-shadow .2s; }
   .seg button[aria-selected='true'] { background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.16); }
-  .prog-arrow { position: absolute; top: calc(50% - 26px); place-items: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(30,30,36,.72); color: #fff; backdrop-filter: blur(6px); transition: background .2s; }
+  .prog-arrow { position: absolute; top: calc(50% - 26px); z-index: 1; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(30,30,36,.72); color: #fff; backdrop-filter: blur(6px); transition: background .2s; }
   .prog-arrow:hover { background: rgba(30,30,36,.9); }
+  .prog-arrow:disabled { opacity: .35; cursor: default; }
   .prog-y { margin-top: -1px; min-width: 40px; border-top: 1px solid #8e9099; padding-top: 12px; font-size: 16px; line-height: 20px; color: #8e9099; }
   .prog-y[aria-selected='true'] { border-top-color: var(--color-ink-n); color: var(--color-ink-n); }
   .prog-m { min-width: 52px; flex: 1; margin-top: -1px; border-top: 2px solid transparent; padding: 12px 4px 0; text-align: center; font-size: 11px; line-height: 16px; color: #6f717c; }
@@ -932,6 +936,18 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
       box.querySelectorAll<HTMLElement>('[data-prog-month]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.progMonth === m)));
     };
     box.querySelectorAll<HTMLButtonElement>('[data-prog-month]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.progMonth!)));
+    // Стрелки листают на ширину видимой части — ровно два фото; в начале «назад» неактивна, в конце — «вперёд».
+    box.querySelectorAll<HTMLElement>('[data-prog-month-pane]').forEach((pn) => {
+      const track = pn.querySelector<HTMLElement>('[data-prog-track]');
+      const btns = [...pn.querySelectorAll<HTMLButtonElement>('[data-prog-step]')];
+      if (!track || !btns.length) return;
+      const gap = () => parseFloat(getComputedStyle(track).columnGap) || 0;
+      const sync = () => btns.forEach((b) => { b.disabled = b.dataset.progStep === '-1' ? track.scrollLeft <= 2 : track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; });
+      btns.forEach((b) => b.addEventListener('click', () => track.scrollBy({ left: Number(b.dataset.progStep) * (track.clientWidth + gap()), behavior: 'smooth' })));
+      track.addEventListener('scroll', sync, { passive: true });
+      new ResizeObserver(sync).observe(track);
+      sync();
+    });
     box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((b) => b.addEventListener('click', () => {
       const y = b.dataset.progYear!;
       box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
