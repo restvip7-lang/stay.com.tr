@@ -9,6 +9,7 @@
  */
 import type { Lang } from '../i18n/config';
 import { readJson, storeReady, writeJson } from './store';
+import demoPages from '../content/fixtures/project-page-demo.json';
 
 export type LText = { ru?: string; en?: string };
 export const PHOTO_CATS = ['territory', 'infra', 'interior', 'view'] as const;
@@ -112,7 +113,12 @@ function normalizeDb(x: unknown): PagesDb {
 export async function getProjectPages(): Promise<PagesDb> {
   if (!memo || Date.now() - memo.at > 30_000) {
     const saved = await readJson(KEY).catch(() => null);
-    memo = { at: Date.now(), value: normalizeDb(saved) };
+    const db = normalizeDb(saved);
+    // Превью: пример максимально заполненной страницы проекта, если в админке для него ничего не сохранено.
+    if ((process.env.VERCEL_ENV ?? '') === 'preview' || import.meta.env.DEV) {
+      for (const [code, raw] of Object.entries(demoPages.projects ?? {})) if (!db.projects[code]) { const p = normalizePage(raw); if (Object.keys(p).length) db.projects[code] = p; }
+    }
+    memo = { at: Date.now(), value: db };
   }
   return memo.value;
 }
