@@ -117,6 +117,7 @@ const flatGroups = [...grouped.entries()].map(([key, list], i) => {
     key, id: `grp-${i}`, items, type: x0.type, rooms: x0.rooms,
     title: studio ? STUDIO[lang] : `${tw.pl}${x0.rooms ? ` ${x0.rooms}` : ''}`,
     area: areas.length ? Math.min(...areas) : null,
+    areaMax: areas.length ? Math.max(...areas) : null,
     price: pr.length ? Math.min(...pr) : null,
     image: items.find((x) => x.image)?.image ?? null,
     count: `${items.length} ${pluralL(lang, items.length, tw.n)}`,
@@ -125,6 +126,13 @@ const flatGroups = [...grouped.entries()].map(([key, list], i) => {
   };
 }).sort((a, b) => roomsN(a.rooms) - roomsN(b.rooms) || TYPE_ORDER.indexOf(a.type) - TYPE_ORDER.indexOf(b.type));
 const infra = p?.infrastructure ?? [];
+// «Акции»: своя акция проекта (поле promo) + первый способ оплаты из базы; без данных — одна карточка-заглушка.
+const hasPromo = !!(p?.promo && lang === 'ru');
+const pay0 = p?.paymentCards[0];
+const promoCards = [
+  { title: hasPromo ? p!.promo! : tb.promoTitle, text: hasPromo ? '' : tb.promoText, until: hasPromo ? '' : tb.until, image: gallery[3] ?? hero },
+  ...(pay0 ? [{ title: pay0.title, text: pay0.description ?? '', until: '', image: gallery[1] ?? hero }] : []),
+];
 const progressPhotos = gallery.slice(2, 6);
 // Карточка-характеристики вида «Планировка:» / «1+1, 2+1» / «Площадь:» / «от 61 до 147 кв.м.» → пары «название — значение».
 const pairsOf = (html: string) => {
@@ -178,6 +186,7 @@ const month = new Date().getMonth();
         <div class="mt-6 flex flex-wrap gap-2.5">
           {picker || ours ? <a href="#genplan" class="btn-n btn-n-accent max-sm:w-full">{tb.choose}</a> : <a href="#lead" class="btn-n btn-n-accent max-sm:w-full">{tc.getPrice}</a>}
           {picker && <a href="#lead" class="btn-n btn-n-glass max-sm:w-full">{tc.getPrice}</a>}
+          {!picker && ours && <a href="#viewing" class="btn-n btn-n-glass gap-2 max-sm:w-full"><Icon name="phone" class="size-4" />{tb.orderCall}</a>}
         </div>
       </div>
     </div>
@@ -199,13 +208,10 @@ const month = new Date().getMonth();
             {flatGroups.map((g) => {
               const inner = (
                 <>
-                  <span class="flex items-start justify-between gap-3">
-                    <span class="text-[16px] leading-[22px] tracking-[.2px] text-ink-n">{g.title}</span>
-                    <span class="shrink-0 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium uppercase leading-[14px] tracking-[.6px] text-ink-n">{g.count}</span>
-                  </span>
+                  <span class="text-[16px] leading-[22px] tracking-[.2px] text-ink-n">{g.title}</span>
                   {g.area && <span class="text-[14px] leading-[19px] text-ink-n">{d.from(`${numL(lang, g.area)} ${d.m2}`)}</span>}
                   <span class="text-[14px] leading-[19px] text-soft">{g.price ? d.from(moneyL(lang, g.price)) : d.priceOnRequest}</span>
-                  <span class="mt-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-[12px] bg-white">{g.image ? <Img src={g.image} alt="" class="size-full object-contain" width={480} height={360} /> : <Icon name="building" class="size-8 text-soft" />}</span>
+                  <span class="relative mt-3 grid aspect-[4/3] place-items-center overflow-hidden rounded-[12px] bg-white">{g.image ? <Img src={g.image} alt="" class="size-full object-contain" width={480} height={360} /> : <Icon name="building" class="size-8 text-soft" />}<span class="absolute bottom-2 left-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium uppercase leading-[14px] tracking-[.6px] text-ink-n shadow-[0_1px_4px_rgba(9,7,20,.08)]">{g.count}</span></span>
                 </>
               );
               return (
@@ -359,7 +365,7 @@ const month = new Date().getMonth();
 
   <section class="mt-20 lg:mt-28" data-tabs>
     <div class="mx-auto max-w-[988px] px-5 text-center">
-      <h2 class="display h-section-n mb-4">{tb.aboutProject}{full && infra.length === 0 && <> <span class="stub">{tb.stub}</span></>}</h2>
+      <h2 class="display h-section-n mb-4">{tb.aboutProject}</h2>
       {about?.html && <div class="prose-stay about-text" lang="ru" set:html={about.html} />}
       {about?.pairs && (
         <dl class="mt-5 flex flex-wrap justify-center gap-3" lang="ru">
@@ -432,20 +438,61 @@ const month = new Date().getMonth();
     </div>
     {full && (
     <div class="container-n">
-      <h2 class="display h-section-n mb-6 mt-14 lg:mb-8 lg:mt-20">{tb.promo} <span class="stub">{tb.stub}</span></h2>
-      <div class="relative overflow-hidden rounded-[24px] bg-ink-n text-white">
-        <Img src={gallery[3] ?? hero} alt="" class="absolute inset-0 size-full opacity-70" width={1600} height={404} />
-        <div class="absolute inset-0 bg-gradient-to-r from-ink/80 to-transparent"></div>
-        <div class="relative flex min-h-[320px] max-w-[560px] flex-col p-6 lg:min-h-[404px] lg:p-8">
-          <p class="text-[24px] leading-[30px] lg:text-[28px] lg:leading-[36px]">{p?.promo && lang === 'ru' ? p.promo : tb.promoTitle}</p>
-          <p class="mt-2 text-white/80">{tb.promoText}</p>
-          <span class="mt-3 self-start rounded-[6px] bg-white/15 px-2 py-1 text-[12px] font-medium">{tb.until}</span>
-          <a href="#lead" class="btn-n btn-n-white mt-auto self-start">{tb.leaveRequest}</a>
-        </div>
-      </div>
+      <h2 class="display h-section-n mb-6 mt-14 lg:mb-8 lg:mt-20">{tb.promo}{!hasPromo && <> <span class="stub">{tb.stub}</span></>}</h2>
+      {/* Как у образца (МИРА, 28.11): две карточки рядом — акция с датой и кнопкой заявки, вторая — условия оплаты со стрелкой. */}
+      <ul class="grid gap-6 md:grid-cols-2">
+        {promoCards.map((x, i) => (
+          <li class:list={['relative isolate flex min-h-[300px] flex-col overflow-hidden rounded-[24px] bg-ink-n p-6 text-white lg:min-h-[404px] lg:p-8', promoCards.length === 1 && 'md:col-span-2']}>
+            <Img src={x.image} alt="" class="absolute inset-0 -z-10 size-full" width={800} height={410} />
+            <div class="absolute inset-0 -z-10 bg-gradient-to-b from-ink/70 via-ink/10 to-ink/30"></div>
+            <p class="display max-w-[520px] text-[24px] leading-[30px] lg:text-[28px] lg:leading-[34px]">{x.title}</p>
+            {x.text && <p class="mt-2 max-w-[460px] text-[15px] leading-[21px] text-white/85">{x.text}</p>}
+            {x.until && <span class:list={['mt-3 self-start rounded-[8px] px-2.5 py-1 text-[13px] font-medium', i === 0 ? 'bg-accent text-white' : 'bg-white text-ink-n']}>{x.until}</span>}
+            {i === 0
+              ? <a href="#lead" class="btn-n btn-n-white mt-auto gap-2 self-start">{tb.leaveRequest}<Icon name="arrowRight" class="size-4" /></a>
+              : <a href="#lead" class="tile-btn" aria-label={tb.leaveRequest}><Icon name="arrowUpRight" class="size-4" /></a>}
+          </li>
+        ))}
+      </ul>
     </div>
     )}
   </section>
+
+  {(flatGroups.length > 0 || links.length > 0) && (
+  <section class="container-n mt-20 lg:mt-28" data-car>
+    {/* Подборки как у образца (МИРА): по планировкам этого ЖК, после «Акций»; в конце — ссылки на район/город (перелинковка). */}
+    <div class="mb-6 flex items-end justify-between gap-4 lg:mb-8">
+      <div><h2 class="display h-section-n">{tb.collections}</h2><p class="mt-2 text-[16px] text-soft">{tb.collectionsText}</p></div>
+      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
+    </div>
+    <ul class="scroll-x flex snap-x gap-6" data-car-track>
+      {flatGroups.map((g, i) => {
+        const inner = (<>
+          <Img src={gallery[(i + 4) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={560} height={412} />
+          <span class="photo-card-top"><span class="text-[20px] leading-[26px] lg:text-[24px] lg:leading-[30px]">{g.title}{g.areaMax ? ` ${tb.upTo(`${numL(lang, g.areaMax)} ${d.m2}`)}` : ''}</span><span class="mt-1 block text-[14px] text-white/85">{g.count}{g.price ? ` · ${d.from(moneyL(lang, g.price))}` : ''}</span></span>
+        </>);
+        return (
+          <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+            {g.href ? <a href={g.href} class="photo-card aspect-[558/412]">{inner}</a> : <button type="button" class="photo-card aspect-[558/412] w-full text-left" data-grp={g.id} aria-haspopup="dialog">{inner}</button>}
+          </li>
+        );
+      })}
+      {links.map((l, i) => (
+        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+          <a href={l.href} class="photo-card aspect-[558/412]">
+            <Img src={gallery[(i + 1) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={560} height={412} />
+            <span class="photo-card-top text-[20px] leading-[26px]">{l.text}</span>
+          </a>
+        </li>
+      ))}
+      {picker && (
+        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+          <a href={pickerUrl} class="flex aspect-[558/412] flex-col justify-between rounded-[24px] bg-ink-n p-6 text-white"><span class="text-[20px] leading-[26px]">{tb.pickOnPlan}</span><span class="text-[14px] text-white/70">{numL(lang, objects.length)} · {tc.available}</span></a>
+        </li>
+      )}
+    </ul>
+  </section>
+  )}
 
   {full && (
   <section id="docs" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-tabs>
@@ -455,11 +502,11 @@ const month = new Date().getMonth();
     </div>
     {[tb.docsList.slice(0, 2), tb.docsList.slice(2)].map((list, i) => (
       <ul class="grid gap-6 md:grid-cols-2" data-pane={i} hidden={i !== 0}>
-        {list.map((x) => (
+        {list.map((x, j) => (
           <li class="flex min-h-[96px] items-center gap-4 rounded-[20px] bg-white py-3 pl-3 pr-5 lg:min-h-[120px]">
-            <span class="grid size-[72px] shrink-0 place-items-center rounded-[14px] bg-page-n text-soft lg:size-24"><Icon name="layout" class="size-6" /></span>
+            <span class="relative size-[72px] shrink-0 overflow-hidden rounded-[14px] bg-page-n lg:size-24"><Img src={gallery[(j + 1) % Math.max(gallery.length, 1)] ?? hero} alt="" class="size-full" width={96} height={96} /></span>
             <span class="text-[16px] leading-[22px] text-ink-n">{x}</span>
-            <span class="ml-auto shrink-0 text-[12px] font-medium uppercase tracking-[1px] text-soft">PDF · {tb.soon}</span>
+            <span class="ml-auto inline-flex shrink-0 items-center gap-2 text-[15px] font-medium text-ink-n" title={tb.soon}>PDF <Icon name="download" class="size-4" /></span>
           </li>
         ))}
       </ul>
@@ -529,27 +576,6 @@ const month = new Date().getMonth();
     </div>
   </section>
 
-  <section class="container-n mt-20 mb-10 lg:mt-28" data-car>
-    <div class="mb-6 flex items-end justify-between gap-4 lg:mb-8">
-      <div><h2 class="display h-section-n">{tb.collections}</h2><p class="mt-2 text-[16px] text-soft">{tb.collectionsText}</p></div>
-      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
-    </div>
-    <ul class="scroll-x flex snap-x gap-6" data-car-track>
-      {links.map((l, i) => (
-        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
-          <a href={l.href} class="photo-card aspect-[517/380]">
-            <Img src={gallery[(i + 5) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={520} height={380} />
-            <span class="photo-card-top text-[20px] leading-[26px]">{l.text}</span>
-          </a>
-        </li>
-      ))}
-      {picker && (
-        <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
-          <a href={pickerUrl} class="flex aspect-[517/380] flex-col justify-between rounded-[24px] bg-ink-n p-6 text-white"><span class="text-[20px] leading-[26px]">{tb.pickOnPlan}</span><span class="text-[14px] text-white/70">{numL(lang, objects.length)} · {tc.available}</span></a>
-        </li>
-      )}
-    </ul>
-  </section>
 </Base>
 <style>
   .tile-sq { position: relative; display: flex; min-height: 240px; flex-direction: column; border-radius: 24px; padding: 24px; }
