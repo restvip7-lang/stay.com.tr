@@ -145,7 +145,7 @@ const facts: [string, string | null, string?][] = [
     [XT.furniture, x.type !== 'commercial' ? (yesNo(exAny(/furni|мебел/i)) ?? (chipOf('furnished') ? XT.yes : null)) : null, chipOf('furnished') ? linkOf('furnished') : undefined],
   ] as [string, string | null, string?][] : []),
   [XT.view, views.length ? views.join(', ') : null],
-  [ti.toSea, x.sea ? `${numL(lang, x.sea)} ${d.m}` : null],
+  [ti.toSea, x.sea ? (x.sea >= 10000 ? dist(String(x.sea)) : `${numL(lang, x.sea)} ${d.m}`) : null],
   [XT.toCenter, dist(ex(/cent(er|re)|центр/i), 30)],
   [XT.toAirport, dist(ex(/airport|аэропорт/i), 300)],
   [ti.year, (own ?? fallback)?.yearBuilt ?? null],
@@ -156,7 +156,9 @@ const facts: [string, string | null, string?][] = [
   [ti.id, x.ref ?? x.id],
 ];
 // Инфраструктура: у квартиры — комплекса, у виллы — то, что на её территории.
-const infraList = (own ?? fallback)?.infrastructure ?? [];
+// В Portfolio у части удобств русская подпись не заполнена (приходит английская) — переводим известные.
+const INFRA_RU: Record<string, string> = { "children's swimming pool": 'Детский бассейн', 'kids pool': 'Детский бассейн', 'kids club': 'Детский клуб', 'playground': 'Детская площадка', 'garden': 'Сад', 'elevator': 'Лифт', 'lift': 'Лифт', 'security': 'Охрана', 'parking': 'Парковка', 'gym': 'Фитнес-центр', 'sauna': 'Сауна', 'jacuzzi': 'Джакузи', 'tennis court': 'Теннисный корт', 'barbecue': 'Зона барбекю', 'bbq': 'Зона барбекю' };
+const infraList = [...new Set(((own ?? fallback)?.infrastructure ?? []).map((s) => (lang === 'ru' && !/[а-яё]/i.test(s) ? INFRA_RU[s.trim().toLowerCase()] ?? s : s)))];
 const restChips = chipLinks.filter((c) => !usedChips.has(c.slug));
 const infraTitle = isHouse
   ? { ru: 'На территории', en: 'On the property', tr: 'Mülkte', de: 'Auf dem Grundstück', sr: 'Na imanju' }[lang]
