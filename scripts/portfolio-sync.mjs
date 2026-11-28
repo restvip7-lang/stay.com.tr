@@ -31,6 +31,7 @@ import { cleanImgCache } from './img-cache-clean.mjs';
 
 const args = new Set(process.argv.slice(2));
 const FULL = args.has('--full');
+const ONLY_IDS = ([...args].find((a) => a.startsWith('--ids='))?.split('=')[1] || '').split(',').map((x) => x.trim()).filter(Boolean);
 const LIMIT = Number([...args].find((a) => a.startsWith('--limit='))?.split('=')[1] || 0);
 const BASE = (process.env.STAY_PORTFOLIO_BASE || 'https://portfolio.stayrepo.com/ws').replace(/\/$/, '');
 const USER = process.env.STAY_PORTFOLIO_USER;
@@ -288,6 +289,18 @@ async function main() {
   const t0 = Date.now();
   await fs.mkdir(path.join(OUT, 'objects'), { recursive: true });
   await loadTaxonomies();
+
+  // Проба отдельных объектов (--ids=4399,4397): только читаем и пишем card+detail в portfolio/probe-ids.json, снимок не трогаем.
+  if (ONLY_IDS.length) {
+    const out = {};
+    for (const id of ONLY_IDS) {
+      try { out[id] = await readObject({ ID: id }); } catch (e) { out[id] = { error: e.message }; }
+    }
+    await fs.mkdir(OUT, { recursive: true });
+    await writeJson(path.join(OUT, 'probe-ids.json'), out);
+    console.log(JSON.stringify({ probe: 'ids', ids: ONLY_IDS, file: path.join(OUT, 'probe-ids.json') }));
+    return;
+  }
 
   // 1. Весь список (по 50).
   const list = [];
