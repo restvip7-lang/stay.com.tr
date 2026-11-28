@@ -291,10 +291,29 @@ const month = new Date().getMonth();
       </div>
       {full && (<>
       <h2 class="sr-only">{tb.status}</h2>
+      {/* Три плитки как у образца (mr-group, ЖК МИРА, скрин Anuar 28.11): Live-камеры, Презентация, Материалы (фиолетовая). */}
       <ul class="mt-3 grid gap-3 md:grid-cols-3">
-        <li class="flex min-h-[220px] flex-col rounded-[24px] bg-white p-6 md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px] text-ink-n">{tb.status}</p><p class="mt-1 text-[13px] text-soft">{tc.deadline}: {buildEnd ?? '—'}</p><span class="mt-auto grid size-10 place-items-center self-start rounded-[12px] bg-page-n text-ink-n"><Icon name="building" class="size-5" /></span></li>
-        <li class="flex min-h-[220px] flex-col rounded-[24px] bg-white p-6 md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px] text-ink-n">{tb.statusStage} <span class="stub">{tb.stub}</span></p><p class="mt-1 text-[13px] text-soft">{tb.statusStageText}</p><span class="mt-auto self-end text-soft"><Icon name="arrowRight" class="size-4" /></span></li>
-        <li class="flex min-h-[220px] flex-col rounded-[24px] bg-accent p-6 text-white md:aspect-[397/476] md:min-h-0"><p class="text-[20px] leading-[26px]">{tb.viewing}</p><p class="mt-1 text-[13px] text-white/80">{tb.viewingText}</p><a href="#viewing" class="mt-auto grid size-10 place-items-center self-end rounded-[12px] bg-white text-ink" aria-label={tb.viewingBtn}><Icon name="arrowRight" class="size-4" /></a></li>
+        <li class="tile-sq relative overflow-hidden bg-white">
+          <p class="text-[20px] leading-[26px] text-ink-n">{tb.tiles.live}<span class="ml-0.5 inline-block size-1.5 -translate-y-2 rounded-full bg-[#e5304f]" aria-hidden="true"></span></p>
+          <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-soft">{tb.tiles.liveText}</p>
+          <svg class="pointer-events-none absolute bottom-0 left-4 h-[62%] w-auto text-[#c9cad1]" viewBox="0 0 220 260" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M150 260V40M170 260V40M150 40h20M150 60l20 20M170 60l-20 20M150 100l20 20M170 100l-20 20M150 140l20 20M170 140l-20 20M150 180l20 20M170 180l-20 20M150 220l20 20M170 220l-20 20"/>
+            <path d="M10 46h210M10 62h140M10 46l16 16M42 46l16 16M74 46l16 16M106 46l16 16M26 62l16-16M58 62l16-16M90 62l16-16M122 62l16-16M160 10v36M160 10 30 46M160 10l60 36"/>
+            <rect x="136" y="62" width="28" height="30" rx="3" fill="#fff"/>
+            <path d="M60 62v80M50 142h20v8H50zM60 150v14" /><path d="M54 170a6 6 0 1 0 12 0" />
+          </svg>
+          <a href="#progress" class="tile-btn" aria-label={tb.tiles.live}><Icon name="arrowUpRight" class="size-4" /></a>
+        </li>
+        <li class="tile-sq bg-white">
+          <p class="text-[20px] leading-[26px] text-ink-n">{tb.tiles.pres}</p>
+          <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-soft">{tb.tiles.presText}</p>
+          <a href="#docs" class="tile-btn" aria-label={tb.tiles.pres}><Icon name="download" class="size-4" /></a>
+        </li>
+        <li class="tile-sq bg-accent text-white">
+          <p class="text-[20px] leading-[26px]">{tb.tiles.mats}</p>
+          <p class="mt-1.5 max-w-[260px] text-[15px] leading-[21px] text-white/85">{tb.tiles.matsText}</p>
+          <a href="#docs" class="tile-btn" aria-label={tb.tiles.mats}><Icon name="arrowUpRight" class="size-4" /></a>
+        </li>
       </ul>
       </>)}
     </div>
@@ -429,7 +448,7 @@ const month = new Date().getMonth();
   </section>
 
   {full && (
-  <section class="container-n mt-20 lg:mt-28" data-tabs>
+  <section id="docs" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-tabs>
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.docs} <span class="stub">{tb.stub}</span></h2>
       <div class="seg" role="tablist">{tb.docsTabs.map((x, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{x}</button>)}</div>
@@ -449,7 +468,7 @@ const month = new Date().getMonth();
   )}
 
   {full && (
-  <section class="container-n mt-20 lg:mt-28" data-tabs>
+  <section id="progress" class="container-n mt-20 scroll-mt-28 lg:mt-28" data-tabs>
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.progress} <span class="stub">{tb.stub}</span></h2>
       <div class="seg max-w-full scroll-x" role="tablist">{tb.progressTabs.map((x, i) => <button type="button" role="tab" data-tab={i} aria-selected={i === 0 ? 'true' : 'false'}>{x}</button>)}</div>
@@ -533,6 +552,10 @@ const month = new Date().getMonth();
   </section>
 </Base>
 <style>
+  .tile-sq { position: relative; display: flex; min-height: 240px; flex-direction: column; border-radius: 24px; padding: 24px; }
+  @media (min-width: 768px) { .tile-sq { aspect-ratio: 397 / 476; min-height: 0; } }
+  .tile-btn { position: relative; margin-top: auto; align-self: flex-end; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.08); transition: transform .15s; }
+  .tile-btn:hover { transform: translateY(-2px); }
   .stub { display: inline-flex; vertical-align: middle; margin-left: 8px; padding: 3px 8px; border-radius: 6px; border: 1px dashed var(--color-line-2); font-family: var(--font-sans); font-size: 11px; font-weight: 500; letter-spacing: 1px; text-transform: uppercase; color: var(--color-soft); }
   .fact { display: flex; align-items: center; gap: 12px; }
   .fact-i { display: grid; place-items: center; flex-shrink: 0; width: 56px; height: 56px; border-radius: 16px; background: #d0d1d766; color: var(--color-ink-n); }
