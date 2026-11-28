@@ -272,7 +272,14 @@ const liveHref = liveUrl ?? (demo ? '#lead' : null);
 const presHref = pres?.file ?? (demo ? '#docs' : null);
 const tileCount = [liveHref, presHref, docs.length].filter(Boolean).length;
 // Новости проекта: три последние; на превью без данных — пример.
-const newsReal = (pp.news ?? []).slice(0, 3).map((x) => ({ date: dateL(lang, x.date), title: tx(x.title, lang), text: tx(x.text, lang), image: x.image || null }));
+const newsReal = (pp.news ?? []).slice(0, 12).map((x) => ({ date: dateL(lang, x.date), title: tx(x.title, lang), text: tx(x.text, lang), image: x.image || null }));
+// Новости проекта: карточка открывает новость целиком (окно, адрес #news-N), «Смотреть все новости» — раздел новостей сайта.
+const NW = {
+  all: { ru: 'Смотреть все новости', en: 'See all news', tr: 'Tüm haberler', de: 'Alle Nachrichten', sr: 'Sve vesti' } as Record<string, string>,
+  open: { ru: 'Открыть новость', en: 'Open the news', tr: 'Haberi aç', de: 'Nachricht öffnen', sr: 'Otvori vest' } as Record<string, string>,
+  close: { ru: 'Закрыть', en: 'Close', tr: 'Kapat', de: 'Schließen', sr: 'Zatvori' } as Record<string, string>,
+};
+const newsAllUrl = `/${lang}/blog/news/`;
 const news = newsReal.length ? newsReal : demo ? tb.newsList.map((title, i) => ({ date: dateL(lang, isoIn(-7 * (i + 1))), title, text: N.demoNews, image: gallery[i + 2] ?? null })) : [];
 // Контакты: офис продаж — Аланийский для всех ЖК (Anuar 28.11.2026).
 const office = OFFICES.find((o) => o.id === 'alanya')!;
@@ -664,13 +671,14 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     {/* Подборки как у образца (МИРА): по планировкам этого ЖК, после «Акций»; в конце — ссылки на район/город (перелинковка). */}
     <div class="mb-6 flex items-end justify-between gap-4 lg:mb-8">
       <div><h2 class="display h-section-n">{tb.collections}</h2><p class="mt-2 text-[16px] text-soft">{tb.collectionsText}</p></div>
-      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>
+      <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="chevronLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button></div>
     </div>
     <ul class="scroll-x flex snap-x gap-6" data-car-track>
       {flatGroups.map((g, i) => {
         const inner = (<>
           <Img src={gallery[(i + 4) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={560} height={412} />
           <span class="photo-card-top"><span class="text-[20px] leading-[26px] lg:text-[24px] lg:leading-[30px]">{g.title}{g.areaMax ? ` ${tb.upTo(`${numL(lang, g.areaMax)} ${d.m2}`)}` : ''}</span><span class="mt-1 block text-[14px] text-white/85">{g.count}{g.price ? ` · ${d.from(moneyL(lang, g.price))}` : ''}</span></span>
+          <span class="photo-card-go" aria-hidden="true"><Icon name="arrowUpRight" class="size-4" /></span>
         </>);
         return (
           <li class="w-[78%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
@@ -683,6 +691,7 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
           <a href={l.href} class="photo-card aspect-[558/412]">
             <Img src={gallery[(i + 1) % Math.max(gallery.length, 1)] ?? hero} alt="" class="absolute inset-0 size-full" width={560} height={412} />
             <span class="photo-card-top text-[20px] leading-[26px]">{l.text}</span>
+            <span class="photo-card-go" aria-hidden="true"><Icon name="arrowUpRight" class="size-4" /></span>
           </a>
         </li>
       ))}
@@ -733,18 +742,21 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     </div>
     <div data-prog-pane="photo">
       {progress.map((m, i) => (
-        <div class="relative" data-prog-month-pane={m.month} hidden={i !== 0} data-car>
-          <ul class="scroll-x flex snap-x snap-mandatory gap-5" data-car-track>
-            {m.photos.map((src) => (
-              <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-[#dfe0e8] md:w-[calc(50%-10px)]">
-                {src ? <Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[610/375] w-full" width={800} height={492} /> : <div class="aspect-[610/375] w-full" />}
-              </li>
-            ))}
-          </ul>
-          {m.photos.length > 2 && <>
-            <button type="button" class="prog-arrow left-5 hidden md:grid" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-5" /></button>
-            <button type="button" class="prog-arrow right-5 hidden md:grid" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-5" /></button>
-          </>}
+        <div data-prog-month-pane={m.month} hidden={i !== 0}>
+          {/* Как у образца: на экране сразу два фото, стрелка листает ровно на два. */}
+          <div class="relative">
+            <ul class="scroll-x flex snap-x snap-mandatory gap-5" data-prog-track>
+              {m.photos.map((src) => (
+                <li class="w-[86%] shrink-0 snap-start overflow-hidden rounded-[20px] bg-[#dfe0e8] md:w-[calc(50%-10px)]">
+                  {src ? <Img src={src} alt={`${c.title} — ${tb.progress}, ${monthLabel(m.month)}`} class="aspect-[610/375] w-full" width={800} height={492} /> : <div class="aspect-[610/375] w-full" />}
+                </li>
+              ))}
+            </ul>
+            {m.photos.length > 2 && <>
+              <button type="button" class="prog-arrow left-5 hidden md:grid" data-prog-step="-1" aria-label={tb.prev}><Icon name="arrowLeft" class="size-5" /></button>
+              <button type="button" class="prog-arrow right-5 hidden md:grid" data-prog-step="1" aria-label={tb.next}><Icon name="arrowRight" class="size-5" /></button>
+            </>}
+          </div>
           {m.text && <p class="mt-4 max-w-3xl text-[16px] leading-[24px] text-ink-n">{m.text}</p>}
         </div>
       ))}
@@ -787,26 +799,40 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   )}
 
   {news.length > 0 && (
-  <section class="container-n mt-20 lg:mt-28" data-car>
-    {/* Новости проекта: заводит сотрудник в админке; три последние по дате. */}
+  <section class="container-n mt-20 lg:mt-28" data-car data-news>
+    {/* Новости проекта как у образца (ЖК МИРА): лента карточек со стрелками, клик открывает новость целиком,
+        внизу «Смотреть все новости» — раздел новостей сайта. Новости заводит сотрудник в админке. */}
     <div class="mb-6 flex items-center justify-between gap-4 lg:mb-8">
       <h2 class="display h-section-n">{tb.news}{!newsReal.length && <> <span class="stub">{N.example}</span></>}</h2>
-      {news.length > 3 && <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="arrowLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="arrowRight" class="size-4" /></button></div>}
+      {news.length > 3 && <div class="hidden gap-2 lg:flex"><button type="button" class="car-btn" data-car-prev aria-label={tb.prev}><Icon name="chevronLeft" class="size-4" /></button><button type="button" class="car-btn" data-car-next aria-label={tb.next}><Icon name="chevronRight" class="size-4" /></button></div>}
     </div>
     <ul class="scroll-x flex snap-x gap-6" data-car-track>
-      {news.map((x) => (
-        <li class="flex w-[84%] shrink-0 snap-start flex-col overflow-hidden rounded-[24px] bg-white md:w-[calc((100%-48px)/3)]">
-          {x.image && <Img src={x.image} alt="" class="aspect-[16/10] w-full" width={560} height={350} />}
-          <div class="flex flex-1 flex-col gap-3 p-6">
-            <span class="text-[11px] font-medium uppercase tracking-[1px] text-soft">{x.date}</span>
-            <span class="text-[20px] leading-[26px] text-ink-n">{x.title}</span>
-            {x.text && (x.text.length > 140
-              ? <details class="news-text group text-[15px] leading-[22px] text-soft"><summary class="cursor-pointer list-none"><span class="line-clamp-3 group-open:line-clamp-none">{x.text}</span><span class="mt-2 block text-[14px] text-accent group-open:hidden">{N.readMore}</span></summary></details>
-              : <p class="text-[15px] leading-[22px] text-soft">{x.text}</p>)}
-          </div>
+      {news.map((x, i) => (
+        <li class="flex w-[84%] shrink-0 snap-start md:w-[calc((100%-48px)/3)]">
+          <button type="button" class="news-card group flex w-full flex-col overflow-hidden rounded-[24px] bg-white text-left transition hover:-translate-y-1 hover:shadow-[0_12px_32px_rgb(9_7_20/.08)]" data-news-open={i} aria-haspopup="dialog" aria-label={`${NW.open[lang]}: ${x.title}`}>
+            {x.image && <Img src={x.image} alt="" class="aspect-[16/10] w-full" width={560} height={350} />}
+            <span class="flex flex-1 flex-col gap-3 p-6">
+              <span class="text-[11px] font-medium uppercase tracking-[1px] text-soft">{x.date}</span>
+              <span class="text-[20px] leading-[26px] text-ink-n group-hover:text-accent">{x.title}</span>
+              {x.text && <span class="line-clamp-5 text-[15px] leading-[22px] text-soft">{x.text}</span>}
+            </span>
+          </button>
+          <template data-news-body={i}>
+            {x.image && <Img src={x.image} alt="" class="mb-6 aspect-[16/9] w-full rounded-[16px]" width={960} height={540} />}
+            <p class="text-[12px] font-medium uppercase tracking-[1px] text-soft">{x.date}</p>
+            <h3 class="mt-3 text-[24px] leading-[30px] text-ink-n lg:text-[28px] lg:leading-[34px]">{x.title}</h3>
+            {x.text && <div class="mt-4 whitespace-pre-line text-[16px] leading-[25px] text-ink-n/85">{x.text}</div>}
+          </template>
         </li>
       ))}
     </ul>
+    <a href={newsAllUrl} class="btn-n btn-n-dark mt-6 inline-flex gap-2 lg:mt-8">{NW.all[lang]}<Icon name="arrowRight" class="size-4" /></a>
+    <dialog class="news-dlg m-auto max-h-[calc(100dvh-32px)] w-[min(760px,calc(100%-32px))] overflow-y-auto rounded-[24px] bg-white p-0 text-ink-n backdrop:bg-black/50" data-news-dlg aria-label={tb.news}>
+      <div class="relative p-6 lg:p-10">
+        <button type="button" class="absolute right-4 top-4 z-10 grid size-11 place-items-center rounded-[14px] bg-white text-ink-n shadow-md" data-news-close aria-label={NW.close[lang]}><Icon name="close" class="size-5" /></button>
+        <div data-news-content></div>
+      </div>
+    </dialog>
   </section>
   )}
 
@@ -874,7 +900,7 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   .complex-intro { font-size: 16px; line-height: 24px; letter-spacing: .1px; }
   .complex-intro.clamp { max-height: 144px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 60%, transparent); mask-image: linear-gradient(#000 60%, transparent); }
   .photo-card { position: relative; display: block; overflow: hidden; border-radius: 24px; background: var(--color-ink); color: #fff; }
-  .photo-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(9,7,20,.55), transparent 45%); }
+  .photo-card::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(9,7,20,.7), rgba(9,7,20,.25) 40%, transparent 60%); }
   .photo-card-top { position: absolute; z-index: 1; left: 24px; top: 24px; right: 24px; }
   .infra-text :global(ul) { columns: 2; column-gap: 24px; text-align: left; padding-left: 18px; }
   @media (min-width: 768px) { .infra-text :global(ul) { columns: 3; } }
@@ -882,6 +908,10 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   .chip-n.is-on { background: var(--color-ink-n); color: #fff; }
   .car-btn { place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--color-ink-n); box-shadow: var(--shadow-btn); }
   .car-btn:hover { background: var(--color-page-n); }
+  .car-btn:disabled { color: #b8bac4; box-shadow: none; cursor: default; background: #fff; }
+  .photo-card-go { position: absolute; z-index: 1; right: 20px; bottom: 20px; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: #fff; color: var(--color-ink-n); box-shadow: 0 4px 16px rgb(9 7 20 / .18); opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; }
+  .photo-card:hover .photo-card-go, .photo-card:focus-visible .photo-card-go { opacity: 1; transform: none; }
+  @media (hover: none) { .photo-card-go { opacity: 1; transform: none; } }
   .seg > button { cursor: pointer; }
   .fact-dark { background: var(--color-ink-n); color: #fff; }
   .fact-sub { display: block; margin-top: 2px; color: var(--color-soft); }
@@ -899,8 +929,9 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
   .seg { display: inline-flex; gap: 2px; border-radius: 999px; background: #fff; padding: 4px; box-shadow: 0 2px 12px rgba(9,7,20,.06); }
   .seg button { border-radius: 999px; padding: 10px 14px; font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: #8e9099; white-space: nowrap; transition: background .2s, color .2s, box-shadow .2s; }
   .seg button[aria-selected='true'] { background: #fff; color: var(--color-ink-n); box-shadow: 0 2px 10px rgba(9,7,20,.16); }
-  .prog-arrow { position: absolute; top: calc(50% - 26px); place-items: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(30,30,36,.72); color: #fff; backdrop-filter: blur(6px); transition: background .2s; }
+  .prog-arrow { position: absolute; top: calc(50% - 26px); z-index: 1; place-items: center; width: 52px; height: 52px; border-radius: 14px; background: rgba(30,30,36,.72); color: #fff; backdrop-filter: blur(6px); transition: background .2s; }
   .prog-arrow:hover { background: rgba(30,30,36,.9); }
+  .prog-arrow:disabled { opacity: .35; cursor: default; }
   .prog-y { margin-top: -1px; min-width: 40px; border-top: 1px solid #8e9099; padding-top: 12px; font-size: 16px; line-height: 20px; color: #8e9099; }
   .prog-y[aria-selected='true'] { border-top-color: var(--color-ink-n); color: var(--color-ink-n); }
   .prog-m { min-width: 52px; flex: 1; margin-top: -1px; border-top: 2px solid transparent; padding: 12px 4px 0; text-align: center; font-size: 11px; line-height: 16px; color: #6f717c; }
@@ -932,6 +963,18 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
       box.querySelectorAll<HTMLElement>('[data-prog-month]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.progMonth === m)));
     };
     box.querySelectorAll<HTMLButtonElement>('[data-prog-month]').forEach((b) => b.addEventListener('click', () => pick(b.dataset.progMonth!)));
+    // Стрелки листают на ширину видимой части — ровно два фото; в начале «назад» неактивна, в конце — «вперёд».
+    box.querySelectorAll<HTMLElement>('[data-prog-month-pane]').forEach((pn) => {
+      const track = pn.querySelector<HTMLElement>('[data-prog-track]');
+      const btns = [...pn.querySelectorAll<HTMLButtonElement>('[data-prog-step]')];
+      if (!track || !btns.length) return;
+      const gap = () => parseFloat(getComputedStyle(track).columnGap) || 0;
+      const sync = () => btns.forEach((b) => { b.disabled = b.dataset.progStep === '-1' ? track.scrollLeft <= 2 : track.scrollLeft + track.clientWidth >= track.scrollWidth - 2; });
+      btns.forEach((b) => b.addEventListener('click', () => track.scrollBy({ left: Number(b.dataset.progStep) * (track.clientWidth + gap()), behavior: 'smooth' })));
+      track.addEventListener('scroll', sync, { passive: true });
+      new ResizeObserver(sync).observe(track);
+      sync();
+    });
     box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((b) => b.addEventListener('click', () => {
       const y = b.dataset.progYear!;
       box.querySelectorAll<HTMLElement>('[data-prog-year]').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
@@ -986,6 +1029,25 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     lb.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
     lb.addEventListener('touchend', (e) => { const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0; if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) showLb(at + (dx < 0 ? 1 : -1)); });
   });
+  // Новости проекта: клик по карточке открывает новость целиком; адрес #news-N, чтобы ссылкой можно было поделиться.
+  document.querySelectorAll<HTMLElement>('[data-news]').forEach((box) => {
+    const dlg = box.querySelector<HTMLDialogElement>('[data-news-dlg]');
+    const content = box.querySelector<HTMLElement>('[data-news-content]');
+    if (!dlg || !content) return;
+    const open = (i: string) => {
+      const tpl = box.querySelector<HTMLTemplateElement>(`[data-news-body="${i}"]`);
+      if (!tpl) return;
+      content.replaceChildren(tpl.content.cloneNode(true));
+      if (!dlg.open) dlg.showModal();
+      history.replaceState(null, '', `#news-${Number(i) + 1}`);
+    };
+    box.querySelectorAll<HTMLElement>('[data-news-open]').forEach((b) => b.addEventListener('click', () => open(b.dataset.newsOpen!)));
+    box.querySelector('[data-news-close]')?.addEventListener('click', () => dlg.close());
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close(); });
+    dlg.addEventListener('close', () => { if (/^#news-\d+$/.test(location.hash)) history.replaceState(null, '', location.pathname + location.search); });
+    const m = /^#news-(\d+)$/.exec(location.hash);
+    if (m) open(String(Number(m[1]) - 1));
+  });
   const mapEl = document.querySelector<HTMLElement>('[data-map]');
   if (mapEl) {
     const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); mountMap(mapEl); } }, { rootMargin: '200px' });
@@ -998,6 +1060,18 @@ const promoOf = (o: Complex) => livePromos(ppDb.projects[o.code] ?? {}, today).l
     const go = (dir: number) => track.scrollBy({ left: dir * track.clientWidth * 0.8, behavior: 'smooth' });
     car.querySelectorAll('[data-car-prev]').forEach((b) => b.addEventListener('click', () => go(-1)));
     car.querySelectorAll('[data-car-next]').forEach((b) => b.addEventListener('click', () => go(1)));
+    // В начале ленты «назад» неактивна, в конце — «вперёд» (как у образца).
+    const prevs = [...car.querySelectorAll<HTMLButtonElement>('[data-car-prev]')];
+    const nexts = [...car.querySelectorAll<HTMLButtonElement>('[data-car-next]')];
+    const edges = () => {
+      const atStart = track.scrollLeft <= 2;
+      const atEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 2;
+      prevs.forEach((b) => { b.disabled = atStart; });
+      nexts.forEach((b) => { b.disabled = atEnd; });
+    };
+    track.addEventListener('scroll', edges, { passive: true });
+    addEventListener('resize', edges);
+    edges();
     car.closest('section')?.querySelectorAll<HTMLElement>('[data-jump]').forEach((b) => b.addEventListener('click', () => {
       const slide = track.children[Number(b.dataset.jump)] as HTMLElement | undefined;
       if (slide) track.scrollTo({ left: slide.offsetLeft - track.offsetLeft, behavior: 'smooth' });
