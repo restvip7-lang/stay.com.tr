@@ -36,6 +36,7 @@ export function initLeadForms() {
       let msg = '';
       if (!String(fd.get('name') || '').trim()) msg = T().form.errName;
       else if (phone.replace(/\D/g, '').length < 7) msg = T().form.errPhone;
+      else { const ag = form.querySelector<HTMLInputElement>('input[name=agree]'); if (ag && !ag.checked) msg = ag.dataset.err || ''; }
       if (msg) { err.textContent = msg; err.classList.remove('hidden'); return; }
       err.classList.add('hidden');
       // Отправки нет — по решению заказчика заявки пока никуда не уходят.

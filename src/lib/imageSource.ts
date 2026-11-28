@@ -11,7 +11,7 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 export const IMAGE_DOMAINS = new Set(String(import.meta.env.STAY_IMAGE_DOMAINS || '').split(',').filter(Boolean));
-export const LOCAL_IMAGE = /^\/(?:media|hero|picker)\/[^?#\\<>"]+\.(?:jpe?g|png|webp|avif)$/i;
+export const LOCAL_IMAGE = /^\/(?:media|hero|picker|uploads)\/[^?#\\<>"]+\.(?:jpe?g|png|webp|avif)$/i;
 const MAX_BYTES = 25 * 1024 * 1024;
 /** Оригинал для хранения: не шире 1920 px. Тот же расчёт в scripts/media-src-shrink.mjs (разовое ужатие старых). */
 export const KEEP_WIDTH = 1920;
@@ -38,6 +38,13 @@ const PUBLIC_DIRS = ['dist/client', 'public'].map((d) => path.resolve(d));
 export async function readLocal(src: string): Promise<Buffer | null> {
   if (/%[0-9a-f]{2}/i.test(src)) { try { src = decodeURIComponent(src); } catch { /* как есть */ } }
   if (src.includes('..')) return null;
+  // Загруженные в админке — в папке данных (STAY_DATA_DIR/uploads), а не в public.
+  if (src.startsWith('/uploads/')) {
+    const root = path.resolve(process.env.STAY_DATA_DIR || 'data', 'uploads');
+    const file = path.join(root, src.slice('/uploads/'.length));
+    if (!file.startsWith(root + path.sep)) return null;
+    try { return await readFile(file); } catch { return null; }
+  }
   for (const dir of PUBLIC_DIRS) {
     const file = path.join(dir, src);
     if (!file.startsWith(dir + path.sep)) return null;

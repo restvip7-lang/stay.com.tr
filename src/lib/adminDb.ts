@@ -9,12 +9,13 @@ import { chmodSync, existsSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { dataDir } from './store';
 
-export type Role = 'owner' | 'admin' | 'editor' | 'seo';
+export type Role = 'owner' | 'admin' | 'editor' | 'seo' | 'projects';
 export const ROLES: { id: Role; label: string; note: string }[] = [
   { id: 'owner', label: 'Владелец', note: 'всё, включая пользователей и журнал' },
   { id: 'admin', label: 'Администратор', note: 'все разделы, кроме пользователей' },
   { id: 'editor', label: 'Редактор', note: 'главная и объекты' },
   { id: 'seo', label: 'SEO', note: 'только SEO' },
+  { id: 'projects', label: 'Проекты', note: 'только «Страница проекта» наших ЖК' },
 ];
 export const isRole = (r: unknown): r is Role => ROLES.some((x) => x.id === r);
 
