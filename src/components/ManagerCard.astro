@@ -1,0 +1,92 @@
+---
+/**
+ * Карточка менеджера на странице объекта (Anuar 28.11.2026): фото, имя, должность, WhatsApp.
+ * Менеджеры сменяются по кругу раз в 6 секунд (после последнего — снова первый); на наведении пауза,
+ * при «уменьшить движение» — без автосмены, только точками. Первый показанный — случайный, чтобы обращения
+ * распределялись между менеджерами. WhatsApp у всех общий (+90 530 178 29 16) — в текст подставляем имя и ID объекта.
+ */
+import Img from './Img.astro';
+import Icon from './Icon.astro';
+import { TEAM, MEMBER_ROLE } from '../content/company';
+import { SITE } from '../i18n/config';
+
+interface Props { objectId: string; url: string }
+const { objectId, url } = Astro.props;
+const lang = Astro.locals.lang ?? 'ru';
+const WA = '905301782916';
+const HELLO = {
+  ru: (n: string) => `Здравствуйте, ${n}! Интересует объект ID ${objectId}: ${SITE}${url}`,
+  en: (n: string) => `Hello ${n}! I'm interested in property ID ${objectId}: ${SITE}${url}`,
+  tr: (n: string) => `Merhaba ${n}! ${objectId} numaralı ilanla ilgileniyorum: ${SITE}${url}`,
+  de: (n: string) => `Hallo ${n}! Ich interessiere mich für das Objekt ID ${objectId}: ${SITE}${url}`,
+  sr: (n: string) => `Zdravo ${n}! Zanima me nekretnina ID ${objectId}: ${SITE}${url}`,
+}[lang];
+const T = {
+  title: { ru: 'Ваш менеджер', en: 'Your manager', tr: 'Danışmanınız', de: 'Ihr Ansprechpartner', sr: 'Vaš menadžer' }[lang],
+  wa: { ru: 'Написать в WhatsApp', en: 'Message on WhatsApp', tr: 'WhatsApp’tan yazın', de: 'Per WhatsApp schreiben', sr: 'Pišite na WhatsApp' }[lang],
+  show: { ru: 'Показать менеджера', en: 'Show manager', tr: 'Danışmanı göster', de: 'Ansprechpartner zeigen', sr: 'Prikaži menadžera' }[lang],
+};
+const team = TEAM.filter((m) => m.photo);
+---
+{team.length > 0 && (
+  <section class="card-n p-5" data-managers aria-label={T.title}>
+    <p class="text-[12px] font-medium uppercase tracking-[1px] text-soft">{T.title}</p>
+    <div class="relative mt-3 grid">
+      {team.map((m, i) => (
+        <div class:list={['mgr-slide col-start-1 row-start-1 flex items-center gap-4', i === 0 && 'is-on']} data-mgr={i} aria-hidden={i === 0 ? undefined : 'true'}>
+          <a href={`/${lang}/team/${m.slug}/`} class="size-16 shrink-0 overflow-hidden rounded-full bg-page-n" tabindex={i === 0 ? undefined : -1}>
+            <Img src={m.photo} alt={m.name[lang]} class="size-full object-top" width={128} height={128} loading="eager" />
+          </a>
+          <div class="min-w-0 flex-1">
+            <a href={`/${lang}/team/${m.slug}/`} class="block truncate text-[16px] font-medium leading-[22px] hover:text-accent" tabindex={i === 0 ? undefined : -1}>{m.name[lang]}</a>
+            <p class="mt-0.5 text-[13px] leading-[18px] text-soft">{MEMBER_ROLE[lang]}</p>
+          </div>
+          <a href={`https://wa.me/${WA}?text=${encodeURIComponent(HELLO(m.name[lang]))}`} target="_blank" rel="noopener" class="grid size-11 shrink-0 place-items-center rounded-full bg-[#25d366] text-white transition hover:brightness-95" aria-label={`${T.wa}: ${m.name[lang]}`} tabindex={i === 0 ? undefined : -1}><Icon name="whatsapp" class="size-5" /></a>
+        </div>
+      ))}
+    </div>
+    {team.length > 1 && (
+      <div class="mt-4 flex flex-wrap gap-1.5" role="group">
+        {team.map((m, i) => <button type="button" data-dot={i} class:list={['mgr-dot', i === 0 && 'is-on']} aria-label={`${T.show}: ${m.name[lang]}`}></button>)}
+      </div>
+    )}
+  </section>
+)}
+<style is:global>
+  @layer base {
+    .mgr-slide { opacity: 0; visibility: hidden; transition: opacity .5s ease, visibility 0s linear .5s; }
+    .mgr-slide.is-on { opacity: 1; visibility: visible; transition: opacity .5s ease; }
+    .mgr-dot { width: 6px; height: 6px; border-radius: 999px; background: #d9dae2; transition: width .3s, background .3s; }
+    .mgr-dot.is-on { width: 18px; background: var(--color-accent, #6b4bd8); }
+    @media (prefers-reduced-motion: reduce) { .mgr-slide, .mgr-slide.is-on { transition: none; } }
+  }
+</style>
+<script>
+  document.querySelectorAll<HTMLElement>('[data-managers]').forEach((box) => {
+    const slides = [...box.querySelectorAll<HTMLElement>('[data-mgr]')];
+    const dots = [...box.querySelectorAll<HTMLButtonElement>('[data-dot]')];
+    if (slides.length < 2) return;
+    let cur = 0;
+    let timer = 0;
+    const show = (i: number) => {
+      cur = (i + slides.length) % slides.length;
+      slides.forEach((s, k) => {
+        const on = k === cur;
+        s.classList.toggle('is-on', on);
+        s.toggleAttribute('aria-hidden', !on);
+        s.querySelectorAll<HTMLElement>('a').forEach((a) => (on ? a.removeAttribute('tabindex') : a.setAttribute('tabindex', '-1')));
+      });
+      dots.forEach((d, k) => d.classList.toggle('is-on', k === cur));
+    };
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const start = () => { if (!reduce) { clearInterval(timer); timer = window.setInterval(() => show(cur + 1), 6000); } };
+    const stop = () => clearInterval(timer);
+    show(Math.floor(Math.random() * slides.length));
+    start();
+    dots.forEach((d, k) => d.addEventListener('click', () => { show(k); start(); }));
+    box.addEventListener('mouseenter', stop);
+    box.addEventListener('mouseleave', start);
+    box.addEventListener('focusin', stop);
+    box.addEventListener('focusout', start);
+  });
+</script>

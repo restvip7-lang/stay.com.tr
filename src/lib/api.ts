@@ -739,6 +739,10 @@ export interface DetailL {
   pricePerSquare: number | null;
   video: string | null;
   updated: string | null;
+  /** Вид из окна (справочник Portfolio). */
+  view?: string[];
+  /** Прочие поля карточки Portfolio как есть — ItemPage берёт нужные по именам. */
+  extra?: Record<string, string>;
 }
 
 /** Описание объекта на языке lang; null — перевода нет (API отдаёт пустой заголовок). */
@@ -754,10 +758,12 @@ export async function getDetailL(id: string, operation: 'sale' | 'rental', lang:
       images: (det.imageUrls.length ? det.imageUrls : [snap!.card.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
       yearBuilt: det.yearBuilt,
       region: det.regionName,
-      infrastructure: [],
+      infrastructure: det.amenities?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
       pricePerSquare: det.pricePerSquare,
       video: det.videoUrl,
       updated: det.modified,
+      view: det.view?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
+      extra: det.extra ?? {},
     };
   }
   const key = `detail-${operation}-${id}-${lang}`;

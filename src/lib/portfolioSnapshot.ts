@@ -22,6 +22,11 @@ export interface SnapshotDetail {
   pricePerSquare: number | null;
   videoUrl: string | null;
   modified: string | null;
+  /** Справочники Portfolio: инфраструктура и вид (подписи ru/en). Нет в старых снимках. */
+  amenities?: { ru: string[]; en: string[] };
+  view?: { ru: string[]; en: string[] };
+  /** Прочие короткие мета-поля объекта как есть (мебель, санузлы, участок…). */
+  extra?: Record<string, string>;
 }
 
 const mode = () => (process.env.STAY_OBJECTS_SOURCE || 'auto').toLowerCase();

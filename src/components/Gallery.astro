@@ -1,39 +1,103 @@
 ---
 import Img from './Img.astro';
+import Icon from './Icon.astro';
 import { t } from '../i18n/ui';
-/** alt — шаблон «{тип} {комнаты} — {район}, {площадь} — фото N» (ТЗ 10). */
+/**
+ * Галерея объекта: большое фото со стрелками и одна строка миниатюр с прокруткой
+ * (Anuar 28.11.2026: «все фото не выкладывать под основным окном», образец — лента миниатюр под фото).
+ * Листается стрелками, миниатюрами, клавишами ←/→ и свайпом. alt — «{тип} {комнаты} — {район}, {площадь} — фото N» (ТЗ 10).
+ */
 interface Props { images: string[]; alt: string }
 const { images, alt } = Astro.props;
-const d = t(Astro.locals.lang ?? 'ru');
+const lang = Astro.locals.lang ?? 'ru';
+const d = t(lang);
 const list = images.length ? images : [null];
+const W = { prev: { ru: 'Предыдущее фото', en: 'Previous photo', tr: 'Önceki fotoğraf', de: 'Vorheriges Foto', sr: 'Prethodna fotografija' }, next: { ru: 'Следующее фото', en: 'Next photo', tr: 'Sonraki fotoğraf', de: 'Nächstes Foto', sr: 'Sledeća fotografija' } } as const;
 ---
-<div data-gallery>
-  <div class="relative aspect-[4/3] overflow-hidden rounded-[16px] lg:aspect-[3/2]">
+<div data-gallery tabindex="-1" class="outline-none">
+  <div class="group relative aspect-[4/3] overflow-hidden rounded-[16px] bg-page-n lg:aspect-[3/2]" data-stage>
     <Img src={list[0]} alt={`${alt} — ${d.photo} 1`} class="size-full" loading="eager" priority width={960} height={720} />
+    {list.length > 1 && (
+      <>
+        <button type="button" data-step="-1" class="gal-arrow left-3 lg:left-4" aria-label={W.prev[lang]}><Icon name="arrowLeft" class="size-5" /></button>
+        <button type="button" data-step="1" class="gal-arrow right-3 lg:right-4" aria-label={W.next[lang]}><Icon name="arrowRight" class="size-5" /></button>
+      </>
+    )}
     <span class="absolute bottom-3 right-3 rounded-full bg-[#1c1e2680] px-3 py-1.5 text-[11px] font-medium tracking-[1px] text-white backdrop-blur empty:hidden" data-counter>{list.length > 1 ? `1 / ${list.length}` : ''}</span>
   </div>
   {list.length > 1 && (
-    <div class="mt-2 grid grid-cols-5 gap-2 sm:grid-cols-7">
+    <div class="gal-strip mt-2 flex gap-2 overflow-x-auto scroll-smooth pb-1" data-strip>
       {list.map((src, i) => (
-        <button type="button" data-thumb={src} data-i={i} data-alt={`${alt} — ${d.photo} ${i + 1}`} class:list={['aspect-square overflow-hidden rounded-[10px] ring-accent ring-offset-2', i === 0 && 'ring-2']} aria-label={`${d.photo} ${i + 1}`}>
-          <Img src={src} alt="" class="size-full" width={120} height={120} />
+        <button type="button" data-thumb={src} data-i={i} data-alt={`${alt} — ${d.photo} ${i + 1}`} class:list={['gal-thumb', i === 0 && 'is-on']} aria-label={`${d.photo} ${i + 1}`} aria-current={i === 0 ? 'true' : undefined}>
+          <Img src={src} alt="" class="size-full" width={160} height={120} />
         </button>
       ))}
     </div>
   )}
 </div>
+<style is:global>
+  @layer base {
+    .gal-arrow {
+      position: absolute; top: 50%; translate: 0 -50%;
+      display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px;
+      background: #fff; color: var(--color-ink, #1c1e26); box-shadow: 0 4px 16px rgb(28 30 38 / .14);
+      transition: opacity .2s, transform .2s;
+    }
+    .gal-arrow:hover { transform: scale(1.06); }
+    .gal-arrow:active { transform: scale(.96); }
+    @media (hover: hover) and (min-width: 1024px) {
+      [data-stage] .gal-arrow { opacity: 0; }
+      [data-stage]:hover .gal-arrow, [data-stage] .gal-arrow:focus-visible { opacity: 1; }
+    }
+    .gal-strip { scrollbar-width: none; scroll-snap-type: x proximity; }
+    .gal-strip::-webkit-scrollbar { display: none; }
+    .gal-thumb {
+      position: relative; flex: 0 0 auto; width: 88px; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 10px;
+      scroll-snap-align: start; opacity: .62; transition: opacity .2s;
+    }
+    @media (min-width: 1024px) { .gal-thumb { width: 112px; } }
+    .gal-thumb:hover, .gal-thumb.is-on { opacity: 1; }
+    .gal-thumb::after { content: ''; position: absolute; inset: 0; border-radius: inherit; box-shadow: inset 0 0 0 2px transparent; transition: box-shadow .2s; }
+    .gal-thumb.is-on::after { box-shadow: inset 0 0 0 2px var(--color-accent, #6b4bd8); }
+  }
+</style>
 <script>
   document.querySelectorAll<HTMLElement>('[data-gallery]').forEach((g) => {
-    const main = g.querySelector<HTMLImageElement>('img')!;
+    const main = g.querySelector<HTMLImageElement>('[data-stage] img')!;
     const counter = g.querySelector('[data-counter]');
+    const strip = g.querySelector<HTMLElement>('[data-strip]');
     const thumbs = [...g.querySelectorAll<HTMLButtonElement>('[data-thumb]')];
-    thumbs.forEach((t) => t.addEventListener('click', () => {
+    if (thumbs.length < 2) return;
+    let cur = 0;
+    const show = (i: number) => {
+      cur = (i + thumbs.length) % thumbs.length;
+      const t = thumbs[cur];
       const img = t.querySelector('img');
       main.removeAttribute('srcset');
       main.src = img?.currentSrc && img.currentSrc.includes('w=') ? img.currentSrc.replace(/w=\d+/, 'w=960') : t.dataset.thumb!;
       main.alt = t.dataset.alt || main.alt;
-      thumbs.forEach((x) => x.classList.toggle('ring-2', x === t));
-      if (counter) counter.textContent = `${Number(t.dataset.i) + 1} / ${thumbs.length}`;
-    }));
+      thumbs.forEach((x) => { x.classList.toggle('is-on', x === t); x.toggleAttribute('aria-current', x === t); });
+      if (counter) counter.textContent = `${cur + 1} / ${thumbs.length}`;
+      // миниатюра всегда в видимой части ленты (без прокрутки всей страницы)
+      if (strip) {
+        const l = t.offsetLeft - strip.offsetLeft, r = l + t.offsetWidth;
+        if (l < strip.scrollLeft) strip.scrollLeft = l - 8;
+        else if (r > strip.scrollLeft + strip.clientWidth) strip.scrollLeft = r - strip.clientWidth + 8;
+      }
+    };
+    thumbs.forEach((t, i) => t.addEventListener('click', () => show(i)));
+    g.querySelectorAll<HTMLButtonElement>('[data-step]').forEach((b) => b.addEventListener('click', () => show(cur + Number(b.dataset.step))));
+    g.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowLeft') { show(cur - 1); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { show(cur + 1); e.preventDefault(); }
+    });
+    // свайп по большому фото на телефоне
+    const stage = g.querySelector<HTMLElement>('[data-stage]')!;
+    let x0 = 0, y0 = 0;
+    stage.addEventListener('touchstart', (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
+    stage.addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) show(cur + (dx < 0 ? 1 : -1));
+    });
   });
 </script>

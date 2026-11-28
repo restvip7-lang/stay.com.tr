@@ -11,6 +11,7 @@ import Calculator from './Calculator.astro';
 import LeadSection from './LeadSection.astro';
 import SaleCard from './SaleCard.astro';
 import Icon from './Icon.astro';
+import ManagerCard from './ManagerCard.astro';
 import { t } from '../i18n/ui';
 import { LABEL_TEXT, LABEL_STYLE } from '../lib/objectsConfig';
 import { LANGS, SITE, type Lang } from '../i18n/config';
@@ -65,27 +66,95 @@ const price = x.price ? moneyL(lang, x.price) + (x.deal === 'rent' ? d.perMonth 
 const perM2 = (own ?? fallback)?.pricePerSquare ?? (x.price && x.area && x.deal === 'sale' ? Math.round(x.price / x.area) : null);
 const isNew = x.features.includes('new');
 const complex = x.complex ? (await getComplexes()).find((c) => c.code === x.complex) ?? null : null;
+// Чипсы-фичи → ссылки на фича-лендинги района (если там ≥3 объектов, иначе города).
+const chipLinks = (await Promise.all(x.features.filter((f) => !/price-to/.test(f)).map(async (f) => {
+  for (const c of [{ country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type, feature: f }, { country: x.country, city: x.city, deal: x.deal, type: x.type, feature: f }]) {
+    if ((await countOf(c)) >= INDEX_MIN) return { slug: f, href: catUrl(lang, c), text: FEATURE_LABEL[lang][f] };
+  }
+  return { slug: f, href: null as string | null, text: FEATURE_LABEL[lang][f] };
+})));
+
+// Признаки, которые уже есть строкой в «Характеристиках» (планировка, мебель, новостройка/вторичка), показываем там ссылкой, а не чипсом.
+const chipOf = (slug: string) => chipLinks.find((c) => c.slug === slug) ?? null;
+const usedChips = new Set<string>();
+const linkOf = (slug: string) => { const c = chipOf(slug); if (c) usedChips.add(slug); return c?.href ?? undefined; };
+const bedSlug = chipLinks.find((c) => /bedroom/.test(c.slug))?.slug ?? '';
+// Характеристики зависят от типа (Anuar 28.11.2026: «у нас квартиры, виллы и т. д.»): у квартиры — этаж и этажность дома,
+// у виллы — участок и этажи самой виллы. Каждый факт на странице один раз: только здесь, без повторов в шапке.
+// Поля сверх карточки берём из мета-полей Portfolio по именам (extra) — какие заполнены, те и видны.
+const X = { ...((own ?? fallback)?.extra ?? {}) } as Record<string, string>;
+const ex = (re: RegExp) => Object.entries(X).find(([k, v]) => re.test(k) && v && !/^(0|-|no|n|нет|null)$/i.test(v.trim()))?.[1]?.trim() ?? null;
+const exAny = (re: RegExp) => Object.entries(X).find(([k, v]) => re.test(k) && v)?.[1]?.trim() ?? null;
+const XT = {
+  floorOf: { ru: 'из', en: 'of', tr: '/', de: 'von', sr: 'od' }[lang],
+  floorsTotal: { ru: 'Этажей в доме', en: 'Floors in building', tr: 'Bina kat sayısı', de: 'Etagen im Haus', sr: 'Spratova u zgradi' }[lang],
+  villaFloors: { ru: 'Этажей', en: 'Floors', tr: 'Kat sayısı', de: 'Etagen', sr: 'Spratova' }[lang],
+  bedrooms: { ru: 'Спальни', en: 'Bedrooms', tr: 'Yatak odası', de: 'Schlafzimmer', sr: 'Spavaće sobe' }[lang],
+  baths: { ru: 'Санузлы', en: 'Bathrooms', tr: 'Banyo', de: 'Badezimmer', sr: 'Kupatila' }[lang],
+  furniture: { ru: 'Мебель', en: 'Furniture', tr: 'Eşya', de: 'Möblierung', sr: 'Nameštaj' }[lang],
+  land: { ru: 'Участок', en: 'Plot', tr: 'Arsa', de: 'Grundstück', sr: 'Plac' }[lang],
+  pool: { ru: 'Свой бассейн', en: 'Private pool', tr: 'Özel havuz', de: 'Eigener Pool', sr: 'Sopstveni bazen' }[lang],
+  view: { ru: 'Вид', en: 'View', tr: 'Manzara', de: 'Aussicht', sr: 'Pogled' }[lang],
+  toCenter: { ru: 'До центра', en: 'To the centre', tr: 'Merkeze', de: 'Zum Zentrum', sr: 'Do centra' }[lang],
+  toAirport: { ru: 'До аэропорта', en: 'To the airport', tr: 'Havalimanına', de: 'Zum Flughafen', sr: 'Do aerodroma' }[lang],
+  yes: { ru: 'Есть', en: 'Yes', tr: 'Var', de: 'Ja', sr: 'Da' }[lang],
+  no: { ru: 'Нет', en: 'No', tr: 'Yok', de: 'Nein', sr: 'Ne' }[lang],
+  km: { ru: 'км', en: 'km', tr: 'km', de: 'km', sr: 'km' }[lang],
+};
+const yesNo = (v: string | null) => (v == null ? null : /^(y|yes|1|true|да|var|furnished|full)/i.test(v) ? XT.yes : /^(n|no|0|false|нет|yok|unfurnished)/i.test(v) ? XT.no : v);
+// Расстояние: «1.2 km» оставляем как есть; число — метры, а для аэропорта до 300 — километры.
+const dist = (v: string | null, kmBelow = 0) => {
+  if (!v) return null;
+  if (/[a-zа-я]/i.test(v)) return v;
+  const n = Number(v.replace(',', '.'));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n < kmBelow || n >= 1000) return `${numL(lang, n >= 1000 ? Math.round(n / 100) / 10 : n)} ${XT.km}`;
+  return `${numL(lang, n)} ${d.m}`;
+};
+const isHouse = x.type === 'villas' || x.type === 'townhouses';
+const isFlat = x.type === 'apartments' || x.type === 'penthouses' || x.type === 'duplexes';
+const floorsTotal = ex(/^(floors_total|floors_count|number_of_floors|building_floors|storeys)$/i);
+const land = ex(/land|plot|участ/i);
+const views = (own ?? fallback)?.view ?? [];
 const facts: [string, string | null, string?][] = [
   [ti.type, `${tw.one}${x.rooms ? ` ${x.rooms}` : ''}`],
-  [ti.rooms, x.rooms],
+  [ti.rooms, x.rooms, x.rooms && bedSlug ? linkOf(bedSlug) : undefined],
   [ti.area, x.area ? `${numL(lang, x.area)} ${d.m2}` : null],
-  [ti.floor, x.floor ? String(x.floor) : null],
+  ...(isFlat ? [
+    [ti.floor, x.floor ? `${x.floor}${floorsTotal ? ` ${XT.floorOf} ${floorsTotal}` : ''}` : null],
+    [XT.floorsTotal, !x.floor ? floorsTotal : null],
+  ] as [string, string | null][] : []),
+  ...(isHouse || x.type === 'land' ? [
+    [XT.land, land ? (/\d$/.test(land) ? `${numL(lang, Number(land) || 0) || land} ${d.m2}` : land) : null],
+  ] as [string, string | null][] : []),
+  ...(isHouse ? [
+    [XT.villaFloors, ex(/^(floors_villa|villa_floors|floors)$/i)],
+    [XT.bedrooms, x.bedrooms ? String(x.bedrooms) : null],
+    [XT.pool, ex(/private_pool|own_pool/i) ? XT.yes : null],
+  ] as [string, string | null][] : []),
+  ...(x.type !== 'land' ? [
+    [XT.baths, ex(/bath|wc|toilet|санузл/i)],
+    [XT.furniture, x.type !== 'commercial' ? (yesNo(exAny(/furni|мебел/i)) ?? (chipOf('furnished') ? XT.yes : null)) : null, chipOf('furnished') ? linkOf('furnished') : undefined],
+  ] as [string, string | null, string?][] : []),
+  [XT.view, views.length ? views.join(', ') : null],
   [ti.toSea, x.sea ? `${numL(lang, x.sea)} ${d.m}` : null],
+  [XT.toCenter, dist(ex(/cent(er|re)|центр/i), 30)],
+  [XT.toAirport, dist(ex(/airport|аэропорт/i), 300)],
   [ti.year, (own ?? fallback)?.yearBuilt ?? null],
-  [ti.status, x.deal === 'sale' ? (isNew ? ti.newBuild : x.features.includes('resale') ? ti.resale : null) : null],
+  [ti.status, x.deal === 'sale' ? (isNew ? ti.newBuild : x.features.includes('resale') ? ti.resale : null) : null, x.deal === 'sale' ? (isNew ? linkOf('new') : x.features.includes('resale') ? linkOf('resale') : undefined) : undefined],
   [ti.district, district?.name[lang] ?? null, x.district ? catUrl(lang, { country: x.country, city: x.city, district: x.district }) : undefined],
   [ti.city, city.name[lang], catUrl(lang, { country: x.country, city: x.city })],
   [ti.complex, complex?.title ?? null, complex ? complexUrl(lang, complex) : undefined],
   [ti.id, x.ref ?? x.id],
 ];
-
-// Чипсы-фичи → ссылки на фича-лендинги района (если там ≥3 объектов, иначе города).
-const chipLinks = (await Promise.all(x.features.filter((f) => !/price-to/.test(f)).map(async (f) => {
-  for (const c of [{ country: x.country, city: x.city, district: x.district ?? undefined, deal: x.deal, type: x.type, feature: f }, { country: x.country, city: x.city, deal: x.deal, type: x.type, feature: f }]) {
-    if ((await countOf(c)) >= INDEX_MIN) return { href: catUrl(lang, c), text: FEATURE_LABEL[lang][f] };
-  }
-  return { href: null, text: FEATURE_LABEL[lang][f] };
-})));
+// Инфраструктура: у квартиры — комплекса, у виллы — то, что на её территории.
+const infraList = (own ?? fallback)?.infrastructure ?? [];
+const restChips = chipLinks.filter((c) => !usedChips.has(c.slug));
+const infraTitle = isHouse
+  ? { ru: 'На территории', en: 'On the property', tr: 'Mülkte', de: 'Auf dem Grundstück', sr: 'Na imanju' }[lang]
+  : complex || isFlat
+    ? { ru: 'Инфраструктура комплекса', en: 'Complex amenities', tr: 'Site olanakları', de: 'Ausstattung der Anlage', sr: 'Sadržaji kompleksa' }[lang]
+    : ti.infra;
 
 // Похожие: та же сделка, город и тип, цена ±20%; сначала тот же район.
 // PRIVE только в разделе PRIVE (Anuar 26.11.2026): у обычного объекта — без PRIVE (кроме наших проектов), у PRIVE-объекта — только PRIVE.
@@ -132,8 +201,6 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
               <p class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] leading-[20px] text-soft">
                 {complex ? <a href={complexUrl(lang, complex)} class="font-medium text-ink hover:text-accent">{complex.title}</a> : <span class="font-medium text-ink">{tw.one}{x.rooms ? ` ${x.rooms}` : ''}</span>}
                 <span aria-hidden="true">·</span><span>{place}</span>
-                {x.sea ? <><span aria-hidden="true">·</span><span>{ti.toSea} {numL(lang, x.sea)} {d.m}</span></> : null}
-                <span aria-hidden="true">·</span><span>ID {x.ref ?? x.id}</span>
               </p>
             </div>
             <div class="flex shrink-0 gap-2">
@@ -164,6 +231,7 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
           <a href={site.phones[0].href} target="_blank" rel="noopener" class="btn-n btn-n-white mt-2 w-full"><Icon name="whatsapp" class="size-4" />{d.whatsapp}</a>
           {onPlan && <a href={onPlan} class="btn-n btn-n-white mt-2 w-full"><Icon name="layout" class="size-4" />{PICKER_TEXT[lang].onPlan}</a>}
         </div>
+        {!sold && <ManagerCard objectId={x.ref ?? x.id} url={self} />}
         <div class="card-n p-5">
           <h2 class="text-[19px] font-medium leading-[24px] lg:text-[18px] lg:leading-[22px]">{ti.specs}</h2>
           <dl class="mt-4 space-y-3 text-[14px] font-medium leading-[20px] tracking-[.2px]">
@@ -189,22 +257,6 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
       </div>
       <!-- Левая колонка под галереей: особенности и описание (свёрнуто, раскрывается по кнопке). -->
       <div class="space-y-5 self-start lg:col-start-1 lg:row-start-2">
-        {(chipLinks.length > 0 || (own ?? fallback)?.infrastructure?.length) && (
-          <div class="card-n grid gap-6 p-5 lg:p-6">
-            {chipLinks.length > 0 && (
-              <div>
-                <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.features}</h2>
-                <ul class="flex flex-wrap gap-2">{chipLinks.map((c) => <li>{c.href ? <a href={c.href} class="chip-n">{c.text}</a> : <span class="chip-n">{c.text}</span>}</li>)}</ul>
-              </div>
-            )}
-            {(own ?? fallback)?.infrastructure?.length ? (
-              <div>
-                <h2 class="mb-3 text-[18px] font-medium leading-[22px]">{ti.infra}</h2>
-                <ul class="flex flex-wrap gap-2">{(own ?? fallback)!.infrastructure.map((s) => <li class="chip-n">{s}</li>)}</ul>
-              </div>
-            ) : null}
-          </div>
-        )}
         <section class="card-n p-5 lg:p-6" aria-labelledby="desc-h">
           <h2 id="desc-h" class="mb-3 text-[18px] font-medium leading-[22px]">{ti.description}</h2>
           {descHtml ? <div class="prose-stay about-text" data-clamp set:html={descHtml} /> : (
@@ -215,6 +267,22 @@ const lessW = ({ ru: 'Свернуть', en: 'Show less', tr: 'Daha az göster',
           )}
           <button type="button" data-clamp-btn hidden aria-expanded="false" data-more={d.showMore} data-less={lessW} class="mt-3 inline-flex items-center gap-1 text-[14px] font-medium text-accent hover:underline"><span>{d.showMore}</span><Icon name="chevronDown" class="size-4 transition-transform" /></button>
         </section>
+        {infraList.length > 0 && (
+          <section class="card-n p-5 lg:p-6" aria-labelledby="infra-h">
+            <h2 id="infra-h" class="mb-4 text-[18px] font-medium leading-[22px]">{infraTitle}</h2>
+            <ul class="grid gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+              {infraList.map((s) => (
+                <li class="flex items-center gap-3 text-[14px] leading-[20px]"><span class="grid size-7 shrink-0 place-items-center rounded-[8px] bg-accent/10 text-accent"><Icon name="check" class="size-4" /></span>{s}</li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {restChips.length > 0 && (
+          <section class="card-n p-5 lg:p-6" aria-labelledby="feat-h">
+            <h2 id="feat-h" class="mb-3 text-[18px] font-medium leading-[22px]">{ti.features}</h2>
+            <ul class="flex flex-wrap gap-2">{restChips.map((c) => <li>{c.href ? <a href={c.href} class="chip-n">{c.text}</a> : <span class="chip-n">{c.text}</span>}</li>)}</ul>
+          </section>
+        )}
       </div>
     </div>
   </div>
