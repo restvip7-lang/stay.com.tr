@@ -10,10 +10,12 @@ import type { AstroCookies } from 'astro';
 import { storeMode } from './store';
 import type { Role, UserRow } from './adminDb';
 
-export type Section = 'home' | 'objects' | 'chat' | 'seo' | 'users';
+export type Section = 'home' | 'objects' | 'projects' | 'chat' | 'seo' | 'users';
 const ACCESS: Record<Section, Role[]> = {
   home: ['owner', 'admin', 'editor'],
   objects: ['owner', 'admin', 'editor'],
+  // «Страница проекта» (наши ЖК): сотрудник с ролью «Проекты» видит только этот раздел (Anuar 28.11.2026).
+  projects: ['owner', 'admin', 'editor', 'projects'],
   chat: ['owner', 'admin'],
   seo: ['owner', 'admin', 'seo'],
   users: ['owner'],

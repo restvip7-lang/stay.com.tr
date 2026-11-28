@@ -694,6 +694,14 @@ export interface ComplexDetail extends Project {
   genplan: { svg: string; sectors: ComplexSector[] } | null;
 }
 
+/* Демо-ЖК для превью (Anuar 28.11.2026: «один проект максимально заполненный»): если данных ЖК нет — берём пример
+ * из src/content/fixtures/complex-demo/{code}.json. Только на превью Vercel и в разработке, на сервере не используется. */
+const complexDemos = import.meta.glob<{ default: RawListing }>('../content/fixtures/complex-demo/*.json', { eager: true });
+const demoAllowed = () => (process.env.VERCEL_ENV ?? '') === 'preview' || import.meta.env.DEV;
+function complexDemo(code: string): RawListing | null {
+  return demoAllowed() ? complexDemos[`../content/fixtures/complex-demo/${code}.json`]?.default ?? null : null;
+}
+
 export async function getComplex(slug: string): Promise<ComplexDetail | null> {
   const base = await getProject(slug);
   const code = base?.code ?? slug.replace(/-/g, '_');
@@ -704,6 +712,7 @@ export async function getComplex(slug: string): Promise<ComplexDetail | null> {
   } catch {
     x = null;
   }
+  if (!x) x = complexDemo(code);
   if (!x && !base) return null;
   const p = base ?? toProject({ ...x, apartments: x?.apartments, priceFrom: null });
   const map = x?.map;
@@ -739,6 +748,12 @@ export interface DetailL {
   pricePerSquare: number | null;
   video: string | null;
   updated: string | null;
+  /** Вид из окна (справочник Portfolio). */
+  view?: string[];
+  purpose?: string[];
+  businessType?: string[];
+  /** Прочие поля карточки Portfolio как есть — ItemPage берёт нужные по именам. */
+  extra?: Record<string, string>;
 }
 
 /** Описание объекта на языке lang; null — перевода нет (API отдаёт пустой заголовок). */
@@ -754,10 +769,14 @@ export async function getDetailL(id: string, operation: 'sale' | 'rental', lang:
       images: (det.imageUrls.length ? det.imageUrls : [snap!.card.imageUrl]).filter(Boolean).map((u: string) => fixImage(u)!),
       yearBuilt: det.yearBuilt,
       region: det.regionName,
-      infrastructure: [],
+      infrastructure: det.amenities?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
       pricePerSquare: det.pricePerSquare,
       video: det.videoUrl,
       updated: det.modified,
+      view: det.view?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
+      purpose: det.purpose?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
+      businessType: det.businessType?.[lang === 'ru' ? 'ru' : 'en'] ?? [],
+      extra: det.extra ?? {},
     };
   }
   const key = `detail-${operation}-${id}-${lang}`;

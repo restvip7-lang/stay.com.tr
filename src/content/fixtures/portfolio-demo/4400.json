@@ -1,0 +1,135 @@
+{
+ "card": {
+  "id": "4400",
+  "bitrixId": "",
+  "code": "11-887",
+  "title": "Стильная квартира 1+1 с видом на горы в районе Паяллар",
+  "projectBitrixId": null,
+  "projectCode": null,
+  "projectName": null,
+  "roomLabel": "1+1",
+  "propertyType": "Finished Apartment",
+  "city": "Аланья",
+  "area": "Паяллар",
+  "operation": "sale",
+  "objectType": "object",
+  "price": 90000,
+  "currency": "EUR",
+  "totalArea": 60,
+  "distanceToSea": 2300,
+  "floor": null,
+  "objectCode": "STYE015",
+  "buildName": null,
+  "isPrivate": false,
+  "discount": null,
+  "imageUrl": "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/e64b88f9e9bbbedf9b4ae380c35fced2.jpg",
+  "detailUrl": "/sale/4400?source=portfolio&language=ru",
+  "langs": [
+   "ru",
+   "en",
+   "sr"
+  ],
+  "modified": "2026-07-05 01:15:20"
+ },
+ "detail": {
+  "id": "4400",
+  "operation": "sale",
+  "i18n": {
+   "ru": {
+    "title": "Стильная квартира 1+1 с видом на горы в районе Паяллар",
+    "content": "<p>Выставлена на продажу квартира в районе Паяллар.</p><p>Планировка квартиры 1+1, общая площадь 60 м2, расстояние до моря 2300 метров.</p><p>Благодаря плану активной застройки многочисленных свободных земель района, скоро здесь будет новая роскошная Аланья. В 2022-2023 в Паялларе началось строительство небывалого ранее количества резиденций, и все они отличаются полной инфраструктурой, просторными участками.</p><p>В целом это развитый район, где есть своя обширная инфраструктура, но большая часть застройки представлена простыми турецкими домами. Жители заняты в сфере туризма, здесь много отелей на берегу моря. Работают начальная и средние школы, лицей, больница, поликлиника, стоматология, супермаркеты, заправки, банкоматы, аптеки. В соседнем поселке Конаклы на берегу моря есть муниципальный лесной парк с мангалами.</p><p>В Паялларе вскоре будет новая набережная длиной в 4 км, с зонами отдыха, парками, велодорожкой, детской площадкой. Строится современная больница на участке 13,4 га. Район отдален от центра Аланьи на 10 км. До аэропорта Анталии 100 км.</p>"
+   },
+   "en": {
+    "title": "Stylish 1+1 apartment with mountain view in the Payallar area",
+    "content": "<p>Stay Property company offers an apartment for sale in Payallar</p><p>Apartment layout: 1+1, total area: 60 sq.m, distance to the sea: 2300 m</p><p>Due to an active development plan for the numerous vacant land plots of the district a new, luxurious Alanya will soon be built here. In 2022-2023 a construсtion of an unprecedented number of residences has began in Payallar and all of them feature complete infrastructure and spacious plots.</p><p>In general Payallar is a well-developed district with its own extensive infrastructure. Most of the development in Payallar is represented by Turkish houses and villas. Residents are engaged in the field of tourism; there are many hotels on the shore. There are primary and middle schools, a lyceum, a hospital, a clinic, dentistry, supermarkets, gas stations, ATMs and pharmacies. The neighboring district of Konakli offers a public forest park with barbecue facilities on the seashore.</p><p>Payallar will soon have a new promenade 4 km long, with recreation areas, parks, a bicycle path and a children's playground. A modern hospital is under construction on the territory of 13.4 hectares. The area is 10 km from the center of Alanya and 100 km from the Antalya Airport.</p>"
+   },
+   "sr": {
+    "title": "Stilizovan stan 1+1 sa pogledom na planine u oblasti Payallar",
+    "content": "<p>Prodaje se stan u Paiallaru - Alanja.</p><p>Raspored stana je 1+1, ukupne površine 60 m2, udaljenost od mora je 2300 metara.</p><p>Zahvaljujući aktivnom planu razvoja brojnih slobodnih zemljišta u ovoj oblasti, uskoro će se pojaviti nova luksuzna Alanja. U periodu 2022-2023. u Pajalaru je počela izgradnja neviđenog broja rezidencija, a sve ih odlikuju kompletna infrastruktura, prostrane parcele.</p><p>Generalno, ovo je razvijeno područje, koje ima svoju obimnu infrastrukturu, ali najveći deo razvoja predstavljaju jednostavne turske kuće. Stanovnici se bave turizmom, ima mnogo hotela na obali mora. Postoje osnovne i srednje škole, licej, bolnica, ambulanta, stomatologija, supermarketi, benzinske pumpe, bankomati, apoteke. U susednom selu Konakli, na samoj obali mora, nalazi se opštinska park šuma sa roštiljem.</p><p>Paiallar će uskoro imati novi nasip dug 4 km sa rekreativnim zonama, parkovima, biciklističkom stazom i igralištem. Na placu od 13,4 hektara gradi se moderna bolnica. Oblast je udaljena 10 km od centra Alanje. Aerodrom Antalija je udaljen 100 km.</p>"
+   }
+  },
+  "imageUrls": [
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/e64b88f9e9bbbedf9b4ae380c35fced2.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/d3cb2c339dba9d380cc5f17a8c04e7c4.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/04173986385abc3ccf3eb4f3ebacf04d.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/b4d6a5f6e96afe160dbe15a490972597.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/25e39e901d88639484f50cdba84802a1.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/a57af1eb644656ac1d2d399c69d36e31.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/3c755fd42c664958489ac4b97c366c98.jpg",
+   "https://portfolio.stayrepo.com//lbi-content/uploads/media/4400/large/2dd0869897481a557e84bb679737be5a.jpg"
+  ],
+  "yearBuilt": "2024",
+  "regionName": "Паяллар, Аланья",
+  "country": "Turkey",
+  "pricePerSquare": 1500,
+  "videoUrl": null,
+  "latitude": null,
+  "longitude": null,
+  "amenities": {
+   "ru": [
+    "Библиотека",
+    "Видеонаблюдение 24/7",
+    "Игровая площадка",
+    "Крытый бассейн",
+    "Зона отдыха - барбекю",
+    "Игровая комната",
+    "Кафе-ресторан",
+    "Кинотеатр",
+    "Конференц-зал",
+    "Рынок",
+    "Массажный кабинет",
+    "Открытая парковка",
+    "Открытый бассейн",
+    "Римская парная",
+    "Трансфер на пляж",
+    "Турецкий хаммам",
+    "Финская сауна",
+    "Фитнес-центр",
+    "Электрический генератор"
+   ],
+   "en": [
+    "Library",
+    "Video surveillance 24/7",
+    "Playground",
+    "Indoor pool",
+    "Recreation Area - BBQ",
+    "Game Room",
+    "Cafe Restaurant",
+    "Cinema",
+    "Conference Hall",
+    "Market",
+    "Massage Room",
+    "Open Parking",
+    "Open Pool",
+    "Roman Steam Room",
+    "Transfer to the beach",
+    "Turkish Hammam",
+    "Finnish Sauna",
+    "Fitness Center",
+    "Electric Generator"
+   ]
+  },
+  "view": {
+   "ru": [],
+   "en": []
+  },
+  "purpose": {
+   "ru": [],
+   "en": []
+  },
+  "businessType": {
+   "ru": [],
+   "en": []
+  },
+  "extra": {
+   "relax_zone": "Y",
+   "distance_sea": "2300",
+   "area_square": "60",
+   "year_built": "2024",
+   "active": "Y",
+   "citizenship": "N",
+   "sorting": "500"
+  },
+  "modified": "2026-07-05 01:15:20"
+ }
+}

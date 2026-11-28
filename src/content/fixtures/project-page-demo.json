@@ -1,0 +1,201 @@
+{
+ "_note": "Демо для превью (Anuar 28.11.2026): фото и описание — из adminer (Exodus Premium Town), остальные тексты — примеры. На сервере не используется.",
+ "projects": {
+  "exodus_premium_town": {
+   "subtitle": {
+    "ru": "Премиальный комплекс-городок у моря в зелёном районе Каргыджак",
+    "en": "Premium seaside residential town in the green Kargicak district"
+   },
+   "about": {
+    "ru": "Масштабный премиальный комплекс-городок в экологически чистом районе Аланьи — Каргыджаке. В проекте апартаменты 1+1, двухуровневые пентхаусы и дуплексы 2+1, триплекс-виллы и сдвоенные виллы. До пляжей Каргыджака — 3 км.",
+    "en": "A large premium residential town in Kargicak, a green and quiet district of Alanya. Apartments 1+1, two-level penthouses and 2+1 duplexes, triplex and semi-detached villas. 3 km to the Kargicak beaches."
+   },
+   "promos": [
+    {
+     "title": {
+      "ru": "Скидка 5% при 100% оплате",
+      "en": "5% off with full payment"
+     },
+     "text": {
+      "ru": "Пример акции: при полной оплате до конца года — скидка 5% на любую квартиру.",
+      "en": "Example: 5% off any apartment paid in full before year end."
+     },
+     "until": "2026-12-31",
+     "image": "https://adminer.stayproperty.com/photo/336/87d08c1f3ef0190f.jpg"
+    },
+    {
+     "title": {
+      "ru": "Рассрочка 0% на 24 месяца",
+      "en": "0% instalments for 24 months"
+     },
+     "text": {
+      "ru": "Пример акции: первый взнос 30%, остаток — равными платежами без процентов.",
+      "en": "Example: 30% down, the rest in equal interest-free payments."
+     },
+     "until": "2027-01-31",
+     "image": "https://adminer.stayproperty.com/photo/336/664bfa692a5419e1.jpg"
+    }
+   ],
+   "installment": {
+    "down": 30,
+    "months": 24,
+    "text": {
+     "ru": "Пример: первый взнос 30%, остаток — до сдачи дома без процентов."
+    }
+   },
+   "tourUrl": "https://www.youtube.com/embed/mCCWFJYVTUw",
+   "liveUrl": "https://www.youtube.com/@StayProperty/streams",
+   "photoCats": {
+    "https://adminer.stayproperty.com/photo/336/446f326b8c12cd48.jpg": "territory",
+    "https://adminer.stayproperty.com/photo/336/25a369328bcd3c71.jpg": "infra",
+    "https://adminer.stayproperty.com/photo/336/87d08c1f3ef0190f.jpg": "interior",
+    "https://adminer.stayproperty.com/photo/336/664bfa692a5419e1.jpg": "view",
+    "https://adminer.stayproperty.com/photo/336/c280df1b8ef75910.jpg": "territory",
+    "https://adminer.stayproperty.com/photo/336/507a426031da78cd.jpg": "infra",
+    "https://adminer.stayproperty.com/photo/336/90278999484b2ee3.jpg": "interior",
+    "https://adminer.stayproperty.com/photo/336/4f0e48eb65e500e6.jpg": "view",
+    "https://adminer.stayproperty.com/photo/336/c78d35a4731e456d.jpg": "territory",
+    "https://adminer.stayproperty.com/photo/336/23e2111b691d6ab8.jpg": "infra",
+    "https://adminer.stayproperty.com/photo/336/561e80e6482d36e6.jpg": "interior",
+    "https://adminer.stayproperty.com/photo/336/9a8414eb34741eb3.jpg": "view",
+    "https://adminer.stayproperty.com/photo/336/ce53f05029658af0.jpg": "territory",
+    "https://adminer.stayproperty.com/photo/336/b78f773ea29cae90.jpg": "infra",
+    "https://adminer.stayproperty.com/photo/336/0f9f5746ca11eb64.jpg": "interior",
+    "https://adminer.stayproperty.com/photo/336/d5ab6831f11f6553.jpg": "view",
+    "https://adminer.stayproperty.com/photo/336/8765273e6ed7e18a.jpg": "territory",
+    "https://adminer.stayproperty.com/photo/336/caa9579ffce16d59.jpg": "infra",
+    "https://adminer.stayproperty.com/photo/336/e8fa89ffc870f62c.jpg": "interior",
+    "https://adminer.stayproperty.com/photo/336/004e49c1bd12e08b.jpg": "view",
+    "https://adminer.stayproperty.com/photo/336/a47c3647fa6f0181.jpg": "territory",
+    "https://adminer.stayproperty.com/photo/336/7b7ed6aa60ef8c22.jpg": "infra",
+    "https://adminer.stayproperty.com/photo/336/c3b85148aa282197.jpg": "interior",
+    "https://adminer.stayproperty.com/photo/336/887c7c431938b969.jpg": "view"
+   },
+   "docs": [
+    {
+     "tab": "pres",
+     "title": {
+      "ru": "Презентация проекта",
+      "en": "Project presentation"
+     },
+     "file": "/media/demo/demo-material.pdf",
+     "cover": "https://adminer.stayproperty.com/photo/336/446f326b8c12cd48.jpg"
+    },
+    {
+     "tab": "plans",
+     "title": {
+      "ru": "Планировки квартир 1+1 и 2+1",
+      "en": "Floor plans 1+1 and 2+1"
+     },
+     "file": "/media/demo/demo-material.pdf",
+     "cover": "https://adminer.stayproperty.com/photo/336/507a426031da78cd.jpg"
+    },
+    {
+     "tab": "plans",
+     "title": {
+      "ru": "Планировки вилл",
+      "en": "Villa floor plans"
+     },
+     "file": "/media/demo/demo-material.pdf",
+     "cover": "https://adminer.stayproperty.com/photo/336/0f9f5746ca11eb64.jpg"
+    },
+    {
+     "tab": "docs",
+     "title": {
+      "ru": "Разрешение на строительство",
+      "en": "Building permit"
+     },
+     "file": "/media/demo/demo-material.pdf",
+     "cover": ""
+    },
+    {
+     "tab": "docs",
+     "title": {
+      "ru": "Договор купли-продажи (образец)",
+      "en": "Sale agreement (sample)"
+     },
+     "file": "/media/demo/demo-material.pdf",
+     "cover": ""
+    }
+   ],
+   "progress": [
+    {
+     "month": "2026-11",
+     "photos": [
+      "https://adminer.stayproperty.com/photo/336/d5ab6831f11f6553.jpg",
+      "https://adminer.stayproperty.com/photo/336/8765273e6ed7e18a.jpg",
+      "https://adminer.stayproperty.com/photo/336/caa9579ffce16d59.jpg"
+     ],
+     "text": {
+      "ru": "Пример: идёт отделка фасадов, монтаж окон."
+     }
+    },
+    {
+     "month": "2026-10",
+     "photos": [
+      "https://adminer.stayproperty.com/photo/336/caa9579ffce16d59.jpg",
+      "https://adminer.stayproperty.com/photo/336/e8fa89ffc870f62c.jpg",
+      "https://adminer.stayproperty.com/photo/336/004e49c1bd12e08b.jpg"
+     ],
+     "text": {
+      "ru": "Пример: завершён каркас последнего этажа."
+     }
+    },
+    {
+     "month": "2026-09",
+     "photos": [
+      "https://adminer.stayproperty.com/photo/336/004e49c1bd12e08b.jpg",
+      "https://adminer.stayproperty.com/photo/336/a47c3647fa6f0181.jpg",
+      "https://adminer.stayproperty.com/photo/336/7b7ed6aa60ef8c22.jpg"
+     ],
+     "text": {
+      "ru": "Пример: возведены стены 5–7 этажей."
+     }
+    },
+    {
+     "month": "2026-08",
+     "photos": [
+      "https://adminer.stayproperty.com/photo/336/7b7ed6aa60ef8c22.jpg",
+      "https://adminer.stayproperty.com/photo/336/c3b85148aa282197.jpg",
+      "https://adminer.stayproperty.com/photo/336/887c7c431938b969.jpg"
+     ],
+     "text": {
+      "ru": "Пример: залит фундамент второго участка."
+     }
+    }
+   ],
+   "news": [
+    {
+     "date": "2026-11-20",
+     "title": {
+      "ru": "Пример: открыт шоурум с готовой квартирой"
+     },
+     "text": {
+      "ru": "Пример новости: в комплексе можно посмотреть квартиру с отделкой и мебелью. Запишитесь на показ у менеджера."
+     },
+     "image": "https://adminer.stayproperty.com/photo/336/e8fa89ffc870f62c.jpg"
+    },
+    {
+     "date": "2026-10-28",
+     "title": {
+      "ru": "Пример: начались работы по благоустройству"
+     },
+     "text": {
+      "ru": "Пример новости: на территории высаживают сады и готовят зоны бассейнов."
+     },
+     "image": "https://adminer.stayproperty.com/photo/336/004e49c1bd12e08b.jpg"
+    },
+    {
+     "date": "2026-09-15",
+     "title": {
+      "ru": "Пример: старт продаж нового корпуса"
+     },
+     "text": {
+      "ru": "Пример новости: в продажу вышли квартиры 1+1 и 2+1 в новом корпусе."
+     },
+     "image": "https://adminer.stayproperty.com/photo/336/a47c3647fa6f0181.jpg"
+    }
+   ]
+  }
+ }
+}
